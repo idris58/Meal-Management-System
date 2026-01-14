@@ -1,18 +1,22 @@
 import { useMeal } from '@/lib/meal-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 const expenseSchema = z.object({
   amount: z.coerce.number().min(1, "Amount is required"),
@@ -83,51 +87,69 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
 }
 
 function QuickLogMeal({ onClose }: { onClose: () => void }) {
-  const { logMeal, members } = useMeal();
+  const { logMeal, members, mealLogs } = useMeal();
+  const [date, setDate] = useState<Date>(new Date());
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
     Object.fromEntries(members.map(m => [m.id, "0"]))
   );
+
+  useEffect(() => {
+    const shortDate = format(date, 'yyyy-MM-dd');
+    const existingLogs = Object.fromEntries(
+      members.map(m => {
+        const log = mealLogs.find(l => l.memberId === m.id && l.date === shortDate);
+        return [m.id, log ? log.count.toString() : "0"];
+      })
+    );
+    setMealCounts(existingLogs);
+  }, [date, members, mealLogs]);
 
   const updateCount = (id: string, delta: number) => {
     setMealCounts(prev => {
       const currentVal = parseFloat(prev[id] || "0");
       const newVal = Math.max(0, currentVal + delta);
-      return {
-        ...prev,
-        [id]: newVal.toString()
-      };
+      return { ...prev, [id]: newVal.toString() };
     });
   };
 
   const handleInputChange = (id: string, value: string) => {
-    // Only allow numbers and decimal points
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
-      setMealCounts(prev => ({
-        ...prev,
-        [id]: value
-      }));
+      setMealCounts(prev => ({ ...prev, [id]: value }));
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const date = new Date().toISOString();
+    const isoDate = date.toISOString();
     Object.entries(mealCounts).forEach(([memberId, countStr]) => {
       const count = parseFloat(countStr);
-      if (!isNaN(count) && count > 0) logMeal(memberId, count, date);
+      logMeal(memberId, isNaN(count) ? 0 : count, isoDate);
     });
     onClose();
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+      <div className="space-y-2">
+        <Label>Select Date</Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {date ? format(date, "PPP") : <span>Pick a date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
+          </PopoverContent>
+        </Popover>
+      </div>
+
       <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
         {members.map(member => (
           <div key={member.id} className="flex items-center justify-between p-2 border rounded-lg bg-secondary/10">
             <div className="flex items-center gap-3">
-              <Avatar className="h-8 w-8 text-xs">
-                <AvatarFallback>{member.avatar}</AvatarFallback>
-              </Avatar>
+              <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
               <span className="font-medium text-sm truncate max-w-[100px]">{member.name}</span>
             </div>
             <div className="flex items-center gap-2">
@@ -138,7 +160,6 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
                 className="h-8 w-16 text-center text-sm font-bold px-1" 
                 value={mealCounts[member.id]} 
                 onChange={(e) => handleInputChange(member.id, e.target.value)}
-                placeholder="0"
               />
               <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
                 <Plus className="h-3 w-3" />
@@ -147,10 +168,7 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
           </div>
         ))}
       </div>
-      <div className="space-y-3 pt-2 border-t">
-        <p className="text-center text-xs text-muted-foreground">Type any custom value (e.g., 0.3 or 1.7)</p>
-        <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">Submit All Meals</Button>
-      </div>
+      <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">Save Daily Log</Button>
     </form>
   );
 }
@@ -223,7 +241,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-1">Meals Eaten</p>
-                  <p className="text-2xl font-bold font-heading">{currentUser.mealsEaten}</p>
+                  <p className="text-2xl font-bold font-heading">{myStats.mealsEaten}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-1">My Meal Cost</p>
@@ -266,7 +284,7 @@ export default function Dashboard() {
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md w-[95%]">
-              <DialogHeader><DialogTitle>Log Meals for Today</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Log Meals by Date</DialogTitle></DialogHeader>
               <QuickLogMeal onClose={() => setOpenMeal(false)} />
             </DialogContent>
           </Dialog>
@@ -287,7 +305,7 @@ export default function Dashboard() {
                   <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
                   <div>
                     <p className="font-medium text-sm">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">{member.mealsEaten} Meals</p>
+                    <p className="text-xs text-muted-foreground">{mStats.mealsEaten} Meals</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -301,35 +319,6 @@ export default function Dashboard() {
           })}
         </div>
       </section>
-
-      {currentUser?.role === 'admin' && (
-        <section className="mt-8 pt-6 border-t">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-800">Cycle Management</h2>
-              <p className="text-sm text-muted-foreground">Manage the current meal cycle.</p>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="gap-2">
-                  <RefreshCcw className="h-4 w-4" />
-                  Close & Archive Cycle
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>This will clear all current expenses and meal logs for all users. In a real application, this would save the cycle to history before resetting.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={resetCycle}>Yes, Close Cycle</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </section>
-      )}
     </div>
   );
 }

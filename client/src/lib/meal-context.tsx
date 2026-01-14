@@ -25,7 +25,7 @@ export interface Expense {
 
 export interface MealLog {
   id: string;
-  date: string;
+  date: string; // ISO date (YYYY-MM-DD)
   memberId: string;
   count: number;
 }
@@ -69,9 +69,9 @@ const MealContext = createContext<MealContextType | undefined>(undefined);
 
 // Mock Data Initialization
 const INITIAL_MEMBERS: Member[] = [
-  { id: '1', name: 'Admin User', role: 'admin', deposit: 5000, mealsEaten: 15, isActive: true, avatar: 'AD' },
-  { id: '2', name: 'John Doe', role: 'viewer', deposit: 3000, mealsEaten: 12, isActive: true, avatar: 'JD' },
-  { id: '3', name: 'Jane Smith', role: 'viewer', deposit: 2000, mealsEaten: 18, isActive: true, avatar: 'JS' },
+  { id: '1', name: 'Admin User', role: 'admin', deposit: 5000, mealsEaten: 0, isActive: true, avatar: 'AD' },
+  { id: '2', name: 'John Doe', role: 'viewer', deposit: 3000, mealsEaten: 0, isActive: true, avatar: 'JD' },
+  { id: '3', name: 'Jane Smith', role: 'viewer', deposit: 2000, mealsEaten: 0, isActive: true, avatar: 'JS' },
 ];
 
 const INITIAL_EXPENSES: Expense[] = [
@@ -91,9 +91,8 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const totalMealExpenses = expenses.filter(e => e.type === 'meal').reduce((sum, e) => sum + e.amount, 0);
   const totalFixedExpenses = expenses.filter(e => e.type === 'fixed').reduce((sum, e) => sum + e.amount, 0);
   
-  // Total meals consumed is currently stored directly on member for simplicity, 
-  // but could be derived from mealLogs in a more complex version.
-  const totalMealsConsumed = members.reduce((sum, m) => sum + m.mealsEaten, 0);
+  // Calculate total meals from logs
+  const totalMealsConsumed = mealLogs.reduce((sum, log) => sum + log.count, 0);
   const activeMembersCount = members.filter(m => m.isActive).length;
 
   // Key Rates
@@ -115,12 +114,16 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const member = members.find(m => m.id === memberId);
     if (!member) return { mealCost: 0, fixedCost: 0, totalCost: 0, balance: 0 };
 
-    const mealCost = member.mealsEaten * currentMealRate;
+    const memberMeals = mealLogs
+      .filter(log => log.memberId === memberId)
+      .reduce((sum, log) => sum + log.count, 0);
+
+    const mealCost = memberMeals * currentMealRate;
     const fixedCost = member.isActive ? fixedCostPerMember : 0;
     const totalCost = mealCost + fixedCost;
     const balance = member.deposit - totalCost;
 
-    return { mealCost, fixedCost, totalCost, balance };
+    return { mealCost, fixedCost, totalCost, balance, mealsEaten: memberMeals };
   };
 
   // Actions
@@ -143,6 +146,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
   const removeMember = (id: string) => {
     setMembers(members.filter(m => m.id !== id));
+    setMealLogs(mealLogs.filter(log => log.memberId !== id));
   };
 
   const addExpense = (amount: number, description: string, type: 'meal' | 'fixed', paidBy: string) => {
@@ -164,21 +168,24 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const logMeal = (memberId: string, count: number, date: string) => {
-    // Also update aggregate count on member for now
-    setMembers(members.map(m => 
-      m.id === memberId ? { ...m, mealsEaten: m.mealsEaten + count } : m
-    ));
-    
-    setMealLogs([...mealLogs, {
-      id: uuidv4(),
-      memberId,
-      count,
-      date
-    }]);
+    const shortDate = date.split('T')[0];
+    setMealLogs(prev => {
+      const existingIdx = prev.findIndex(log => log.memberId === memberId && log.date === shortDate);
+      if (existingIdx >= 0) {
+        const newLogs = [...prev];
+        if (count === 0) {
+          newLogs.splice(existingIdx, 1);
+        } else {
+          newLogs[existingIdx] = { ...newLogs[existingIdx], count };
+        }
+        return newLogs;
+      }
+      if (count === 0) return prev;
+      return [...prev, { id: uuidv4(), memberId, count, date: shortDate }];
+    });
   };
 
   const resetCycle = () => {
-    // In a real app, archive current state to history
     setMembers(members.map(m => ({ ...m, deposit: 0, mealsEaten: 0 })));
     setExpenses([]);
     setMealLogs([]);
@@ -186,7 +193,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
   return (
     <MealContext.Provider value={{
-      members,
+      members: members.map(m => ({ ...m, mealsEaten: mealLogs.filter(l => l.memberId === m.id).reduce((s, l) => s + l.count, 0) })),
       expenses,
       mealLogs,
       currentUser,

@@ -10,7 +10,8 @@ import {
   Menu, 
   X, 
   ChefHat,
-  LogOut
+  LogOut,
+  UtensilsCrossed
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -24,6 +25,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
     { icon: Users, label: 'Members', href: '/members' },
+    { icon: UtensilsCrossed, label: 'Meals', href: '/meals' },
     { icon: Receipt, label: 'Expenses', href: '/expenses' },
     { icon: History, label: 'History', href: '/history' },
   ];
