@@ -84,22 +84,37 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
 
 function QuickLogMeal({ onClose }: { onClose: () => void }) {
   const { logMeal, members } = useMeal();
-  const [mealCounts, setMealCounts] = useState<Record<string, number>>(
-    Object.fromEntries(members.map(m => [m.id, 0]))
+  const [mealCounts, setMealCounts] = useState<Record<string, string>>(
+    Object.fromEntries(members.map(m => [m.id, "0"]))
   );
 
   const updateCount = (id: string, delta: number) => {
-    setMealCounts(prev => ({
-      ...prev,
-      [id]: Math.max(0, (prev[id] || 0) + delta)
-    }));
+    setMealCounts(prev => {
+      const currentVal = parseFloat(prev[id] || "0");
+      const newVal = Math.max(0, currentVal + delta);
+      return {
+        ...prev,
+        [id]: newVal.toString()
+      };
+    });
+  };
+
+  const handleInputChange = (id: string, value: string) => {
+    // Only allow numbers and decimal points
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      setMealCounts(prev => ({
+        ...prev,
+        [id]: value
+      }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const date = new Date().toISOString();
-    Object.entries(mealCounts).forEach(([memberId, count]) => {
-      if (count > 0) logMeal(memberId, count, date);
+    Object.entries(mealCounts).forEach(([memberId, countStr]) => {
+      const count = parseFloat(countStr);
+      if (!isNaN(count) && count > 0) logMeal(memberId, count, date);
     });
     onClose();
   };
@@ -115,11 +130,16 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
               </Avatar>
               <span className="font-medium text-sm truncate max-w-[100px]">{member.name}</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
                 <Minus className="h-3 w-3" />
               </Button>
-              <span className="text-lg font-bold w-8 text-center">{mealCounts[member.id] || 0}</span>
+              <Input 
+                className="h-8 w-16 text-center text-sm font-bold px-1" 
+                value={mealCounts[member.id]} 
+                onChange={(e) => handleInputChange(member.id, e.target.value)}
+                placeholder="0"
+              />
               <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
                 <Plus className="h-3 w-3" />
               </Button>
@@ -128,7 +148,7 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
         ))}
       </div>
       <div className="space-y-3 pt-2 border-t">
-        <p className="text-center text-xs text-muted-foreground">0.5 = Breakfast/Snack, 1.0 = Full Meal</p>
+        <p className="text-center text-xs text-muted-foreground">Type any custom value (e.g., 0.3 or 1.7)</p>
         <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">Submit All Meals</Button>
       </div>
     </form>
