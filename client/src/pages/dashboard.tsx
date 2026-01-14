@@ -1,9 +1,7 @@
 import { useMeal } from '@/lib/meal-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, ShoppingBag, Receipt, Utensils, RefreshCcw } from 'lucide-react';
-import { Progress } from "@/components/ui/progress";
-import { format } from 'date-fns';
+import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,8 +14,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-// --- Quick Add Forms ---
-
 const expenseSchema = z.object({
   amount: z.coerce.number().min(1, "Amount is required"),
   description: z.string().min(2, "Description is required"),
@@ -28,11 +24,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
   const { addExpense, currentUser } = useMeal();
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
-    defaultValues: {
-      amount: 0,
-      description: "",
-      type: "meal",
-    },
+    defaultValues: { amount: 0, description: "", type: "meal" },
   });
 
   const onSubmit = (data: z.infer<typeof expenseSchema>) => {
@@ -52,11 +44,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
             <FormItem>
               <FormLabel>Expense Type</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                </FormControl>
+                <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                 <SelectContent>
                   <SelectItem value="meal">Meal (Grocery/Food)</SelectItem>
                   <SelectItem value="fixed">Fixed (Bills/Utilities)</SelectItem>
@@ -72,9 +60,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Rice, WiFi Bill" {...field} />
-              </FormControl>
+              <FormControl><Input placeholder="e.g., Rice, WiFi Bill" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -85,9 +71,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Amount</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="0.00" {...field} />
-              </FormControl>
+              <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -99,39 +83,57 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
 }
 
 function QuickLogMeal({ onClose }: { onClose: () => void }) {
-  const { logMeal, currentUser } = useMeal();
-  const [count, setCount] = useState(1);
+  const { logMeal, members } = useMeal();
+  const [mealCounts, setMealCounts] = useState<Record<string, number>>(
+    Object.fromEntries(members.map(m => [m.id, 0]))
+  );
+
+  const updateCount = (id: string, delta: number) => {
+    setMealCounts(prev => ({
+      ...prev,
+      [id]: Math.max(0, (prev[id] || 0) + delta)
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentUser) {
-      logMeal(currentUser.id, count, new Date().toISOString());
-      onClose();
-    }
+    const date = new Date().toISOString();
+    Object.entries(mealCounts).forEach(([memberId, count]) => {
+      if (count > 0) logMeal(memberId, count, date);
+    });
+    onClose();
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-      <div className="space-y-2">
-        <Label>Meals Consumed Today</Label>
-        <div className="flex items-center justify-center gap-4">
-          <Button type="button" variant="outline" size="icon" onClick={() => setCount(Math.max(0.5, count - 0.5))}>
-            <Minus className="h-4 w-4" />
-          </Button>
-          <span className="text-2xl font-bold w-12 text-center">{count}</span>
-          <Button type="button" variant="outline" size="icon" onClick={() => setCount(count + 0.5)}>
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-center text-sm text-muted-foreground">0.5 = Breakfast/Snack, 1.0 = Full Meal</p>
+    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+      <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+        {members.map(member => (
+          <div key={member.id} className="flex items-center justify-between p-2 border rounded-lg bg-secondary/10">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-8 w-8 text-xs">
+                <AvatarFallback>{member.avatar}</AvatarFallback>
+              </Avatar>
+              <span className="font-medium text-sm truncate max-w-[100px]">{member.name}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
+                <Minus className="h-3 w-3" />
+              </Button>
+              <span className="text-lg font-bold w-8 text-center">{mealCounts[member.id] || 0}</span>
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        ))}
       </div>
-      <Button type="submit" className="w-full">Log Meal</Button>
+      <div className="space-y-3 pt-2 border-t">
+        <p className="text-center text-xs text-muted-foreground">0.5 = Breakfast/Snack, 1.0 = Full Meal</p>
+        <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">Submit All Meals</Button>
+      </div>
     </form>
   );
 }
-
-
-// --- Main Dashboard Components ---
 
 export default function Dashboard() {
   const { stats, currentUser, getMemberStats, members, resetCycle } = useMeal();
@@ -141,22 +143,16 @@ export default function Dashboard() {
   const myStats = currentUser ? getMemberStats(currentUser.id) : null;
 
   return (
-    <div className="space-y-6">
-      {/* Top HUD Area */}
+    <div className="space-y-6 pb-20">
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Main Stat: Remaining Cash */}
         <Card className="glass-card border-none bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-emerald-100 text-sm font-medium tracking-wide uppercase">Remaining Cash in Hand</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl md:text-5xl font-heading font-bold">
-                ৳{stats.remainingCash.toFixed(0)}
-              </span>
-              <span className="text-emerald-100 text-sm">
-                / ৳{stats.totalDeposits.toFixed(0)} Collected
-              </span>
+              <span className="text-4xl md:text-5xl font-heading font-bold">৳{stats.remainingCash.toFixed(0)}</span>
+              <span className="text-emerald-100 text-sm">/ ৳{stats.totalDeposits.toFixed(0)} Collected</span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div className="bg-white/10 rounded p-2 backdrop-blur-sm">
@@ -171,7 +167,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Secondary Stat: Meal Rate */}
         <Card className="glass-card">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-muted-foreground text-sm font-medium uppercase">Current Meal Rate</CardTitle>
@@ -179,12 +174,8 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col">
-              <span className="text-3xl md:text-4xl font-heading font-bold text-foreground">
-                ৳{stats.currentMealRate.toFixed(2)}
-              </span>
-              <p className="text-xs text-muted-foreground mt-1">
-                Per Meal
-              </p>
+              <span className="text-3xl md:text-4xl font-heading font-bold text-foreground">৳{stats.currentMealRate.toFixed(2)}</span>
+              <p className="text-xs text-muted-foreground mt-1">Per Meal</p>
             </div>
             <div className="mt-4 pt-4 border-t text-sm space-y-1">
               <div className="flex justify-between">
@@ -200,14 +191,11 @@ export default function Dashboard() {
         </Card>
       </section>
 
-      {/* User Specific Status */}
       {currentUser && myStats && (
         <section>
           <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
             My Status 
-            <span className="text-xs font-normal text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-              {currentUser.role}
-            </span>
+            <span className="text-xs font-normal text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{currentUser.role}</span>
           </h2>
           <Card className="glass-card overflow-hidden">
             <div className={`h-2 w-full ${myStats.balance >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
@@ -226,12 +214,8 @@ export default function Dashboard() {
                   <p className="text-2xl font-bold font-heading">৳{myStats.fixedCost.toFixed(0)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase mb-1">
-                    {myStats.balance >= 0 ? 'To Get (Pabe)' : 'To Pay (Dibe)'}
-                  </p>
-                  <p className={`text-2xl font-bold font-heading ${myStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    ৳{Math.abs(myStats.balance).toFixed(2)}
-                  </p>
+                  <p className="text-xs text-muted-foreground uppercase mb-1">{myStats.balance >= 0 ? 'To Get (Pabe)' : 'To Pay (Dibe)'}</p>
+                  <p className={`text-2xl font-bold font-heading ${myStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{Math.abs(myStats.balance).toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
@@ -239,7 +223,6 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Quick Actions (Admin Only) */}
       {currentUser?.role === 'admin' && (
         <section className="grid grid-cols-2 gap-4">
           <Dialog open={openExpense} onOpenChange={setOpenExpense}>
@@ -250,9 +233,7 @@ export default function Dashboard() {
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Expense</DialogTitle>
-              </DialogHeader>
+              <DialogHeader><DialogTitle>Add New Expense</DialogTitle></DialogHeader>
               <QuickAddExpense onClose={() => setOpenExpense(false)} />
             </DialogContent>
           </Dialog>
@@ -261,26 +242,21 @@ export default function Dashboard() {
             <DialogTrigger asChild>
               <Button size="lg" className="h-20 flex flex-col items-center justify-center gap-2 bg-white border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-all">
                 <Utensils className="h-6 w-6" />
-                <span className="font-semibold">Log Meal</span>
+                <span className="font-semibold">Log Meals</span>
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Log Daily Meal</DialogTitle>
-              </DialogHeader>
+            <DialogContent className="max-w-md w-[95%]">
+              <DialogHeader><DialogTitle>Log Meals for Today</DialogTitle></DialogHeader>
               <QuickLogMeal onClose={() => setOpenMeal(false)} />
             </DialogContent>
           </Dialog>
         </section>
       )}
 
-      {/* Members Overview Preview */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold">All Members Summary</h2>
-          <Button variant="ghost" size="sm" asChild>
-            <a href="/members">View Details</a>
-          </Button>
+          <Button variant="ghost" size="sm" asChild><a href="/members">View Details</a></Button>
         </div>
         <div className="grid gap-3">
           {members.map(member => {
@@ -288,9 +264,7 @@ export default function Dashboard() {
             return (
               <div key={member.id} className="flex items-center justify-between p-3 bg-card border rounded-lg shadow-sm">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8 text-xs">
-                    <AvatarFallback>{member.avatar}</AvatarFallback>
-                  </Avatar>
+                  <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
                   <div>
                     <p className="font-medium text-sm">{member.name}</p>
                     <p className="text-xs text-muted-foreground">{member.mealsEaten} Meals</p>
@@ -308,7 +282,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Cycle Management (Admin Only) */}
       {currentUser?.role === 'admin' && (
         <section className="mt-8 pt-6 border-t">
           <div className="flex items-center justify-between">
@@ -326,9 +299,7 @@ export default function Dashboard() {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will clear all current expenses and meal logs for all users. In a real application, this would save the cycle to history before resetting.
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>This will clear all current expenses and meal logs for all users. In a real application, this would save the cycle to history before resetting.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
