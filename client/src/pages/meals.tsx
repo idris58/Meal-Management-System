@@ -25,20 +25,20 @@ export default function Meals() {
       <Card className="flex-1 overflow-hidden">
         <ScrollArea className="h-[calc(100vh-250px)]">
           <Table>
-            <TableHeader className="sticky top-0 bg-card z-10">
-              <TableRow>
-                <TableHead className="w-[150px] sticky left-0 bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Date</TableHead>
+            <TableHeader className="sticky top-0 bg-card z-20">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[150px] sticky left-0 bg-card z-30 border-b shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Date</TableHead>
                 {members.map(member => (
-                  <TableHead key={member.id} className="text-center min-w-[100px]">
-                    <div className="flex flex-col items-center gap-1">
+                  <TableHead key={member.id} className="text-center min-w-[100px] bg-card border-b">
+                    <div className="flex flex-col items-center gap-1 py-2">
                       <Avatar className="h-6 w-6 text-[10px]">
                         <AvatarFallback>{member.avatar}</AvatarFallback>
                       </Avatar>
-                      <span className="text-[10px] uppercase truncate w-20">{member.name.split(' ')[0]}</span>
+                      <span className="text-[10px] uppercase truncate w-20 font-bold">{member.name.split(' ')[0]}</span>
                     </div>
                   </TableHead>
                 ))}
-                <TableHead className="text-right font-bold">Total</TableHead>
+                <TableHead className="text-right font-bold bg-card border-b">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
