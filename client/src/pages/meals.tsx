@@ -43,39 +43,40 @@ export default function Meals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-              {days.map(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const dayLogs = mealLogs.filter(l => l.date === dateStr);
-                const dayTotal = dayLogs.reduce((s, l) => s + l.count, 0);
+                {days.map(day => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dayLogs = mealLogs.filter(l => l.date === dateStr);
+                  const dayTotal = dayLogs.reduce((s, l) => s + l.count, 0);
 
-                if (dayTotal === 0 && day > today) return null; // Don't show future empty days
+                  if (dayTotal === 0 && day > today) return null; // Don't show future empty days
 
-                return (
-                  <TableRow key={dateStr} className="border-b">
-                    <TableCell className="font-medium sticky left-0 bg-card z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                      <div className="flex flex-col">
-                        <span className={cn(isSameDay(day, today) && "text-primary font-bold")}>
-                          {format(day, 'dd MMM')}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">{format(day, 'EEEE')}</span>
-                      </div>
-                    </TableCell>
-                    {members.map(member => {
-                      const log = dayLogs.find(l => l.memberId === member.id);
-                      return (
-                        <TableCell key={member.id} className="text-center font-mono text-sm border-r">
-                          {log ? log.count : '-'}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="text-right font-bold text-emerald-600 px-4">
-                      {dayTotal > 0 ? dayTotal : '-'}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                  return (
+                    <TableRow key={dateStr} className="border-b">
+                      <TableCell className="font-medium sticky left-0 bg-card z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                        <div className="flex flex-col">
+                          <span className={cn(isSameDay(day, today) && "text-primary font-bold")}>
+                            {format(day, 'dd MMM')}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{format(day, 'EEEE')}</span>
+                        </div>
+                      </TableCell>
+                      {members.map(member => {
+                        const log = dayLogs.find(l => l.memberId === member.id);
+                        return (
+                          <TableCell key={member.id} className="text-center font-mono text-sm border-r">
+                            {log ? log.count : '-'}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-right font-bold text-emerald-600 px-4">
+                        {dayTotal > 0 ? dayTotal : '-'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </Card>
