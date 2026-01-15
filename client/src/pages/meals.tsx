@@ -22,26 +22,27 @@ export default function Meals() {
         <p className="text-sm text-muted-foreground">{format(today, 'MMMM yyyy')}</p>
       </div>
 
-      <Card className="flex-1 overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-250px)]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-card z-20">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[150px] sticky left-0 bg-card z-30 border-b shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Date</TableHead>
-                {members.map(member => (
-                  <TableHead key={member.id} className="text-center min-w-[100px] bg-card border-b">
-                    <div className="flex flex-col items-center gap-1 py-2">
-                      <Avatar className="h-6 w-6 text-[10px]">
-                        <AvatarFallback>{member.avatar}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-[10px] uppercase truncate w-20 font-bold">{member.name.split(' ')[0]}</span>
-                    </div>
-                  </TableHead>
-                ))}
-                <TableHead className="text-right font-bold bg-card border-b">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <Card className="flex-1 overflow-hidden relative border-none shadow-none bg-transparent">
+        <ScrollArea className="h-[calc(100vh-250px)] border rounded-lg bg-card">
+          <div className="relative">
+            <Table className="border-collapse">
+              <TableHeader className="sticky top-0 bg-card z-30 shadow-[0_2px_5px_-2px_rgba(0,0,0,0.1)]">
+                <TableRow className="hover:bg-transparent border-b">
+                  <TableHead className="w-[150px] sticky left-0 bg-card z-40 border-r">Date</TableHead>
+                  {members.map(member => (
+                    <TableHead key={member.id} className="text-center min-w-[100px] border-r">
+                      <div className="flex flex-col items-center gap-1 py-2">
+                        <Avatar className="h-6 w-6 text-[10px]">
+                          <AvatarFallback>{member.avatar}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-[10px] uppercase truncate w-20 font-bold">{member.name.split(' ')[0]}</span>
+                      </div>
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-right font-bold px-4">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
               {days.map(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const dayLogs = mealLogs.filter(l => l.date === dateStr);
@@ -50,8 +51,8 @@ export default function Meals() {
                 if (dayTotal === 0 && day > today) return null; // Don't show future empty days
 
                 return (
-                  <TableRow key={dateStr}>
-                    <TableCell className="font-medium sticky left-0 bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                  <TableRow key={dateStr} className="border-b">
+                    <TableCell className="font-medium sticky left-0 bg-card z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                       <div className="flex flex-col">
                         <span className={cn(isSameDay(day, today) && "text-primary font-bold")}>
                           {format(day, 'dd MMM')}
@@ -62,12 +63,12 @@ export default function Meals() {
                     {members.map(member => {
                       const log = dayLogs.find(l => l.memberId === member.id);
                       return (
-                        <TableCell key={member.id} className="text-center font-mono text-sm">
+                        <TableCell key={member.id} className="text-center font-mono text-sm border-r">
                           {log ? log.count : '-'}
                         </TableCell>
                       );
                     })}
-                    <TableCell className="text-right font-bold text-emerald-600">
+                    <TableCell className="text-right font-bold text-emerald-600 px-4">
                       {dayTotal > 0 ? dayTotal : '-'}
                     </TableCell>
                   </TableRow>
