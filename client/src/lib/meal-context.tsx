@@ -19,7 +19,7 @@ export interface Expense {
   description: string;
   type: 'meal' | 'fixed';
   date: string;
-  paidBy: string;
+  paidBy: string; // This will now store the custom name string
 }
 
 export interface MealLog {
@@ -77,9 +77,9 @@ const INITIAL_MEMBERS: Member[] = [
 ];
 
 const INITIAL_EXPENSES: Expense[] = [
-  { id: '1', amount: 1200, description: 'Weekly Groceries', type: 'meal', date: new Date().toISOString(), paidBy: '1' },
-  { id: '2', amount: 500, description: 'Internet Bill', type: 'fixed', date: new Date().toISOString(), paidBy: '1' },
-  { id: '3', amount: 150, description: 'Cleaning Supplies', type: 'fixed', date: new Date().toISOString(), paidBy: '1' },
+  { id: '1', amount: 1200, description: 'Weekly Groceries', type: 'meal', date: new Date().toISOString(), paidBy: 'Admin User' },
+  { id: '2', amount: 500, description: 'Internet Bill', type: 'fixed', date: new Date().toISOString(), paidBy: 'Admin User' },
+  { id: '3', amount: 150, description: 'Cleaning Supplies', type: 'fixed', date: new Date().toISOString(), paidBy: 'Admin User' },
 ];
 
 export function MealProvider({ children }: { children: ReactNode }) {
@@ -129,7 +129,8 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const addDeposit = (memberId: string, amount: number) => {
-    setMembers(members.map(m => m.id === memberId ? { ...m, deposit: m.deposit + amount } : m));
+    setMembers(members.map(m => m.id === memberId ? { ...m, deposit: m.deposit + amount } : m
+    ));
   };
 
   const logMeal = (memberId: string, count: number, date: string) => {

@@ -22,20 +22,19 @@ const expenseSchema = z.object({
   amount: z.coerce.number().min(1, "Amount is required"),
   description: z.string().min(2, "Description is required"),
   type: z.enum(["meal", "fixed"]),
+  paidBy: z.string().min(2, "Shopper name is required"),
 });
 
 function QuickAddExpense({ onClose }: { onClose: () => void }) {
-  const { addExpense, currentUser } = useMeal();
+  const { addExpense } = useMeal();
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
-    defaultValues: { amount: 0, description: "", type: "meal" },
+    defaultValues: { amount: 0, description: "", type: "meal", paidBy: "" },
   });
 
   const onSubmit = (data: z.infer<typeof expenseSchema>) => {
-    if (currentUser) {
-      addExpense(data.amount, data.description, data.type, currentUser.id);
-      onClose();
-    }
+    addExpense(data.amount, data.description, data.type, data.paidBy);
+    onClose();
   };
 
   return (
@@ -76,6 +75,17 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="paidBy"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Who Shopped?</FormLabel>
+              <FormControl><Input placeholder="Shopper's Name" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -319,6 +329,38 @@ export default function Dashboard() {
           })}
         </div>
       </section>
+
+      {/* Cycle Management (Admin Only) */}
+      {currentUser?.role === 'admin' && (
+        <section className="mt-8 pt-6 border-t">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Cycle Management</h2>
+              <p className="text-sm text-muted-foreground">Manage the current meal cycle.</p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2">
+                  <RefreshCcw className="h-4 w-4" />
+                  Close & Archive Cycle
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will clear all current expenses and meal logs for all users. The data will be stored in History.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={resetCycle}>Yes, Close Cycle</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useMeal, Expense } from '@/lib/meal-context';
-import { Card, CardContent } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingBag, Zap } from 'lucide-react';
@@ -7,9 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Expenses() {
-  const { expenses, members } = useMeal();
-
-  const getMemberName = (id: string) => members.find(m => m.id === id)?.name || 'Unknown';
+  const { expenses } = useMeal();
 
   const renderExpenseList = (filteredExpenses: Expense[]) => (
     <div className="space-y-3">
@@ -27,7 +24,7 @@ export default function Expenses() {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{format(new Date(expense.date), 'MMM d, yyyy')}</span>
                   <span>•</span>
-                  <span>Paid by {getMemberName(expense.paidBy)}</span>
+                  <span>Paid by {expense.paidBy}</span>
                 </div>
               </div>
             </div>
