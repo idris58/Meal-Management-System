@@ -1,12 +1,14 @@
 import { useMeal } from '@/lib/meal-context';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export default function HistoryPage() {
-  const { archives } = useMeal();
+  const { archives, deleteArchive, currentUser } = useMeal();
 
   if (archives.length === 0) {
     return (
@@ -23,9 +25,34 @@ export default function HistoryPage() {
 
       <Accordion type="single" collapsible className="space-y-4">
         {archives.map((archive) => (
-          <AccordionItem key={archive.id} value={archive.id} className="border rounded-lg bg-card px-4">
+          <AccordionItem key={archive.id} value={archive.id} className="border rounded-lg bg-card px-4 relative group">
+            <div className="absolute right-12 top-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+              {currentUser?.role === 'admin' && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete History Entry?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This cycle history will be permanently deleted.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteArchive(archive.id)} className="bg-destructive text-destructive-foreground">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
             <AccordionTrigger className="hover:no-underline py-4">
-              <div className="flex flex-1 items-center justify-between pr-4">
+              <div className="flex flex-1 items-center justify-between pr-8">
                 <div className="text-left">
                   <p className="font-bold">Cycle Ended: {format(new Date(archive.endDate), 'PPP')}</p>
                   <p className="text-sm text-muted-foreground">{archive.members.length} Members • {archive.stats.totalMealsConsumed} Total Meals</p>
@@ -39,19 +66,19 @@ export default function HistoryPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 pt-2">
                 <div className="p-3 bg-secondary/30 rounded-lg">
                   <p className="text-xs text-muted-foreground uppercase">Total Deposits</p>
-                  <p className="font-bold">৳{archive.stats.totalDeposits.toFixed(0)}</p>
+                  <p className="font-bold">৳{archive.stats.totalDeposits.toFixed(2)}</p>
                 </div>
                 <div className="p-3 bg-secondary/30 rounded-lg">
                   <p className="text-xs text-muted-foreground uppercase">Meal Expense</p>
-                  <p className="font-bold">৳{archive.stats.totalMealExpenses.toFixed(0)}</p>
+                  <p className="font-bold">৳{archive.stats.totalMealExpenses.toFixed(2)}</p>
                 </div>
                 <div className="p-3 bg-secondary/30 rounded-lg">
                   <p className="text-xs text-muted-foreground uppercase">Fixed Expense</p>
-                  <p className="font-bold">৳{archive.stats.totalFixedExpenses.toFixed(0)}</p>
+                  <p className="font-bold">৳{archive.stats.totalFixedExpenses.toFixed(2)}</p>
                 </div>
                 <div className="p-3 bg-secondary/30 rounded-lg">
                   <p className="text-xs text-muted-foreground uppercase">Fixed Rate</p>
-                  <p className="font-bold">৳{archive.stats.fixedCostPerMember.toFixed(0)}</p>
+                  <p className="font-bold">৳{archive.stats.fixedCostPerMember.toFixed(2)}</p>
                 </div>
               </div>
 
@@ -59,10 +86,10 @@ export default function HistoryPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead className="text-center">Meals</TableHead>
-                      <TableHead className="text-center">Deposit</TableHead>
-                      <TableHead className="text-right">Final Balance</TableHead>
+                      <MemberHead>Member</MemberHead>
+                      <MemberHead className="text-center">Meals</MemberHead>
+                      <MemberHead className="text-center">Deposit</MemberHead>
+                      <MemberHead className="text-right">Final Balance</MemberHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -70,7 +97,7 @@ export default function HistoryPage() {
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{m.name}</TableCell>
                         <TableCell className="text-center">{m.mealsEaten}</TableCell>
-                        <TableCell className="text-center">৳{m.deposit.toFixed(0)}</TableCell>
+                        <TableCell className="text-center">৳{m.deposit.toFixed(2)}</TableCell>
                         <TableCell className={cn("text-right font-bold", m.balance >= 0 ? "text-emerald-600" : "text-red-600")}>
                           {m.balance >= 0 ? '+' : '-'}{Math.abs(m.balance).toFixed(2)}
                         </TableCell>
@@ -85,6 +112,10 @@ export default function HistoryPage() {
       </Accordion>
     </div>
   );
+}
+
+function MemberHead({ children, className }: { children: React.ReactNode, className?: string }) {
+  return <TableHead className={cn("bg-muted/50", className)}>{children}</TableHead>;
 }
 
 const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');

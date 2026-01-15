@@ -1,22 +1,29 @@
 import { useMeal } from '@/lib/meal-context';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
+import { format, eachDayOfInterval, isSameDay, parseISO, min, max, startOfDay } from 'date-fns';
 import { cn } from "@/lib/utils";
 
 export default function Meals() {
   const { members, mealLogs } = useMeal();
   
-  const today = new Date();
-  const days = eachDayOfInterval({
-    start: startOfMonth(today),
-    end: endOfMonth(today)
-  });
+  const today = startOfDay(new Date());
+  
+  let days: Date[] = [];
+  
+  if (mealLogs.length > 0) {
+    const logDates = mealLogs.map(l => startOfDay(parseISO(l.date)));
+    const startDate = min(logDates);
+    const endDate = max([...logDates, today]);
+    days = eachDayOfInterval({ start: startDate, end: endDate });
+  } else {
+    days = [today];
+  }
 
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-heading">Meal Logs</h1>
-        <p className="text-sm text-muted-foreground">{format(today, 'MMMM yyyy')}</p>
+        <p className="text-sm text-muted-foreground">Active Cycle</p>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden border rounded-lg bg-card shadow-sm">
@@ -47,8 +54,6 @@ export default function Meals() {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const dayLogs = mealLogs.filter(l => l.date === dateStr);
                 const dayTotal = dayLogs.reduce((s, l) => s + l.count, 0);
-
-                if (dayTotal === 0 && day > today) return null;
 
                 return (
                   <tr key={dateStr} className="hover:bg-muted/50 transition-colors">

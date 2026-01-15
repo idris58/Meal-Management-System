@@ -19,7 +19,7 @@ export interface Expense {
   description: string;
   type: 'meal' | 'fixed';
   date: string;
-  paidBy: string; // This will now store the custom name string
+  paidBy: string; 
 }
 
 export interface MealLog {
@@ -58,6 +58,7 @@ interface MealContextType {
   addDeposit: (memberId: string, amount: number) => void;
   logMeal: (memberId: string, count: number, date: string) => void;
   resetCycle: () => void;
+  deleteArchive: (id: string) => void;
   stats: ArchiveCycle['stats'];
   getMemberStats: (memberId: string) => {
     mealCost: number;
@@ -134,7 +135,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const logMeal = (memberId: string, count: number, dateStr: string) => {
-    // dateStr is already in YYYY-MM-DD format from the dashboard
     setMealLogs(prev => {
       const existingIdx = prev.findIndex(log => log.memberId === memberId && log.date === dateStr);
       if (existingIdx >= 0) {
@@ -167,11 +167,15 @@ export function MealProvider({ children }: { children: ReactNode }) {
     setMealLogs([]);
   };
 
+  const deleteArchive = (id: string) => {
+    setArchives(archives.filter(a => a.id !== id));
+  };
+
   return (
     <MealContext.Provider value={{
       members: members.map(m => ({ ...m, mealsEaten: mealLogs.filter(l => l.memberId === m.id).reduce((s, l) => s + l.count, 0) })),
       expenses, mealLogs, archives, currentUser, setCurrentUser,
-      addMember, updateMember, removeMember, addExpense, addDeposit, logMeal, resetCycle,
+      addMember, updateMember, removeMember, addExpense, addDeposit, logMeal, resetCycle, deleteArchive,
       stats, getMemberStats
     }}>
       {children}

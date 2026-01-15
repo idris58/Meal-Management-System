@@ -130,7 +130,6 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Using format with 'yyyy-MM-dd' ensures we work with the local date selected
     const dateStr = format(date, 'yyyy-MM-dd');
     Object.entries(mealCounts).forEach(([memberId, countStr]) => {
       const count = parseFloat(countStr);
@@ -145,27 +144,24 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
         <Label>Select Date</Label>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal py-6 text-base", !date && "text-muted-foreground")}>
-              <CalendarIcon className="mr-3 h-5 w-5" />
+            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal py-2 text-sm", !date && "text-muted-foreground")}>
+              <CalendarIcon className="mr-2 h-4 w-4" />
               {date ? format(date, "PPP") : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent className="w-[340px] p-0 flex flex-col items-center justify-center bg-card shadow-2xl rounded-xl border-2" align="center">
             <Calendar 
               mode="single" 
               selected={date} 
               onSelect={(d) => {
                 if (d) {
                   setDate(d);
-                  // Close the popover by simulating a click or using state if we had it, 
-                  // but in shadcn Popover usually closes on outside click or we can use a state.
-                  // For better UX, we'll wrap this in a way that it closes.
                   const event = new KeyboardEvent('keydown', { key: 'Escape' });
                   document.dispatchEvent(event);
                 }
               }} 
               initialFocus 
-              className="p-3 pointer-events-auto"
+              className="p-4 scale-110 pointer-events-auto"
             />
           </PopoverContent>
         </Popover>
@@ -215,17 +211,17 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl md:text-5xl font-heading font-bold">৳{stats.remainingCash.toFixed(0)}</span>
-              <span className="text-emerald-100 text-sm">/ ৳{stats.totalDeposits.toFixed(0)} Collected</span>
+              <span className="text-4xl md:text-5xl font-heading font-bold">৳{stats.remainingCash.toFixed(2)}</span>
+              <span className="text-emerald-100 text-sm">/ ৳{stats.totalDeposits.toFixed(2)} Collected</span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div className="bg-white/10 rounded p-2 backdrop-blur-sm">
                 <p className="text-emerald-100 text-xs">Total Meal Cost</p>
-                <p className="font-bold">৳{stats.totalMealExpenses.toFixed(0)}</p>
+                <p className="font-bold">৳{stats.totalMealExpenses.toFixed(2)}</p>
               </div>
               <div className="bg-white/10 rounded p-2 backdrop-blur-sm">
                 <p className="text-emerald-100 text-xs">Total Fixed Cost</p>
-                <p className="font-bold">৳{stats.totalFixedExpenses.toFixed(0)}</p>
+                <p className="font-bold">৳{stats.totalFixedExpenses.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
@@ -248,7 +244,7 @@ export default function Dashboard() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Fixed Cost/Person:</span>
-                <span className="font-medium">৳{stats.fixedCostPerMember.toFixed(0)}</span>
+                <span className="font-medium">৳{stats.fixedCostPerMember.toFixed(2)}</span>
               </div>
             </div>
           </CardContent>
@@ -271,11 +267,11 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-1">My Meal Cost</p>
-                  <p className="text-2xl font-bold font-heading">৳{myStats.mealCost.toFixed(0)}</p>
+                  <p className="text-2xl font-bold font-heading">৳{myStats.mealCost.toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-1">My Fixed Share</p>
-                  <p className="text-2xl font-bold font-heading">৳{myStats.fixedCost.toFixed(0)}</p>
+                  <p className="text-2xl font-bold font-heading">৳{myStats.fixedCost.toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-1">{myStats.balance >= 0 ? 'To Get (Pabe)' : 'To Pay (Dibe)'}</p>
@@ -336,7 +332,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right">
                   <p className={`font-bold text-sm ${mStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {mStats.balance >= 0 ? '+' : '-'}{Math.abs(mStats.balance).toFixed(0)}
+                    {mStats.balance >= 0 ? '+' : '-'}{Math.abs(mStats.balance).toFixed(2)}
                   </p>
                   <p className="text-xs text-muted-foreground">Bal</p>
                 </div>
@@ -346,7 +342,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Cycle Management (Admin Only) */}
       {currentUser?.role === 'admin' && (
         <section className="mt-8 pt-6 border-t">
           <div className="flex items-center justify-between">
