@@ -133,10 +133,10 @@ export function MealProvider({ children }: { children: ReactNode }) {
     ));
   };
 
-  const logMeal = (memberId: string, count: number, date: string) => {
-    const shortDate = date.split('T')[0];
+  const logMeal = (memberId: string, count: number, dateStr: string) => {
+    // dateStr is already in YYYY-MM-DD format from the dashboard
     setMealLogs(prev => {
-      const existingIdx = prev.findIndex(log => log.memberId === memberId && log.date === shortDate);
+      const existingIdx = prev.findIndex(log => log.memberId === memberId && log.date === dateStr);
       if (existingIdx >= 0) {
         const newLogs = [...prev];
         if (count === 0) newLogs.splice(existingIdx, 1);
@@ -144,7 +144,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         return newLogs;
       }
       if (count === 0) return prev;
-      return [...prev, { id: uuidv4(), memberId, count, date: shortDate }];
+      return [...prev, { id: uuidv4(), memberId, count, date: dateStr }];
     });
   };
 

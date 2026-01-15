@@ -130,10 +130,11 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const isoDate = date.toISOString();
+    // Using format with 'yyyy-MM-dd' ensures we work with the local date selected
+    const dateStr = format(date, 'yyyy-MM-dd');
     Object.entries(mealCounts).forEach(([memberId, countStr]) => {
       const count = parseFloat(countStr);
-      logMeal(memberId, isNaN(count) ? 0 : count, isoDate);
+      logMeal(memberId, isNaN(count) ? 0 : count, dateStr);
     });
     onClose();
   };
@@ -144,13 +145,28 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
         <Label>Select Date</Label>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
+            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal py-6 text-base", !date && "text-muted-foreground")}>
+              <CalendarIcon className="mr-3 h-5 w-5" />
               {date ? format(date, "PPP") : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar 
+              mode="single" 
+              selected={date} 
+              onSelect={(d) => {
+                if (d) {
+                  setDate(d);
+                  // Close the popover by simulating a click or using state if we had it, 
+                  // but in shadcn Popover usually closes on outside click or we can use a state.
+                  // For better UX, we'll wrap this in a way that it closes.
+                  const event = new KeyboardEvent('keydown', { key: 'Escape' });
+                  document.dispatchEvent(event);
+                }
+              }} 
+              initialFocus 
+              className="p-3 pointer-events-auto"
+            />
           </PopoverContent>
         </Popover>
       </div>
