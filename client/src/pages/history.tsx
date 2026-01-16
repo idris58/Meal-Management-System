@@ -104,7 +104,7 @@ export default function HistoryPage() {
                         <TableCell className="text-center">{m.mealsEaten}</TableCell>
                         <TableCell className="text-center">৳{m.deposit.toFixed(2)}</TableCell>
                         <TableCell className={cn("text-right font-bold", m.balance >= 0 ? "text-emerald-600" : "text-red-600")}>
-                          {m.balance >= 0 ? '+' : '-'}{Math.abs(m.balance).toFixed(2)}
+                          {m.balance >= 0 ? '+' : '-'}{Math.round(Math.abs(m.balance))}
                         </TableCell>
                       </TableRow>
                     ))}

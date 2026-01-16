@@ -277,7 +277,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-1">{myStats.balance >= 0 ? 'To Get (Pabe)' : 'To Pay (Dibe)'}</p>
-                  <p className={`text-2xl font-bold font-heading ${myStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{Math.abs(myStats.balance).toFixed(2)}</p>
+                  <p className={`text-2xl font-bold font-heading ${myStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{Math.round(Math.abs(myStats.balance))}</p>
                 </div>
               </div>
             </CardContent>
@@ -344,7 +344,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right">
                   <p className={`font-bold text-sm ${mStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {mStats.balance >= 0 ? '+' : '-'}{Math.abs(mStats.balance).toFixed(2)}
+                    {mStats.balance >= 0 ? '+' : '-'}{Math.round(Math.abs(mStats.balance))}
                   </p>
                   <p className="text-xs text-muted-foreground">Bal</p>
                 </div>

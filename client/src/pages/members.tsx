@@ -177,7 +177,7 @@ export default function Members() {
                   <div className="pt-3 border-t flex justify-between items-center">
                     <span className="font-medium">Net Balance</span>
                     <span className={`font-bold text-lg ${stats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {stats.balance >= 0 ? '+' : '-'}{Math.abs(stats.balance).toFixed(2)}
+                      {stats.balance >= 0 ? '+' : '-'}{Math.round(Math.abs(stats.balance))}
                     </span>
                   </div>
 
