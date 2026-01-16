@@ -2,7 +2,7 @@ import { useMeal } from '@/lib/meal-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -292,8 +292,13 @@ export default function Dashboard() {
                 <span className="font-semibold">Add Expense</span>
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add New Expense</DialogTitle></DialogHeader>
+            <DialogContent className="max-w-md w-[95%]">
+              <DialogHeader>
+                <DialogTitle>Add New Expense</DialogTitle>
+                <DialogDescription>
+                  Enter the details of the new expense below.
+                </DialogDescription>
+              </DialogHeader>
               <QuickAddExpense onClose={() => setOpenExpense(false)} />
             </DialogContent>
           </Dialog>
@@ -306,7 +311,12 @@ export default function Dashboard() {
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md w-[95%]">
-              <DialogHeader><DialogTitle>Log Meals by Date</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Log Meals by Date</DialogTitle>
+                <DialogDescription>
+                  Update meal counts for each member for the selected date.
+                </DialogDescription>
+              </DialogHeader>
               <QuickLogMeal onClose={() => setOpenMeal(false)} />
             </DialogContent>
           </Dialog>
