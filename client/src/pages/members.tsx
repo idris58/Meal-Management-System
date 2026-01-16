@@ -160,7 +160,7 @@ export default function Members() {
                 <div className="p-4 space-y-3 text-sm">
                    <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Deposit</span>
-                    <span className="font-bold">৳{member.deposit.toFixed(0)}</span>
+                    <span className="font-bold">৳{member.deposit.toFixed(2)}</span>
                   </div>
                    <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Meals Eaten</span>
@@ -168,11 +168,11 @@ export default function Members() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Meal Cost</span>
-                    <span className="font-medium">৳{stats.mealCost.toFixed(0)}</span>
+                    <span className="font-medium">৳{stats.mealCost.toFixed(2)}</span>
                   </div>
                    <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Fixed Share</span>
-                    <span className="font-medium">৳{stats.fixedCost.toFixed(0)}</span>
+                    <span className="font-medium">৳{stats.fixedCost.toFixed(2)}</span>
                   </div>
                   <div className="pt-3 border-t flex justify-between items-center">
                     <span className="font-medium">Net Balance</span>
