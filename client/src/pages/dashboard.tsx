@@ -149,19 +149,20 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
               {date ? format(date, "PPP") : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[340px] p-0 flex flex-col items-center justify-center bg-card shadow-2xl rounded-xl border-2" align="center">
+          <PopoverContent className="w-auto p-0 bg-card shadow-2xl rounded-xl border" align="center">
             <Calendar 
               mode="single" 
               selected={date} 
               onSelect={(d) => {
                 if (d) {
                   setDate(d);
+                  // Close popover
                   const event = new KeyboardEvent('keydown', { key: 'Escape' });
                   document.dispatchEvent(event);
                 }
               }} 
               initialFocus 
-              className="p-4 scale-110 pointer-events-auto"
+              className="p-3"
             />
           </PopoverContent>
         </Popover>
