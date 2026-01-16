@@ -162,7 +162,7 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
                 }
               }} 
               initialFocus 
-              className="p-3"
+              className="p-4 scale-125"
             />
           </PopoverContent>
         </Popover>

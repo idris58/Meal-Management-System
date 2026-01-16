@@ -26,40 +26,45 @@ export default function HistoryPage() {
       <Accordion type="single" collapsible className="space-y-4">
         {archives.map((archive) => (
           <AccordionItem key={archive.id} value={archive.id} className="border rounded-lg bg-card px-4 relative group">
-            <div className="absolute right-12 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-              {currentUser?.role === 'admin' && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete History Entry?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This cycle history will be permanently deleted.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteArchive(archive.id)} className="bg-destructive text-destructive-foreground">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
             <AccordionTrigger className="hover:no-underline py-4">
-              <div className="flex flex-1 items-center justify-between pr-8">
+              <div className="flex flex-1 items-center justify-between">
                 <div className="text-left">
                   <p className="font-bold">Cycle Ended: {format(new Date(archive.endDate), 'PPP')}</p>
                   <p className="text-sm text-muted-foreground">{archive.members.length} Members • {archive.stats.totalMealsConsumed} Total Meals</p>
                 </div>
-                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-                  Rate: ৳{archive.stats.currentMealRate.toFixed(2)}
-                </Badge>
+                <div className="flex items-center gap-4">
+                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+                    Rate: ৳{archive.stats.currentMealRate.toFixed(2)}
+                  </Badge>
+                  {currentUser?.role === 'admin' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete History Entry?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This cycle history will be permanently deleted.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteArchive(archive.id)} className="bg-destructive text-destructive-foreground">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
               </div>
             </AccordionTrigger>
             <AccordionContent className="pb-6">
