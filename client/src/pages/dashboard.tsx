@@ -162,7 +162,8 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
                 }
               }} 
               initialFocus 
-              className="p-4 scale-125"
+              className="p-4"
+              style={{ "--cell-size": "3rem" } as React.CSSProperties}
             />
           </PopoverContent>
         </Popover>
