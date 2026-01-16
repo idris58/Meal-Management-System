@@ -26,7 +26,7 @@ export default function HistoryPage() {
       <Accordion type="single" collapsible className="space-y-4">
         {archives.map((archive) => (
           <AccordionItem key={archive.id} value={archive.id} className="border rounded-lg bg-card px-4 relative group">
-            <div className="absolute right-12 top-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute right-12 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
               {currentUser?.role === 'admin' && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

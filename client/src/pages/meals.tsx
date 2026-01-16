@@ -14,7 +14,7 @@ export default function Meals() {
     const logDates = mealLogs.map(l => startOfDay(parseISO(l.date)));
     const startDate = min(logDates);
     const endDate = max([...logDates, today]);
-    days = eachDayOfInterval({ start: startDate, end: endDate });
+    days = eachDayOfInterval({ start: startDate, end: endDate }).reverse();
   } else {
     days = [today];
   }
