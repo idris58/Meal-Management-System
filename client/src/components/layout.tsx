@@ -1,25 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useMeal } from '@/lib/meal-context';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Receipt, 
-  History, 
-  Settings, 
-  Menu, 
-  X, 
+import {
+  LayoutDashboard,
+  Users,
+  Receipt,
+  History,
+  Menu,
   ChefHat,
-  LogOut,
-  UtensilsCrossed
+  UtensilsCrossed,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { currentUser, setCurrentUser, members } = useMeal();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -29,11 +23,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { icon: Receipt, label: 'Expenses', href: '/expenses' },
     { icon: History, label: 'History', href: '/history' },
   ];
-
-  const handleUserSwitch = (memberId: string) => {
-    const user = members.find(m => m.id === memberId);
-    if (user) setCurrentUser(user);
-  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
@@ -52,33 +41,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <SheetContent side="left" className="w-[80%] max-w-[300px] p-0">
             <div className="h-full flex flex-col bg-card">
               <div className="p-6 border-b">
-                <div className="flex items-center gap-2 mb-6">
+                <div className="flex items-center gap-2">
                   <ChefHat className="h-6 w-6 text-primary" />
                   <span className="font-heading font-bold text-xl">MealManager</span>
                 </div>
-                
-                {currentUser && (
-                  <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
-                    <Avatar>
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {currentUser.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{currentUser.name}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
-                    </div>
-                  </div>
-                )}
               </div>
-
               <nav className="flex-1 p-4 space-y-2">
                 {navItems.map((item) => (
                   <Link key={item.href} href={item.href}>
-                    <div 
+                    <div
                       className={`flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${
-                        location === item.href 
-                          ? 'bg-primary/10 text-primary font-medium' 
+                        location === item.href
+                          ? 'bg-primary/10 text-primary font-medium'
                           : 'text-muted-foreground hover:bg-muted'
                       }`}
                       onClick={() => setIsMobileMenuOpen(false)}
@@ -89,23 +63,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </Link>
                 ))}
               </nav>
-
-              <div className="p-4 border-t">
-                <p className="text-xs text-muted-foreground mb-2 px-2">Switch User (Dev Only)</p>
-                <div className="flex flex-wrap gap-2">
-                  {members.map(m => (
-                    <Button 
-                      key={m.id} 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleUserSwitch(m.id)}
-                      className={`text-xs ${currentUser?.id === m.id ? 'border-primary' : ''}`}
-                    >
-                      {m.name.split(' ')[0]}
-                    </Button>
-                  ))}
-                </div>
-              </div>
             </div>
           </SheetContent>
         </Sheet>
@@ -123,10 +80,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
-               <div 
+              <div
                 className={`flex items-center gap-3 px-4 py-3 rounded-md transition-colors cursor-pointer ${
-                  location === item.href 
-                    ? 'bg-primary/10 text-primary font-medium' 
+                  location === item.href
+                    ? 'bg-primary/10 text-primary font-medium'
                     : 'text-muted-foreground hover:bg-muted'
                 }`}
               >
@@ -136,37 +93,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-
-        <div className="p-4 border-t">
-          {currentUser && (
-            <div className="flex items-center gap-3 mb-4">
-              <Avatar>
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {currentUser.avatar}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{currentUser.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
-              </div>
-            </div>
-          )}
-          
-          <p className="text-xs text-muted-foreground mb-2">Switch User (Dev Only)</p>
-          <div className="grid grid-cols-2 gap-2">
-            {members.map(m => (
-              <Button 
-                key={m.id} 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleUserSwitch(m.id)}
-                className={`text-xs w-full justify-start ${currentUser?.id === m.id ? 'border-primary' : ''}`}
-              >
-                {m.name.split(' ')[0]}
-              </Button>
-            ))}
-          </div>
-        </div>
       </aside>
 
       {/* Main Content */}

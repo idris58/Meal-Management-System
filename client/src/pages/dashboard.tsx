@@ -2,34 +2,33 @@ import { useMeal } from '@/lib/meal-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 const expenseSchema = z.object({
-  amount: z.coerce.number().min(1, "Amount is required"),
-  description: z.string().min(2, "Description is required"),
-  type: z.enum(["meal", "fixed"]),
-  paidBy: z.string().min(2, "Shopper name is required"),
+  amount: z.coerce.number().min(1, 'Amount is required'),
+  description: z.string().min(2, 'Description is required'),
+  type: z.enum(['meal', 'fixed']),
+  paidBy: z.string().min(2, 'Shopper name is required'),
 });
 
 function QuickAddExpense({ onClose }: { onClose: () => void }) {
   const { addExpense } = useMeal();
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
-    defaultValues: { amount: 0, description: "", type: "meal", paidBy: "" },
+    defaultValues: { amount: 0, description: '', type: 'meal', paidBy: '' },
   });
 
   const onSubmit = (data: z.infer<typeof expenseSchema>) => {
@@ -100,7 +99,7 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
   const { logMeal, members, mealLogs } = useMeal();
   const [date, setDate] = useState<Date>(new Date());
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
-    Object.fromEntries(members.map(m => [m.id, "0"]))
+    Object.fromEntries(members.map(m => [m.id, '0']))
   );
 
   useEffect(() => {
@@ -108,7 +107,7 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
     const existingLogs = Object.fromEntries(
       members.map(m => {
         const log = mealLogs.find(l => l.memberId === m.id && l.date === shortDate);
-        return [m.id, log ? log.count.toString() : "0"];
+        return [m.id, log ? log.count.toString() : '0'];
       })
     );
     setMealCounts(existingLogs);
@@ -116,14 +115,14 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
 
   const updateCount = (id: string, delta: number) => {
     setMealCounts(prev => {
-      const currentVal = parseFloat(prev[id] || "0");
+      const currentVal = parseFloat(prev[id] || '0');
       const newVal = Math.max(0, currentVal + delta);
       return { ...prev, [id]: newVal.toString() };
     });
   };
 
   const handleInputChange = (id: string, value: string) => {
-    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
       setMealCounts(prev => ({ ...prev, [id]: value }));
     }
   };
@@ -141,29 +140,28 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pt-4">
       <div className="space-y-2">
-        <Label>Select Date</Label>
+        <label className="text-sm font-medium">Select Date</label>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal py-2 text-sm", !date && "text-muted-foreground")}>
+            <Button variant="outline" className={cn('w-full justify-start text-left font-normal py-2 text-sm', !date && 'text-muted-foreground')}>
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP") : <span>Pick a date</span>}
+              {date ? format(date, 'PPP') : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0 bg-card shadow-2xl rounded-xl border" align="center">
-            <Calendar 
-              mode="single" 
-              selected={date} 
+            <Calendar
+              mode="single"
+              selected={date}
               onSelect={(d) => {
                 if (d) {
                   setDate(d);
-                  // Close popover
                   const event = new KeyboardEvent('keydown', { key: 'Escape' });
                   document.dispatchEvent(event);
                 }
-              }} 
-              initialFocus 
+              }}
+              initialFocus
               className="p-4"
-              style={{ "--cell-size": "3rem" } as React.CSSProperties}
+              style={{ '--cell-size': '3rem' } as React.CSSProperties}
             />
           </PopoverContent>
         </Popover>
@@ -180,9 +178,9 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
               <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
                 <Minus className="h-3 w-3" />
               </Button>
-              <Input 
-                className="h-8 w-16 text-center text-sm font-bold px-1" 
-                value={mealCounts[member.id]} 
+              <Input
+                className="h-8 w-16 text-center text-sm font-bold px-1"
+                value={mealCounts[member.id]}
                 onChange={(e) => handleInputChange(member.id, e.target.value)}
               />
               <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
@@ -198,11 +196,9 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
 }
 
 export default function Dashboard() {
-  const { stats, currentUser, getMemberStats, members, resetCycle } = useMeal();
+  const { stats, getMemberStats, members, resetCycle } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
   const [openMeal, setOpenMeal] = useState(false);
-
-  const myStats = currentUser ? getMemberStats(currentUser.id) : null;
 
   return (
     <div className="space-y-6 pb-20">
@@ -253,78 +249,42 @@ export default function Dashboard() {
         </Card>
       </section>
 
-      {currentUser && myStats && (
-        <section>
-          <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-            My Status 
-            <span className="text-xs font-normal text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{currentUser.role}</span>
-          </h2>
-          <Card className="glass-card overflow-hidden">
-            <div className={`h-2 w-full ${myStats.balance >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase mb-1">Meals Eaten</p>
-                  <p className="text-2xl font-bold font-heading">{myStats.mealsEaten}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase mb-1">My Meal Cost</p>
-                  <p className="text-2xl font-bold font-heading">৳{myStats.mealCost.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase mb-1">My Fixed Share</p>
-                  <p className="text-2xl font-bold font-heading">৳{myStats.fixedCost.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase mb-1">{myStats.balance >= 0 ? 'To Get (Pabe)' : 'To Pay (Dibe)'}</p>
-                  <p className={`text-2xl font-bold font-heading ${myStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{Math.round(Math.abs(myStats.balance))}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
+      {/* Quick Actions */}
+      <section className="grid grid-cols-2 gap-4">
+        <Dialog open={openExpense} onOpenChange={setOpenExpense}>
+          <DialogTrigger asChild>
+            <Button size="lg" className="h-20 flex flex-col items-center justify-center gap-2 bg-white border border-dashed border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-600 shadow-sm transition-all">
+              <ShoppingBag className="h-6 w-6" />
+              <span className="font-semibold">Add Expense</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md w-[95%]">
+            <DialogHeader>
+              <DialogTitle>Add New Expense</DialogTitle>
+              <DialogDescription>Enter the details of the new expense below.</DialogDescription>
+            </DialogHeader>
+            <QuickAddExpense onClose={() => setOpenExpense(false)} />
+          </DialogContent>
+        </Dialog>
 
-      {currentUser?.role === 'admin' && (
-        <section className="grid grid-cols-2 gap-4">
-          <Dialog open={openExpense} onOpenChange={setOpenExpense}>
-            <DialogTrigger asChild>
-              <Button size="lg" className="h-20 flex flex-col items-center justify-center gap-2 bg-white border border-dashed border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-600 shadow-sm transition-all">
-                <ShoppingBag className="h-6 w-6" />
-                <span className="font-semibold">Add Expense</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md w-[95%]">
-              <DialogHeader>
-                <DialogTitle>Add New Expense</DialogTitle>
-                <DialogDescription>
-                  Enter the details of the new expense below.
-                </DialogDescription>
-              </DialogHeader>
-              <QuickAddExpense onClose={() => setOpenExpense(false)} />
-            </DialogContent>
-          </Dialog>
+        <Dialog open={openMeal} onOpenChange={setOpenMeal}>
+          <DialogTrigger asChild>
+            <Button size="lg" className="h-20 flex flex-col items-center justify-center gap-2 bg-white border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-all">
+              <Utensils className="h-6 w-6" />
+              <span className="font-semibold">Log Meals</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md w-[95%]">
+            <DialogHeader>
+              <DialogTitle>Log Meals by Date</DialogTitle>
+              <DialogDescription>Update meal counts for each member for the selected date.</DialogDescription>
+            </DialogHeader>
+            <QuickLogMeal onClose={() => setOpenMeal(false)} />
+          </DialogContent>
+        </Dialog>
+      </section>
 
-          <Dialog open={openMeal} onOpenChange={setOpenMeal}>
-            <DialogTrigger asChild>
-              <Button size="lg" className="h-20 flex flex-col items-center justify-center gap-2 bg-white border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-all">
-                <Utensils className="h-6 w-6" />
-                <span className="font-semibold">Log Meals</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md w-[95%]">
-              <DialogHeader>
-                <DialogTitle>Log Meals by Date</DialogTitle>
-                <DialogDescription>
-                  Update meal counts for each member for the selected date.
-                </DialogDescription>
-              </DialogHeader>
-              <QuickLogMeal onClose={() => setOpenMeal(false)} />
-            </DialogContent>
-          </Dialog>
-        </section>
-      )}
-
+      {/* Members Summary */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold">All Members Summary</h2>
@@ -354,36 +314,35 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {currentUser?.role === 'admin' && (
-        <section className="mt-8 pt-6 border-t">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-800">Cycle Management</h2>
-              <p className="text-sm text-muted-foreground">Manage the current meal cycle.</p>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="gap-2">
-                  <RefreshCcw className="h-4 w-4" />
-                  Close & Archive Cycle
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will clear all current expenses and meal logs for all users. The data will be stored in History.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={resetCycle}>Yes, Close Cycle</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+      {/* Cycle Management */}
+      <section className="mt-8 pt-6 border-t">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">Cycle Management</h2>
+            <p className="text-sm text-muted-foreground">Manage the current meal cycle.</p>
           </div>
-        </section>
-      )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="gap-2">
+                <RefreshCcw className="h-4 w-4" />
+                Close & Archive Cycle
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will clear all current expenses and meal logs. The data will be stored in History.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={resetCycle}>Yes, Close Cycle</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </section>
     </div>
   );
 }
