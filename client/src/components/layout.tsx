@@ -8,13 +8,17 @@ import {
   Menu,
   ChefHat,
   UtensilsCrossed,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useAuth } from '@/lib/auth-context';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const [, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -23,6 +27,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { icon: Receipt, label: 'Expenses', href: '/expenses' },
     { icon: History, label: 'History', href: '/history' },
   ];
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setLocation('/auth');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
@@ -63,6 +76,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </Link>
                 ))}
               </nav>
+              <div className="border-t p-4 space-y-3">
+                <div className="px-2 text-sm text-muted-foreground truncate">
+                  {user?.email ?? 'Signed in'}
+                </div>
+                <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
             </div>
           </SheetContent>
         </Sheet>
@@ -93,6 +115,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
+
+        <div className="border-t p-4 space-y-3">
+          <div className="px-2 text-sm text-muted-foreground truncate">
+            {user?.email ?? 'Signed in'}
+          </div>
+          <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </div>
       </aside>
 
       {/* Main Content */}

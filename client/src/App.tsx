@@ -1,24 +1,27 @@
-import { Switch, Route } from 'wouter';
-import { MealProvider } from '@/lib/meal-context';
-import { Layout } from '@/components/layout';
-import Dashboard from '@/pages/dashboard';
-import Members from '@/pages/members';
-import Expenses from '@/pages/expenses';
-import Meals from '@/pages/meals';
-import HistoryPage from '@/pages/history';
-import NotFound from '@/pages/not-found';
-import { Toaster } from '@/components/ui/toaster';
-import { Spinner } from '@/components/ui/spinner';
-import { useMeal } from '@/lib/meal-context';
+import { useEffect } from "react";
+import { Route, Switch, useLocation } from "wouter";
+
+import { Layout } from "@/components/layout";
+import { Spinner } from "@/components/ui/spinner";
+import { Toaster } from "@/components/ui/toaster";
+import { useAuth, AuthProvider } from "@/lib/auth-context";
+import { MealProvider, useMeal } from "@/lib/meal-context";
+import AuthPage from "@/pages/auth";
+import Dashboard from "@/pages/dashboard";
+import Expenses from "@/pages/expenses";
+import HistoryPage from "@/pages/history";
+import Meals from "@/pages/meals";
+import Members from "@/pages/members";
+import NotFound from "@/pages/not-found";
 
 function Router() {
   const { loading } = useMeal();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Spinner className="h-8 w-8 mx-auto text-primary" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="space-y-4 text-center">
+          <Spinner className="mx-auto h-8 w-8 text-primary" />
           <p className="text-muted-foreground">Loading your meal data...</p>
         </div>
       </div>
@@ -39,12 +42,53 @@ function Router() {
   );
 }
 
-function App() {
+function AppShell() {
+  const { session, loading } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (!session && location !== "/auth") {
+      setLocation("/auth");
+      return;
+    }
+
+    if (session && location === "/auth") {
+      setLocation("/");
+    }
+  }, [loading, location, session, setLocation]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="space-y-4 text-center">
+          <Spinner className="mx-auto h-8 w-8 text-primary" />
+          <p className="text-muted-foreground">Checking your session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthPage />;
+  }
+
   return (
     <MealProvider>
       <Router />
-      <Toaster />
     </MealProvider>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+      <Toaster />
+    </AuthProvider>
   );
 }
 
