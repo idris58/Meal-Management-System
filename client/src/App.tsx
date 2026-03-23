@@ -1,19 +1,19 @@
-import { Switch, Route } from "wouter";
-import { MealProvider, useMeal } from "@/lib/meal-context";
-import { Layout } from "@/components/layout";
-import Dashboard from "@/pages/dashboard";
-import Members from "@/pages/members";
-import Expenses from "@/pages/expenses";
-import Meals from "@/pages/meals";
-import HistoryPage from "@/pages/history";
-import NotFound from "@/pages/not-found";
-import { Toaster } from "@/components/ui/toaster";
-import { Spinner } from "@/components/ui/spinner";
+import { Switch, Route } from 'wouter';
+import { MealProvider } from '@/lib/meal-context';
+import { Layout } from '@/components/layout';
+import Dashboard from '@/pages/dashboard';
+import Members from '@/pages/members';
+import Expenses from '@/pages/expenses';
+import Meals from '@/pages/meals';
+import HistoryPage from '@/pages/history';
+import NotFound from '@/pages/not-found';
+import { Toaster } from '@/components/ui/toaster';
+import { Spinner } from '@/components/ui/spinner';
+import { useMeal } from '@/lib/meal-context';
 
 function Router() {
   const { loading } = useMeal();
 
-  // Show loading screen while fetching data from Supabase
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

@@ -1,14 +1,14 @@
 import { useMeal } from '@/lib/meal-context';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 export default function HistoryPage() {
-  const { archives, deleteArchive, currentUser } = useMeal();
+  const { archives, deleteArchive } = useMeal();
 
   if (archives.length === 0) {
     return (
@@ -30,40 +30,43 @@ export default function HistoryPage() {
               <div className="flex flex-1 items-center justify-between">
                 <div className="text-left">
                   <p className="font-bold">Cycle Ended: {format(new Date(archive.endDate), 'PPP')}</p>
-                  <p className="text-sm text-muted-foreground">{archive.members.length} Members • {archive.stats.totalMealsConsumed} Total Meals</p>
+                  <p className="text-sm text-muted-foreground">
+                    {archive.members.length} Members • {archive.stats.totalMealsConsumed} Total Meals
+                  </p>
                 </div>
                 <div className="flex items-center gap-4">
                   <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
                     Rate: ৳{archive.stats.currentMealRate.toFixed(2)}
                   </Badge>
-                  {currentUser?.role === 'admin' && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                          onClick={(e) => e.stopPropagation()}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete History Entry?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This cycle history will be permanently deleted.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteArchive(archive.id)}
+                          className="bg-destructive text-destructive-foreground"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete History Entry?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This cycle history will be permanently deleted.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteArchive(archive.id)} className="bg-destructive text-destructive-foreground">
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </AccordionTrigger>
@@ -103,7 +106,7 @@ export default function HistoryPage() {
                         <TableCell className="font-medium">{m.name}</TableCell>
                         <TableCell className="text-center">{m.mealsEaten}</TableCell>
                         <TableCell className="text-center">৳{m.deposit.toFixed(2)}</TableCell>
-                        <TableCell className={cn("text-right font-bold", m.balance >= 0 ? "text-emerald-600" : "text-red-600")}>
+                        <TableCell className={cn('text-right font-bold', m.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
                           {m.balance >= 0 ? '+' : '-'}{Math.round(Math.abs(m.balance))}
                         </TableCell>
                       </TableRow>
@@ -119,8 +122,8 @@ export default function HistoryPage() {
   );
 }
 
-function MemberHead({ children, className }: { children: React.ReactNode, className?: string }) {
-  return <TableHead className={cn("bg-muted/50", className)}>{children}</TableHead>;
+function MemberHead({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <TableHead className={cn('bg-muted/50', className)}>{children}</TableHead>;
 }
 
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
+const cn = (...classes: (string | undefined | false)[]) => classes.filter(Boolean).join(' ');
