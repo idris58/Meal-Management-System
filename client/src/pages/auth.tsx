@@ -42,7 +42,8 @@ export default function AuthPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
+          // Fix: was "/auth" before — confirmed users should land on the app, not back on login
+          emailRedirectTo: `${window.location.origin}/`,
         },
       });
 
@@ -51,6 +52,9 @@ export default function AuthPage() {
       }
 
       if (!data.session) {
+        // Email confirmation required — clear form so user doesn't accidentally resubmit
+        setEmail("");
+        setPassword("");
         setMessage("Account created. Check your email to confirm your account.");
       } else {
         setMessage("Account created. You are now signed in.");
@@ -79,9 +83,22 @@ export default function AuthPage() {
     });
 
     if (oauthError) {
+      // Fires immediately when the provider isn't configured or network fails
       setGoogleLoading(false);
       setError(oauthError.message);
+      return;
     }
+
+    // Supabase initiates a redirect — if it never happens (popup blocked, user
+    // dismissed) the button would stay stuck forever. Reset after 10 seconds.
+    setTimeout(() => setGoogleLoading(false), 10_000);
+  };
+
+  // Clears errors/messages when switching tabs so stale state doesn't show
+  const switchMode = (next: AuthMode) => {
+    setMode(next);
+    setError(null);
+    setMessage(null);
   };
 
   return (
@@ -149,11 +166,7 @@ export default function AuthPage() {
                     ? "bg-white text-slate-900 shadow-sm"
                     : "text-slate-500"
                 }`}
-                onClick={() => {
-                  setMode("login");
-                  setError(null);
-                  setMessage(null);
-                }}
+                onClick={() => switchMode("login")}
               >
                 Login
               </button>
@@ -164,11 +177,7 @@ export default function AuthPage() {
                     ? "bg-white text-slate-900 shadow-sm"
                     : "text-slate-500"
                 }`}
-                onClick={() => {
-                  setMode("signup");
-                  setError(null);
-                  setMessage(null);
-                }}
+                onClick={() => switchMode("signup")}
               >
                 Sign up
               </button>

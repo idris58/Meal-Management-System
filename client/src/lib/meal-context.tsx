@@ -74,36 +74,54 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
   const [archives, setArchives] = useState<ArchiveCycle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        setUserId(data.user.id);
+      }
+    };
+    getUser();
   }, []);
 
+  useEffect(() => {
+    if (userId) {
+      loadData();
+    }
+  }, [userId]);
+
   const loadData = async () => {
+    if (!userId) return;
     try {
       setLoading(true);
 
       const { data: membersData, error: membersError } = await supabase
         .from('members')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: true });
       if (membersError) throw membersError;
 
       const { data: expensesData, error: expensesError } = await supabase
         .from('expenses')
         .select('*')
+        .eq('user_id', userId)
         .order('date', { ascending: false });
       if (expensesError) throw expensesError;
 
       const { data: mealLogsData, error: mealLogsError } = await supabase
         .from('meal_logs')
         .select('*')
+        .eq('user_id', userId)
         .order('date', { ascending: false });
       if (mealLogsError) throw mealLogsError;
 
       const { data: archivesData, error: archivesError } = await supabase
         .from('archives')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (archivesError) throw archivesError;
 
@@ -151,10 +169,11 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const addMember = async (name: string) => {
+    if (!userId) return;
     const avatar = name.substring(0, 2).toUpperCase();
     const { data, error } = await supabase
       .from('members')
-      .insert([{ name, avatar, deposit: 0, is_active: true }])
+      .insert([{ name, avatar, deposit: 0, is_active: true, user_id: userId }])
       .select()
       .single();
 
@@ -172,28 +191,39 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMember = async (id: string, updates: Partial<Member>) => {
+    if (!userId) return;
     const dbUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.deposit !== undefined) dbUpdates.deposit = updates.deposit;
     if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
     if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar;
 
-    const { error } = await supabase.from('members').update(dbUpdates).eq('id', id);
+    const { error } = await supabase
+      .from('members')
+      .update(dbUpdates)
+      .eq('id', id)
+      .eq('user_id', userId);
     if (error) { console.error('Error updating member:', error); return; }
     setMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
   };
 
   const removeMember = async (id: string) => {
-    const { error } = await supabase.from('members').delete().eq('id', id);
+    if (!userId) return;
+    const { error } = await supabase
+      .from('members')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
     if (error) { console.error('Error removing member:', error); return; }
     setMembers(prev => prev.filter(m => m.id !== id));
     setMealLogs(prev => prev.filter(log => log.memberId !== id));
   };
 
   const addExpense = async (amount: number, description: string, type: 'meal' | 'fixed', paidBy: string) => {
+    if (!userId) return;
     const { data, error } = await supabase
       .from('expenses')
-      .insert([{ amount, description, type, paid_by: paidBy, date: new Date().toISOString() }])
+      .insert([{ amount, description, type, paid_by: paidBy, date: new Date().toISOString(), user_id: userId }])
       .select()
       .single();
 
@@ -217,22 +247,31 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const logMeal = async (memberId: string, count: number, dateStr: string) => {
+    if (!userId) return;
     const existingLog = mealLogs.find(l => l.memberId === memberId && l.date === dateStr);
 
     if (existingLog) {
       if (count === 0) {
-        const { error } = await supabase.from('meal_logs').delete().eq('id', existingLog.id);
+        const { error } = await supabase
+          .from('meal_logs')
+          .delete()
+          .eq('id', existingLog.id)
+          .eq('user_id', userId);
         if (error) { console.error('Error deleting meal log:', error); return; }
         setMealLogs(prev => prev.filter(l => l.id !== existingLog.id));
       } else {
-        const { error } = await supabase.from('meal_logs').update({ count }).eq('id', existingLog.id);
+        const { error } = await supabase
+          .from('meal_logs')
+          .update({ count })
+          .eq('id', existingLog.id)
+          .eq('user_id', userId);
         if (error) { console.error('Error updating meal log:', error); return; }
         setMealLogs(prev => prev.map(l => l.id === existingLog.id ? { ...l, count } : l));
       }
     } else if (count > 0) {
       const { data, error } = await supabase
         .from('meal_logs')
-        .insert([{ member_id: memberId, date: dateStr, count }])
+        .insert([{ member_id: memberId, date: dateStr, count, user_id: userId }])
         .select()
         .single();
 
@@ -249,6 +288,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const resetCycle = async () => {
+    if (!userId) return;
     const archivedMembers = members.map(m => {
       const mStats = getMemberStats(m.id);
       return { ...m, ...mStats };
@@ -265,19 +305,20 @@ export function MealProvider({ children }: { children: ReactNode }) {
       end_date: newArchive.endDate,
       stats: newArchive.stats,
       members: newArchive.members,
+      user_id: userId,
     }]);
     if (archiveError) { console.error('Error creating archive:', archiveError); return; }
 
     const { error: expensesError } = await supabase
       .from('expenses')
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000');
+      .eq('user_id', userId);
     if (expensesError) console.error('Error clearing expenses:', expensesError);
 
     const { error: logsError } = await supabase
       .from('meal_logs')
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000');
+      .eq('user_id', userId);
     if (logsError) console.error('Error clearing meal logs:', logsError);
 
     for (const member of members) {
@@ -288,7 +329,12 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteArchive = async (id: string) => {
-    const { error } = await supabase.from('archives').delete().eq('id', id);
+    if (!userId) return;
+    const { error } = await supabase
+      .from('archives')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
     if (error) { console.error('Error deleting archive:', error); return; }
     setArchives(prev => prev.filter(a => a.id !== id));
   };

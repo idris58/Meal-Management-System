@@ -15,8 +15,9 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/auth-context';
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
-  const [, setLocation] = useLocation();
+  // Fix: was called twice before — once for location, once for setLocation.
+  // A single call gives both values and avoids two separate router subscriptions.
+  const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
 
@@ -80,7 +81,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <div className="px-2 text-sm text-muted-foreground truncate">
                   {user?.email ?? 'Signed in'}
                 </div>
-                <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }}>
                   <LogOut className="h-4 w-4" />
                   Logout
                 </Button>
@@ -120,7 +121,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="px-2 text-sm text-muted-foreground truncate">
             {user?.email ?? 'Signed in'}
           </div>
-          <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
+          <Button variant="outline" className="w-full justify-start gap-2" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
             Logout
           </Button>
