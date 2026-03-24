@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ChefHat,
-  Receipt,
   Share2,
   ShoppingBag,
   Users,
   UtensilsCrossed,
-  Wallet,
   Zap,
 } from "lucide-react";
 import { eachDayOfInterval, format, isSameDay, max, min, parseISO, startOfDay } from "date-fns";
@@ -64,6 +62,10 @@ type SharedPayload = {
 
 function formatCurrency(amount: number) {
   return `৳${amount.toFixed(2)}`;
+}
+
+function formatBalance(amount: number) {
+  return `৳${Math.ceil(Math.abs(amount))}`;
 }
 
 export default function SharedPage({ token }: { token: string }) {
@@ -221,8 +223,7 @@ export default function SharedPage({ token }: { token: string }) {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm uppercase text-muted-foreground">
-                <Receipt className="h-4 w-4 text-emerald-500" />
+              <CardTitle className="text-sm uppercase text-muted-foreground">
                 Totals
               </CardTitle>
             </CardHeader>
@@ -243,78 +244,6 @@ export default function SharedPage({ token }: { token: string }) {
                   {formatCurrency(data.stats.totalFixedExpenses)}
                 </span>
               </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-emerald-500" />
-                Expense Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border bg-secondary/30 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Meal Expenses
-                </p>
-                <p className="mt-2 text-2xl font-heading font-bold">
-                  {formatCurrency(data.stats.totalMealExpenses)}
-                </p>
-              </div>
-              <div className="rounded-xl border bg-secondary/30 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Fixed Expenses
-                </p>
-                <p className="mt-2 text-2xl font-heading font-bold">
-                  {formatCurrency(data.stats.totalFixedExpenses)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-emerald-500" />
-                Members Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {data.members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between rounded-lg border bg-card p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 text-xs">
-                      <AvatarFallback>{member.avatar}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm">{member.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {member.mealsEaten} meals
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">
-                      Deposit: {formatCurrency(member.deposit)}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-sm font-bold",
-                        member.balance >= 0 ? "text-emerald-600" : "text-red-600",
-                      )}
-                    >
-                      Balance: {member.balance >= 0 ? "+" : "-"}
-                      {formatCurrency(Math.abs(member.balance))}
-                    </p>
-                  </div>
-                </div>
-              ))}
             </CardContent>
           </Card>
         </section>
@@ -410,6 +339,7 @@ export default function SharedPage({ token }: { token: string }) {
                 tab === "all"
                   ? [...data.expenses]
                   : data.expenses.filter((expense) => expense.type === tab);
+              const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
               return (
                 <TabsContent key={tab} value={tab} className="m-0">
@@ -422,43 +352,53 @@ export default function SharedPage({ token }: { token: string }) {
                           </CardContent>
                         </Card>
                       ) : (
-                        expenses.map((expense) => (
-                          <div
-                            key={expense.id}
-                            className="flex items-center justify-between rounded-lg border bg-card p-4"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div
-                                className={cn(
-                                  "rounded-full p-2",
-                                  expense.type === "meal"
-                                    ? "bg-emerald-100 text-emerald-600"
-                                    : "bg-slate-100 text-slate-600",
-                                )}
-                              >
-                                {expense.type === "meal" ? (
-                                  <ShoppingBag className="h-5 w-5" />
-                                ) : (
-                                  <Zap className="h-5 w-5" />
-                                )}
+                        <>
+                          {expenses.map((expense) => (
+                            <div
+                              key={expense.id}
+                              className="flex items-center justify-between rounded-lg border bg-card p-4"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div
+                                  className={cn(
+                                    "rounded-full p-2",
+                                    expense.type === "meal"
+                                      ? "bg-emerald-100 text-emerald-600"
+                                      : "bg-slate-100 text-slate-600",
+                                  )}
+                                >
+                                  {expense.type === "meal" ? (
+                                    <ShoppingBag className="h-5 w-5" />
+                                  ) : (
+                                    <Zap className="h-5 w-5" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-medium">{expense.description}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(expense.date), "MMM d, yyyy")} • Paid by {expense.paidBy}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-medium">{expense.description}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(expense.date), "MMM d, yyyy")} • Paid by {expense.paidBy}
+                              <div className="text-right">
+                                <p className="font-heading font-bold">
+                                  {formatCurrency(expense.amount)}
                                 </p>
+                                <Badge variant="secondary" className="text-[10px] uppercase">
+                                  {expense.type}
+                                </Badge>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="font-heading font-bold">
-                                {formatCurrency(expense.amount)}
-                              </p>
-                              <Badge variant="secondary" className="text-[10px] uppercase">
-                                {expense.type}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))
+                          ))}
+                          <Card className="border-dashed">
+                            <CardContent className="flex items-center justify-between py-4">
+                              <span className="text-sm font-medium text-muted-foreground">Total</span>
+                              <span className="font-heading text-xl font-bold">
+                                {formatCurrency(total)}
+                              </span>
+                            </CardContent>
+                          </Card>
+                        </>
                       )}
                     </div>
                   </ScrollArea>
@@ -466,6 +406,62 @@ export default function SharedPage({ token }: { token: string }) {
               );
             })}
           </Tabs>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-emerald-500" />
+            <h2 className="text-xl font-heading font-bold">Members Summary</h2>
+          </div>
+          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+            <div className="overflow-auto">
+              <table className="w-full min-w-[760px] border-collapse text-sm">
+                <thead className="bg-card">
+                  <tr className="border-b">
+                    <th className="p-4 text-left font-bold">Member</th>
+                    <th className="p-4 text-right font-bold">Deposit</th>
+                    <th className="p-4 text-right font-bold">Deposit - Fixed</th>
+                    <th className="p-4 text-right font-bold">Total Meals</th>
+                    <th className="p-4 text-right font-bold">Meal Cost</th>
+                    <th className="p-4 text-right font-bold">Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {data.members.map((member) => (
+                    <tr key={member.id} className="hover:bg-muted/50">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8 text-xs">
+                            <AvatarFallback>{member.avatar}</AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium">{member.name}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 text-right font-medium">
+                        {formatCurrency(member.deposit)}
+                      </td>
+                      <td className="p-4 text-right font-medium">
+                        {formatCurrency(member.deposit - member.fixedCost)}
+                      </td>
+                      <td className="p-4 text-right font-medium">{member.mealsEaten}</td>
+                      <td className="p-4 text-right font-medium">
+                        {formatCurrency(member.mealCost)}
+                      </td>
+                      <td
+                        className={cn(
+                          "p-4 text-right font-bold",
+                          member.balance >= 0 ? "text-emerald-600" : "text-red-600",
+                        )}
+                      >
+                        {member.balance >= 0 ? "+" : "-"}
+                        {formatBalance(member.balance)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
       </div>
     </div>
