@@ -1,22 +1,119 @@
-import { useState } from "react";
-import { ChefHat, Chrome, LoaderCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  ChefHat,
+  Chrome,
+  Eye,
+  EyeOff,
+  LoaderCircle,
+} from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "forgot-password" | "reset-password";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function mapAuthError(message: string, mode: AuthMode) {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("invalid login credentials") ||
+    normalized.includes("email not confirmed")
+  ) {
+    return mode === "login"
+      ? "The email or password is incorrect, or your email has not been confirmed yet."
+      : "This account is not ready yet. Check your email for the confirmation link.";
+  }
+
+  if (
+    normalized.includes("user already registered") ||
+    normalized.includes("already been registered")
+  ) {
+    return "This email is already registered. Try logging in instead.";
+  }
+
+  if (
+    normalized.includes("expired") ||
+    normalized.includes("otp") ||
+    normalized.includes("token") ||
+    normalized.includes("invalid grant")
+  ) {
+    return "This link is invalid or has expired. Request a new password reset email.";
+  }
+
+  if (normalized.includes("network")) {
+    return "We could not reach the authentication service. Please try again.";
+  }
+
+  return "Authentication failed. Please try again.";
+}
 
 export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const isRecoveryLink = useMemo(() => {
+    const hash = window.location.hash.toLowerCase();
+    return hash.includes("type=recovery") || hash.includes("recovery");
+  }, []);
+
+  useEffect(() => {
+    if (isRecoveryLink) {
+      setMode("reset-password");
+      setError(null);
+      setMessage("Set a new password for your account.");
+    }
+  }, [isRecoveryLink]);
+
+  const switchMode = (next: AuthMode) => {
+    if (mode === "reset-password" && next !== "reset-password") {
+      window.history.replaceState(
+        null,
+        document.title,
+        window.location.pathname + window.location.search,
+      );
+    }
+
+    setMode(next);
+    setError(null);
+    setMessage(null);
+    setPassword("");
+    setConfirmPassword("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
+
+  const validateForm = (currentMode: AuthMode) => {
+    if (currentMode !== "reset-password" && !EMAIL_PATTERN.test(email.trim())) {
+      return "Enter a valid email address.";
+    }
+
+    if (currentMode !== "forgot-password" && password.length < 6) {
+      return "Password must be at least 6 characters.";
+    }
+
+    if (
+      (currentMode === "signup" || currentMode === "reset-password") &&
+      password !== confirmPassword
+    ) {
+      return "Passwords do not match.";
+    }
+
+    return null;
+  };
 
   const handleEmailAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -25,9 +122,16 @@ export default function AuthPage() {
     setMessage(null);
 
     try {
+      const validationError = validateForm(mode);
+
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
       if (mode === "login") {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
 
@@ -38,11 +142,49 @@ export default function AuthPage() {
         return;
       }
 
+      if (mode === "forgot-password") {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+          email.trim(),
+          {
+            redirectTo: `${window.location.origin}/auth`,
+          },
+        );
+
+        if (resetError) {
+          throw resetError;
+        }
+
+        setMessage(
+          "Password reset email sent. Check your inbox for the reset link.",
+        );
+        return;
+      }
+
+      if (mode === "reset-password") {
+        const { error: updateError } = await supabase.auth.updateUser({
+          password,
+        });
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        setPassword("");
+        setConfirmPassword("");
+        window.history.replaceState(
+          null,
+          document.title,
+          window.location.pathname + window.location.search,
+        );
+        switchMode("login");
+        setMessage("Password updated. You can now log in with your new password.");
+        return;
+      }
+
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
-          // Fix: was "/auth" before — confirmed users should land on the app, not back on login
           emailRedirectTo: `${window.location.origin}/`,
         },
       });
@@ -52,19 +194,16 @@ export default function AuthPage() {
       }
 
       if (!data.session) {
-        // Email confirmation required — clear form so user doesn't accidentally resubmit
         setEmail("");
         setPassword("");
+        setConfirmPassword("");
         setMessage("Account created. Check your email to confirm your account.");
       } else {
         setMessage("Account created. You are now signed in.");
       }
     } catch (caughtError) {
-      const nextError =
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Authentication failed. Try again.";
-      setError(nextError);
+      const nextError = caughtError instanceof Error ? caughtError.message : "";
+      setError(mapAuthError(nextError, mode));
     } finally {
       setSubmitting(false);
     }
@@ -83,23 +222,31 @@ export default function AuthPage() {
     });
 
     if (oauthError) {
-      // Fires immediately when the provider isn't configured or network fails
       setGoogleLoading(false);
-      setError(oauthError.message);
+      setError(mapAuthError(oauthError.message, "login"));
       return;
     }
 
-    // Supabase initiates a redirect — if it never happens (popup blocked, user
-    // dismissed) the button would stay stuck forever. Reset after 10 seconds.
     setTimeout(() => setGoogleLoading(false), 10_000);
   };
 
-  // Clears errors/messages when switching tabs so stale state doesn't show
-  const switchMode = (next: AuthMode) => {
-    setMode(next);
-    setError(null);
-    setMessage(null);
-  };
+  const title =
+    mode === "login"
+      ? "Welcome back"
+      : mode === "signup"
+        ? "Create your account"
+        : mode === "forgot-password"
+          ? "Reset your password"
+          : "Choose a new password";
+
+  const submitLabel =
+    mode === "login"
+      ? "Login with Email"
+      : mode === "signup"
+        ? "Create Account"
+        : mode === "forgot-password"
+          ? "Send Reset Link"
+          : "Update Password";
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dff6eb_0%,#f8fafc_40%,#eef3f7_100%)]">
@@ -115,8 +262,8 @@ export default function AuthPage() {
               Meal management with account-based access.
             </h1>
             <p className="max-w-lg text-base leading-7 text-slate-600 md:text-lg">
-              Sign in with email and password, create a new account, or continue
-              with Google. After logout, the app returns to the login screen.
+              Sign in with email and password, create a new account, reset your
+              password when needed, or continue with Google.
             </p>
           </div>
 
@@ -134,9 +281,9 @@ export default function AuthPage() {
               </p>
             </div>
             <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur">
-              <p className="text-sm font-semibold text-slate-900">Google OAuth</p>
+              <p className="text-sm font-semibold text-slate-900">Password reset</p>
               <p className="mt-1 text-sm text-slate-600">
-                One-click sign-in for supported accounts.
+                Recover access with an email reset link.
               </p>
             </div>
           </div>
@@ -153,63 +300,168 @@ export default function AuthPage() {
                   MealManager
                 </p>
                 <CardTitle className="mt-1 text-2xl text-slate-900">
-                  {mode === "login" ? "Welcome back" : "Create your account"}
+                  {title}
                 </CardTitle>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+            {mode === "login" || mode === "signup" ? (
+              <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    mode === "login"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500"
+                  }`}
+                  onClick={() => switchMode("login")}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    mode === "signup"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500"
+                  }`}
+                  onClick={() => switchMode("signup")}
+                >
+                  Sign up
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  mode === "login"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500"
-                }`}
+                className="inline-flex items-center gap-2 self-start text-sm font-medium text-slate-600 transition hover:text-slate-900"
                 onClick={() => switchMode("login")}
               >
-                Login
+                <ArrowLeft className="h-4 w-4" />
+                Back to login
               </button>
-              <button
-                type="button"
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  mode === "signup"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500"
-                }`}
-                onClick={() => switchMode("signup")}
-              >
-                Sign up
-              </button>
-            </div>
+            )}
           </CardHeader>
 
           <CardContent className="space-y-5">
             <form className="space-y-4" onSubmit={handleEmailAuth}>
-              <div className="space-y-2">
-                <Label htmlFor="auth-email">Email</Label>
-                <Input
-                  id="auth-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
-              </div>
+              {mode !== "reset-password" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="auth-email">Email</Label>
+                  <Input
+                    id="auth-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                  />
+                </div>
+              ) : null}
 
-              <div className="space-y-2">
-                <Label htmlFor="auth-password">Password</Label>
-                <Input
-                  id="auth-password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  minLength={6}
-                />
-              </div>
+              {mode !== "forgot-password" ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="auth-password">Password</Label>
+                    {mode === "login" ? (
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+                        onClick={() => switchMode("forgot-password")}
+                      >
+                        Forgot password?
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="auth-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder={
+                        mode === "reset-password"
+                          ? "Enter a new password"
+                          : "Enter your password"
+                      }
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                      minLength={6}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700"
+                      onClick={() => setShowPassword((current) => !current)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {mode === "signup" || mode === "reset-password" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="auth-confirm-password">Confirm Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="auth-confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Re-enter your password"
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      required
+                      minLength={6}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700"
+                      onClick={() =>
+                        setShowConfirmPassword((current) => !current)
+                      }
+                      aria-label={
+                        showConfirmPassword
+                          ? "Hide confirm password"
+                          : "Show confirm password"
+                      }
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {mode === "login" ? (
+                <p className="text-sm leading-6 text-slate-600">
+                  Sign in with your email and password, or continue with Google.
+                </p>
+              ) : null}
+
+              {mode === "signup" ? (
+                <p className="text-sm leading-6 text-slate-600">
+                  Create your account with email and password. Google sign-in is also available below.
+                </p>
+              ) : null}
+
+              {mode === "forgot-password" ? (
+                <p className="text-sm leading-6 text-slate-600">
+                  Enter your email address and we will send you a password reset link.
+                </p>
+              ) : null}
+
+              {mode === "reset-password" ? (
+                <p className="text-sm leading-6 text-slate-600">
+                  Choose a new password for your account, then use it the next time you log in.
+                </p>
+              ) : null}
 
               {error ? (
                 <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -229,42 +481,44 @@ export default function AuthPage() {
                     <LoaderCircle className="h-4 w-4 animate-spin" />
                     Processing...
                   </>
-                ) : mode === "login" ? (
-                  "Login with Email"
                 ) : (
-                  "Create Account"
+                  submitLabel
                 )}
               </Button>
             </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase tracking-[0.2em] text-slate-500">
-                <span className="bg-white px-2">Or continue with</span>
-              </div>
-            </div>
+            {mode === "login" || mode === "signup" ? (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase tracking-[0.2em] text-slate-500">
+                    <span className="bg-white px-2">Or continue with</span>
+                  </div>
+                </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogleAuth}
-              disabled={googleLoading}
-            >
-              {googleLoading ? (
-                <>
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                  Redirecting...
-                </>
-              ) : (
-                <>
-                  <Chrome className="h-4 w-4" />
-                  Google
-                </>
-              )}
-            </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleAuth}
+                  disabled={googleLoading}
+                >
+                  {googleLoading ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Redirecting...
+                    </>
+                  ) : (
+                    <>
+                      <Chrome className="h-4 w-4" />
+                      Google
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : null}
           </CardContent>
         </Card>
       </div>

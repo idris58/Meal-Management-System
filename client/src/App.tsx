@@ -45,6 +45,9 @@ function Router() {
 function AppShell() {
   const { session, loading } = useAuth();
   const [location, setLocation] = useLocation();
+  const isRecoveryFlow =
+    location === "/auth" &&
+    window.location.hash.toLowerCase().includes("type=recovery");
 
   useEffect(() => {
     if (loading) {
@@ -56,10 +59,10 @@ function AppShell() {
       return;
     }
 
-    if (session && location === "/auth") {
+    if (session && location === "/auth" && !isRecoveryFlow) {
       setLocation("/");
     }
-  }, [loading, location, session, setLocation]);
+  }, [isRecoveryFlow, loading, location, session, setLocation]);
 
   if (loading) {
     return (
@@ -72,7 +75,7 @@ function AppShell() {
     );
   }
 
-  if (!session) {
+  if (!session || isRecoveryFlow) {
     return <AuthPage />;
   }
 
