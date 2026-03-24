@@ -7,11 +7,13 @@ import {
   EyeOff,
   LoaderCircle,
 } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 
 type AuthMode = "login" | "signup" | "forgot-password" | "reset-password";
@@ -54,6 +56,7 @@ function mapAuthError(message: string, mode: AuthMode) {
 }
 
 export default function AuthPage() {
+  const { lastAuthEvent } = useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -67,8 +70,14 @@ export default function AuthPage() {
 
   const isRecoveryLink = useMemo(() => {
     const hash = window.location.hash.toLowerCase();
-    return hash.includes("type=recovery") || hash.includes("recovery");
-  }, []);
+    const search = window.location.search.toLowerCase();
+    return (
+      hash.includes("type=recovery") ||
+      hash.includes("access_token") ||
+      search.includes("type=recovery") ||
+      lastAuthEvent === "PASSWORD_RECOVERY"
+    );
+  }, [lastAuthEvent]);
 
   useEffect(() => {
     if (isRecoveryLink) {
@@ -191,6 +200,15 @@ export default function AuthPage() {
 
       if (signUpError) {
         throw signUpError;
+      }
+
+      if (
+        data.user &&
+        Array.isArray((data.user as User & { identities?: unknown[] }).identities) &&
+        ((data.user as User & { identities?: unknown[] }).identities?.length ?? 0) === 0
+      ) {
+        setError("This email is already registered. Try logging in instead.");
+        return;
       }
 
       if (!data.session) {
@@ -390,7 +408,15 @@ export default function AuthPage() {
                     <button
                       type="button"
                       className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700"
-                      onClick={() => setShowPassword((current) => !current)}
+                      onClick={() =>
+                        setShowPassword((current) => {
+                          const next = !current;
+                          if (mode === "signup" || mode === "reset-password") {
+                            setShowConfirmPassword(next);
+                          }
+                          return next;
+                        })
+                      }
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (

@@ -43,11 +43,15 @@ function Router() {
 }
 
 function AppShell() {
-  const { session, loading } = useAuth();
+  const { session, loading, lastAuthEvent } = useAuth();
   const [location, setLocation] = useLocation();
+  const recoveryTokenInUrl =
+    window.location.hash.toLowerCase().includes("type=recovery") ||
+    window.location.hash.toLowerCase().includes("access_token") ||
+    window.location.search.toLowerCase().includes("type=recovery");
   const isRecoveryFlow =
     location === "/auth" &&
-    window.location.hash.toLowerCase().includes("type=recovery");
+    (recoveryTokenInUrl || lastAuthEvent === "PASSWORD_RECOVERY");
 
   useEffect(() => {
     if (loading) {
