@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Route, Switch, useLocation } from "wouter";
+import { Route, Switch, useLocation, useRoute } from "wouter";
 
 import { Layout } from "@/components/layout";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,6 +13,7 @@ import HistoryPage from "@/pages/history";
 import Meals from "@/pages/meals";
 import Members from "@/pages/members";
 import NotFound from "@/pages/not-found";
+import SharedPage from "@/pages/shared";
 
 function Router() {
   const { loading } = useMeal();
@@ -45,6 +46,7 @@ function Router() {
 function AppShell() {
   const { session, loading, lastAuthEvent } = useAuth();
   const [location, setLocation] = useLocation();
+  const [isSharedRoute, sharedParams] = useRoute("/shared/:token");
   const recoveryTokenInUrl =
     window.location.hash.toLowerCase().includes("type=recovery") ||
     window.location.hash.toLowerCase().includes("access_token") ||
@@ -54,6 +56,10 @@ function AppShell() {
     (recoveryTokenInUrl || lastAuthEvent === "PASSWORD_RECOVERY");
 
   useEffect(() => {
+    if (isSharedRoute) {
+      return;
+    }
+
     if (loading) {
       return;
     }
@@ -66,7 +72,11 @@ function AppShell() {
     if (session && location === "/auth" && !isRecoveryFlow) {
       setLocation("/");
     }
-  }, [isRecoveryFlow, loading, location, session, setLocation]);
+  }, [isRecoveryFlow, isSharedRoute, loading, location, session, setLocation]);
+
+  if (isSharedRoute && sharedParams?.token) {
+    return <SharedPage token={sharedParams.token} />;
+  }
 
   if (loading) {
     return (
