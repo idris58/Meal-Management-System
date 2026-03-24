@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useMeal } from '@/lib/meal-context';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from '@/components/ui/button';
@@ -8,14 +9,23 @@ import { Calendar } from '@/components/ui/calendar';
 import { Plus, Minus, Utensils, Calendar as CalendarIcon } from 'lucide-react';
 import { format, eachDayOfInterval, isSameDay, parseISO, min, max, startOfDay } from 'date-fns';
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from 'react';
 
-function QuickLogMeal({ onClose }: { onClose: () => void }) {
+function QuickLogMeal({
+  onClose,
+  initialDate,
+}: {
+  onClose: () => void;
+  initialDate?: Date;
+}) {
   const { logMeal, members, mealLogs } = useMeal();
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date>(initialDate ?? new Date());
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
     Object.fromEntries(members.map(member => [member.id, '0']))
   );
+
+  useEffect(() => {
+    setDate(initialDate ?? new Date());
+  }, [initialDate]);
 
   useEffect(() => {
     const shortDate = format(date, 'yyyy-MM-dd');
@@ -42,13 +52,17 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const dateStr = format(date, 'yyyy-MM-dd');
-    Object.entries(mealCounts).forEach(([memberId, countStr]) => {
-      const count = parseFloat(countStr);
-      logMeal(memberId, isNaN(count) ? 0 : count, dateStr);
-    });
+
+    await Promise.all(
+      Object.entries(mealCounts).map(async ([memberId, countStr]) => {
+        const count = parseFloat(countStr);
+        await logMeal(memberId, isNaN(count) ? 0 : count, dateStr);
+      }),
+    );
+
     onClose();
   };
 
@@ -113,6 +127,7 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
 export default function Meals() {
   const { members, mealLogs } = useMeal();
   const [openMeal, setOpenMeal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   
   const today = startOfDay(new Date());
   
@@ -127,22 +142,46 @@ export default function Meals() {
     days = [today];
   }
 
+  const openEditorForDate = (day: Date) => {
+    setSelectedDate(day);
+    setOpenMeal(true);
+  };
+
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-heading">Meal Logs</h1>
-        <Dialog open={openMeal} onOpenChange={setOpenMeal}>
+        <Dialog
+          open={openMeal}
+          onOpenChange={(open) => {
+            setOpenMeal(open);
+            if (!open) {
+              setSelectedDate(undefined);
+            }
+          }}
+        >
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button
+              className="gap-2"
+              onClick={() => setSelectedDate(undefined)}
+            >
               <Utensils className="h-4 w-4" />
               Log Meals
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Log Meals by Date</DialogTitle>
+              <DialogTitle>
+                {selectedDate ? `Edit Meals for ${format(selectedDate, 'PPP')}` : 'Log Meals by Date'}
+              </DialogTitle>
             </DialogHeader>
-            <QuickLogMeal onClose={() => setOpenMeal(false)} />
+            <QuickLogMeal
+              initialDate={selectedDate}
+              onClose={() => {
+                setOpenMeal(false);
+                setSelectedDate(undefined);
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -177,7 +216,11 @@ export default function Meals() {
                 const dayTotal = dayLogs.reduce((s, l) => s + l.count, 0);
 
                 return (
-                  <tr key={dateStr} className="hover:bg-muted/50 transition-colors">
+                  <tr
+                    key={dateStr}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => openEditorForDate(day)}
+                  >
                     <td className="sticky left-0 z-10 bg-card p-4 font-medium border-r whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className={cn(isSameDay(day, today) && "text-primary font-bold")}>
