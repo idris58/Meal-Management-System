@@ -52,6 +52,12 @@ interface MealContextType {
   updateMember: (id: string, updates: Partial<Member>) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
   addExpense: (amount: number, description: string, type: 'meal' | 'fixed', paidBy: string) => Promise<void>;
+  updateExpense: (id: string, updates: {
+    amount: number;
+    description: string;
+    type: 'meal' | 'fixed';
+    paidBy: string;
+  }) => Promise<void>;
   addDeposit: (memberId: string, amount: number) => Promise<void>;
   logMeal: (memberId: string, count: number, date: string) => Promise<void>;
   resetCycle: () => Promise<void>;
@@ -240,6 +246,46 @@ export function MealProvider({ children }: { children: ReactNode }) {
     setExpenses(prev => [newExpense, ...prev]);
   };
 
+  const updateExpense = async (
+    id: string,
+    updates: {
+      amount: number;
+      description: string;
+      type: 'meal' | 'fixed';
+      paidBy: string;
+    },
+  ) => {
+    if (!userId) return;
+
+    const { error } = await supabase
+      .from('expenses')
+      .update({
+        amount: updates.amount,
+        description: updates.description,
+        type: updates.type,
+        paid_by: updates.paidBy,
+      })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error updating expense:', error);
+      return;
+    }
+
+    setExpenses(prev => prev.map(expense =>
+      expense.id === id
+        ? {
+            ...expense,
+            amount: updates.amount,
+            description: updates.description,
+            type: updates.type,
+            paidBy: updates.paidBy,
+          }
+        : expense,
+    ));
+  };
+
   const addDeposit = async (memberId: string, amount: number) => {
     const member = members.find(m => m.id === memberId);
     if (!member) return;
@@ -384,6 +430,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       updateMember,
       removeMember,
       addExpense,
+      updateExpense,
       addDeposit,
       logMeal,
       resetCycle,

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useMeal, Expense } from '@/lib/meal-context';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -5,14 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { ShoppingBag, Zap, Plus } from 'lucide-react';
+import { ShoppingBag, Zap, Plus, Pencil } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const expenseSchema = z.object({
@@ -22,15 +22,40 @@ const expenseSchema = z.object({
   paidBy: z.string().min(2, 'Shopper name is required'),
 });
 
-function QuickAddExpense({ onClose }: { onClose: () => void }) {
-  const { addExpense } = useMeal();
+function ExpenseEditor({
+  expense,
+  onClose,
+}: {
+  expense?: Expense | null;
+  onClose: () => void;
+}) {
+  const { addExpense, updateExpense } = useMeal();
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
-    defaultValues: { amount: 0, description: '', type: 'meal', paidBy: '' },
+    defaultValues: {
+      amount: expense?.amount ?? 0,
+      description: expense?.description ?? '',
+      type: expense?.type ?? 'meal',
+      paidBy: expense?.paidBy ?? '',
+    },
   });
 
-  const onSubmit = (data: z.infer<typeof expenseSchema>) => {
-    addExpense(data.amount, data.description, data.type, data.paidBy);
+  useEffect(() => {
+    form.reset({
+      amount: expense?.amount ?? 0,
+      description: expense?.description ?? '',
+      type: expense?.type ?? 'meal',
+      paidBy: expense?.paidBy ?? '',
+    });
+  }, [expense, form]);
+
+  const onSubmit = async (data: z.infer<typeof expenseSchema>) => {
+    if (expense) {
+      await updateExpense(expense.id, data);
+    } else {
+      await addExpense(data.amount, data.description, data.type, data.paidBy);
+    }
+
     onClose();
   };
 
@@ -43,7 +68,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Expense Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                 <SelectContent>
                   <SelectItem value="meal">Meal (Grocery/Food)</SelectItem>
@@ -87,7 +112,9 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">Add Expense</Button>
+        <Button type="submit" className="w-full">
+          {expense ? 'Save Changes' : 'Add Expense'}
+        </Button>
       </form>
     </Form>
   );
@@ -96,6 +123,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
 export default function Expenses() {
   const { expenses } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const renderExpenseList = (filteredExpenses: Expense[]) => {
     const total = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -121,11 +149,21 @@ export default function Expenses() {
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-heading font-bold">৳{expense.amount.toFixed(0)}</p>
-                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
-                    {expense.type === 'meal' ? 'Table A' : 'Table B'}
-                  </Badge>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setEditingExpense(expense)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <div className="text-right">
+                    <p className="font-heading font-bold">৳{expense.amount.toFixed(0)}</p>
+                    <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
+                      {expense.type === 'meal' ? 'Table A' : 'Table B'}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             ))}
@@ -156,7 +194,7 @@ export default function Expenses() {
             <DialogHeader>
               <DialogTitle>Add New Expense</DialogTitle>
             </DialogHeader>
-            <QuickAddExpense onClose={() => setOpenExpense(false)} />
+            <ExpenseEditor onClose={() => setOpenExpense(false)} />
           </DialogContent>
         </Dialog>
       </div>
@@ -180,6 +218,20 @@ export default function Expenses() {
           </TabsContent>
         </ScrollArea>
       </Tabs>
+
+      <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Expense</DialogTitle>
+          </DialogHeader>
+          {editingExpense ? (
+            <ExpenseEditor
+              expense={editingExpense}
+              onClose={() => setEditingExpense(null)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
