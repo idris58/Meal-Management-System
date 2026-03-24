@@ -58,6 +58,7 @@ interface MealContextType {
     type: 'meal' | 'fixed';
     paidBy: string;
   }) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
   addDeposit: (memberId: string, amount: number) => Promise<void>;
   logMeal: (memberId: string, count: number, date: string) => Promise<void>;
   resetCycle: () => Promise<void>;
@@ -286,6 +287,23 @@ export function MealProvider({ children }: { children: ReactNode }) {
     ));
   };
 
+  const deleteExpense = async (id: string) => {
+    if (!userId) return;
+
+    const { error } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting expense:', error);
+      return;
+    }
+
+    setExpenses(prev => prev.filter(expense => expense.id !== id));
+  };
+
   const addDeposit = async (memberId: string, amount: number) => {
     const member = members.find(m => m.id === memberId);
     if (!member) return;
@@ -431,6 +449,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       removeMember,
       addExpense,
       updateExpense,
+      deleteExpense,
       addDeposit,
       logMeal,
       resetCycle,

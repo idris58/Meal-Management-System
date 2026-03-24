@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ShoppingBag, Zap, Plus, Pencil } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,7 +17,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const expenseSchema = z.object({
-  amount: z.coerce.number().min(1, 'Amount is required'),
+  amount: z.preprocess(
+    (value) => value === '' ? undefined : value,
+    z.coerce.number().min(1, 'Amount is required'),
+  ),
   description: z.string().min(2, 'Description is required'),
   type: z.enum(['meal', 'fixed']),
   paidBy: z.string().min(2, 'Shopper name is required'),
@@ -29,11 +33,11 @@ function ExpenseEditor({
   expense?: Expense | null;
   onClose: () => void;
 }) {
-  const { addExpense, updateExpense } = useMeal();
+  const { addExpense, updateExpense, deleteExpense } = useMeal();
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
-      amount: expense?.amount ?? 0,
+      amount: expense?.amount,
       description: expense?.description ?? '',
       type: expense?.type ?? 'meal',
       paidBy: expense?.paidBy ?? '',
@@ -42,7 +46,7 @@ function ExpenseEditor({
 
   useEffect(() => {
     form.reset({
-      amount: expense?.amount ?? 0,
+      amount: expense?.amount,
       description: expense?.description ?? '',
       type: expense?.type ?? 'meal',
       paidBy: expense?.paidBy ?? '',
@@ -56,6 +60,12 @@ function ExpenseEditor({
       await addExpense(data.amount, data.description, data.type, data.paidBy);
     }
 
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!expense) return;
+    await deleteExpense(expense.id);
     onClose();
   };
 
@@ -96,7 +106,14 @@ function ExpenseEditor({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Amount</FormLabel>
-              <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+              <FormControl>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  {...field}
+                  value={field.value ?? ''}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -112,9 +129,38 @@ function ExpenseEditor({
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-          {expense ? 'Save Changes' : 'Add Expense'}
-        </Button>
+        {expense ? (
+          <div className="flex gap-3">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="destructive" className="flex-1">
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove the expense from the current cycle totals and expense list.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>
+                    Yes, Delete Expense
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button type="submit" className="flex-1">
+              Save Changes
+            </Button>
+          </div>
+        ) : (
+          <Button type="submit" className="w-full">
+            Add Expense
+          </Button>
+        )}
       </form>
     </Form>
   );
