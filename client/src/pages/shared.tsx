@@ -46,6 +46,11 @@ type SharedMealLog = {
 };
 
 type SharedPayload = {
+  cycle: {
+    id: string;
+    status: "active" | "pending" | "closed";
+    closedAt?: string | null;
+  };
   stats: {
     totalDeposits: number;
     totalMealExpenses: number;
@@ -176,7 +181,7 @@ export default function SharedPage({ token }: { token: string }) {
                 Shared View
               </p>
               <h1 className="font-heading text-xl font-bold text-slate-900">
-                Current Meal Cycle
+                {data.cycle.status === "pending" ? "Pending Settlement Cycle" : "Current Meal Cycle"}
               </h1>
             </div>
           </div>

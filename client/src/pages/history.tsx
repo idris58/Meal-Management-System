@@ -1,129 +1,715 @@
-import { useMeal } from '@/lib/meal-context';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { useEffect, useMemo, useState } from 'react';
+import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
+import { Archive, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
+
+import { useMeal, type ArchiveCycle, type CycleDetails, type CycleStatus, type Expense } from '@/lib/meal-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+
+function formatCurrency(amount: number) {
+  return `৳${amount.toFixed(2)}`;
+}
+
+function formatBalance(amount: number) {
+  return `${amount >= 0 ? '+' : '-'}${Math.round(Math.abs(amount))}`;
+}
+
+function SettlementForm({
+  cycleId,
+  memberId,
+  memberName,
+  onClose,
+}: {
+  cycleId: string;
+  memberId: string;
+  memberName: string;
+  onClose: () => void;
+}) {
+  const { addDeposit } = useMeal();
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed === 0) {
+      return;
+    }
+
+    await addDeposit(memberId, parsed, cycleId, note || undefined);
+    onClose();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+      <p className="text-sm text-muted-foreground">
+        Positive amount means this member paid money to the meal. Negative amount means the meal manager returned money to this member.
+      </p>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Amount</label>
+        <Input
+          type="number"
+          placeholder="e.g. 300 or -300"
+          value={amount}
+          onChange={(event) => setAmount(event.target.value)}
+          autoFocus
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Note</label>
+        <Input
+          placeholder={`Settlement for ${memberName}`}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </div>
+      <Button type="submit" className="w-full">
+        Save Settlement
+      </Button>
+    </form>
+  );
+}
+
+function PendingExpenseEditor({
+  cycleId,
+  expense,
+  onClose,
+}: {
+  cycleId: string;
+  expense?: Expense | null;
+  onClose: () => void;
+}) {
+  const { addExpense, updateExpense, deleteExpense } = useMeal();
+  const [description, setDescription] = useState(expense?.description ?? '');
+  const [amount, setAmount] = useState(expense ? String(expense.amount) : '');
+  const [type, setType] = useState<'meal' | 'fixed'>(expense?.type ?? 'meal');
+  const [paidBy, setPaidBy] = useState(expense?.paidBy ?? '');
+
+  useEffect(() => {
+    setDescription(expense?.description ?? '');
+    setAmount(expense ? String(expense.amount) : '');
+    setType(expense?.type ?? 'meal');
+    setPaidBy(expense?.paidBy ?? '');
+  }, [expense]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const parsedAmount = parseFloat(amount);
+    if (!description.trim() || !paidBy.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
+      return;
+    }
+
+    if (expense) {
+      await updateExpense(expense.id, {
+        description: description.trim(),
+        amount: parsedAmount,
+        type,
+        paidBy: paidBy.trim(),
+      });
+    } else {
+      await addExpense(parsedAmount, description.trim(), type, paidBy.trim(), cycleId);
+    }
+
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!expense) return;
+    await deleteExpense(expense.id);
+    onClose();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Expense Type</label>
+        <Select value={type} onValueChange={(value: 'meal' | 'fixed') => setType(value)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="meal">Meal (Grocery/Food)</SelectItem>
+            <SelectItem value="fixed">Fixed (Bills/Utilities)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Description</label>
+        <Input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="e.g. Rice, WiFi bill" />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Amount</label>
+        <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Who Shopped?</label>
+        <Input value={paidBy} onChange={(event) => setPaidBy(event.target.value)} placeholder="Shopper name" />
+      </div>
+
+      {expense ? (
+        <div className="flex gap-3">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="destructive" className="flex-1">
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove the expense from this pending cycle.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button type="submit" className="flex-1">Save Changes</Button>
+        </div>
+      ) : (
+        <Button type="submit" className="w-full">Add Expense</Button>
+      )}
+    </form>
+  );
+}
+
+function PendingMealEditor({
+  cycleId,
+  details,
+  initialDate,
+  onClose,
+}: {
+  cycleId: string;
+  details: CycleDetails;
+  initialDate?: Date;
+  onClose: () => void;
+}) {
+  const { logMeal } = useMeal();
+  const [date, setDate] = useState<Date>(initialDate ?? new Date());
+  const [mealCounts, setMealCounts] = useState<Record<string, string>>(
+    Object.fromEntries(details.members.map((member) => [member.id, '0'])),
+  );
+
+  useEffect(() => {
+    setDate(initialDate ?? new Date());
+  }, [initialDate]);
+
+  useEffect(() => {
+    const shortDate = format(date, 'yyyy-MM-dd');
+    const existingLogs = Object.fromEntries(
+      details.members.map((member) => {
+        const log = details.mealLogs.find((entry) => entry.memberId === member.id && entry.date === shortDate);
+        return [member.id, log ? String(log.count) : '0'];
+      }),
+    );
+    setMealCounts(existingLogs);
+  }, [date, details]);
+
+  const updateCount = (memberId: string, delta: number) => {
+    setMealCounts((prev) => {
+      const nextValue = Math.max(0, parseFloat(prev[memberId] || '0') + delta);
+      return { ...prev, [memberId]: String(nextValue) };
+    });
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const dateStr = format(date, 'yyyy-MM-dd');
+
+    await Promise.all(
+      Object.entries(mealCounts).map(async ([memberId, count]) => {
+        const parsed = parseFloat(count);
+        await logMeal(memberId, isNaN(parsed) ? 0 : parsed, dateStr, cycleId);
+      }),
+    );
+
+    onClose();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Select Date</label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-start text-left font-normal">
+              {format(date, 'PPP')}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="center">
+            <Calendar mode="single" selected={date} onSelect={(nextDate) => nextDate && setDate(nextDate)} initialFocus />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="max-h-[45vh] space-y-4 overflow-y-auto pr-2">
+        {details.members.map((member) => (
+          <div key={member.id} className="flex items-center justify-between rounded-lg border bg-secondary/20 p-3">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-8 w-8 text-xs">
+                <AvatarFallback>{member.avatar}</AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium">{member.name}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
+                -
+              </Button>
+              <Input
+                className="h-8 w-16 px-1 text-center font-bold"
+                value={mealCounts[member.id] ?? '0'}
+                onChange={(event) => setMealCounts((prev) => ({ ...prev, [member.id]: event.target.value }))}
+              />
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
+                +
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Button type="submit" className="w-full">Save Meal Log</Button>
+    </form>
+  );
+}
+
+function PendingCycleCard({ details }: { details: CycleDetails }) {
+  const { markCycleClosed } = useMeal();
+  const [depositMember, setDepositMember] = useState<{ id: string; name: string } | null>(null);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [mealDialogOpen, setMealDialogOpen] = useState(false);
+  const [mealDate, setMealDate] = useState<Date | undefined>(undefined);
+
+  const days = useMemo(() => {
+    if (details.mealLogs.length === 0) {
+      return [startOfDay(new Date(details.cycle.closedAt || details.cycle.startedAt))];
+    }
+
+    const logDates = details.mealLogs.map((log) => startOfDay(parseISO(log.date)));
+    return eachDayOfInterval({
+      start: min(logDates),
+      end: max(logDates),
+    }).reverse();
+  }, [details]);
+
+  return (
+    <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
+      <AccordionTrigger className="hover:no-underline py-4">
+        <div className="flex flex-1 items-center justify-between gap-4">
+          <div className="text-left">
+            <p className="font-bold">Pending Cycle Closed: {format(new Date(details.cycle.closedAt || details.cycle.startedAt), 'PPP')}</p>
+            <p className="text-sm text-muted-foreground">
+              {details.members.length} Members • {details.stats.totalMealsConsumed} Meals • Settlement still editable
+            </p>
+          </div>
+          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Pending</Badge>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="space-y-6 pb-6">
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
+          <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
+          <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
+          <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button className="gap-2" onClick={() => { setEditingExpense(null); setExpenseDialogOpen(true); }}>
+            <Plus className="h-4 w-4" />
+            Add Expense Correction
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => { setMealDate(undefined); setMealDialogOpen(true); }}>
+            <Plus className="h-4 w-4" />
+            Add Meal Correction
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Mark Cycle Closed</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Lock this pending cycle?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  After this, the cycle will become read-only and settlement edits will stop.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => markCycleClosed(details.cycle.id)}>
+                  Yes, Mark Closed
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+
+        <section className="space-y-3">
+          <h3 className="font-semibold">Member Settlement Summary</h3>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Member</TableHead>
+                  <TableHead className="text-right">Deposit</TableHead>
+                  <TableHead className="text-right">Meals</TableHead>
+                  <TableHead className="text-right">Meal Cost</TableHead>
+                  <TableHead className="text-right">Fixed</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {details.members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8 text-xs">
+                          <AvatarFallback>{member.avatar}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{member.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(member.deposit)}</TableCell>
+                    <TableCell className="text-right">{member.mealsEaten}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(member.mealCost)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(member.fixedCost)}</TableCell>
+                    <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                      {formatBalance(member.balance)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" className="gap-2" onClick={() => setDepositMember({ id: member.id, name: member.name })}>
+                        <Wallet className="h-4 w-4" />
+                        Settle
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="font-semibold">Expenses</h3>
+          <div className="space-y-3">
+            {details.expenses.length === 0 ? (
+              <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">No expenses recorded.</CardContent></Card>
+            ) : details.expenses.map((expense) => (
+              <div key={expense.id} className="flex items-center justify-between rounded-lg border bg-card p-4">
+                <div>
+                  <p className="font-medium">{expense.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(expense.date), 'MMM d, yyyy')} • {expense.type} • Paid by {expense.paidBy}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" size="icon" onClick={() => { setEditingExpense(expense); setExpenseDialogOpen(true); }}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <span className="font-bold">{formatCurrency(expense.amount)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="font-semibold">Meal Logs</h3>
+          <div className="overflow-hidden rounded-lg border bg-card">
+            <div className="max-h-[420px] overflow-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead className="sticky top-0 z-20 bg-card">
+                  <tr className="border-b">
+                    <th className="sticky left-0 z-30 border-r bg-card p-4 text-left font-bold">Date</th>
+                    {details.members.map((member) => (
+                      <th key={member.id} className="border-r bg-card p-2 text-center font-bold">
+                        {member.name.split(' ')[0]}
+                      </th>
+                    ))}
+                    <th className="bg-card p-4 text-right font-bold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {days.map((day) => {
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const dayLogs = details.mealLogs.filter((log) => log.date === dateStr);
+                    const total = dayLogs.reduce((sum, log) => sum + log.count, 0);
+
+                    return (
+                      <tr key={dateStr} className="cursor-pointer border-b hover:bg-muted/40" onClick={() => { setMealDate(day); setMealDialogOpen(true); }}>
+                        <td className="sticky left-0 border-r bg-card p-4 font-medium">{format(day, 'dd MMM')}</td>
+                        {details.members.map((member) => {
+                          const log = dayLogs.find((entry) => entry.memberId === member.id);
+                          return (
+                            <td key={member.id} className="border-r p-4 text-center">
+                              {log ? log.count : '-'}
+                            </td>
+                          );
+                        })}
+                        <td className="p-4 text-right font-bold text-emerald-600">{total || '-'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <Dialog open={!!depositMember} onOpenChange={(open) => !open && setDepositMember(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Record Settlement</DialogTitle>
+            </DialogHeader>
+            {depositMember ? (
+              <SettlementForm
+                cycleId={details.cycle.id}
+                memberId={depositMember.id}
+                memberName={depositMember.name}
+                onClose={() => setDepositMember(null)}
+              />
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add Expense Correction'}</DialogTitle>
+            </DialogHeader>
+            <PendingExpenseEditor
+              cycleId={details.cycle.id}
+              expense={editingExpense}
+              onClose={() => {
+                setExpenseDialogOpen(false);
+                setEditingExpense(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{mealDate ? `Edit Meals for ${format(mealDate, 'PPP')}` : 'Add Meal Correction'}</DialogTitle>
+            </DialogHeader>
+            <PendingMealEditor
+              cycleId={details.cycle.id}
+              details={details}
+              initialDate={mealDate}
+              onClose={() => {
+                setMealDialogOpen(false);
+                setMealDate(undefined);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function ClosedCycleCard({ details }: { details: CycleDetails }) {
+  return (
+    <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
+      <AccordionTrigger className="hover:no-underline py-4">
+        <div className="flex flex-1 items-center justify-between gap-4">
+          <div className="text-left">
+            <p className="font-bold">Cycle Closed: {format(new Date(details.cycle.finalizedAt || details.cycle.closedAt || details.cycle.startedAt), 'PPP')}</p>
+            <p className="text-sm text-muted-foreground">
+              {details.members.length} Members • {details.stats.totalMealsConsumed} Meals
+            </p>
+          </div>
+          <Badge variant="secondary">Closed</Badge>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="space-y-4 pb-6">
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
+          <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
+          <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
+          <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
+        </div>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member</TableHead>
+                <TableHead className="text-center">Meals</TableHead>
+                <TableHead className="text-center">Deposit</TableHead>
+                <TableHead className="text-right">Final Balance</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {details.members.map((member) => (
+                <TableRow key={member.id}>
+                  <TableCell className="font-medium">{member.name}</TableCell>
+                  <TableCell className="text-center">{member.mealsEaten}</TableCell>
+                  <TableCell className="text-center">{formatCurrency(member.deposit)}</TableCell>
+                  <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                    {formatBalance(member.balance)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function LegacyArchiveCard({ archive }: { archive: ArchiveCycle }) {
+  const { deleteArchive } = useMeal();
+
+  return (
+    <AccordionItem value={`legacy-${archive.id}`} className="rounded-lg border bg-card px-4">
+      <AccordionTrigger className="hover:no-underline py-4">
+        <div className="flex flex-1 items-center justify-between">
+          <div className="text-left">
+            <p className="font-bold">Legacy Cycle Ended: {format(new Date(archive.endDate), 'PPP')}</p>
+            <p className="text-sm text-muted-foreground">
+              {archive.members.length} Members • {archive.stats.totalMealsConsumed} Meals
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary">Legacy</Badge>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent onClick={(event) => event.stopPropagation()}>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete history entry?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This legacy archive will be permanently deleted.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteArchive(archive.id)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="space-y-4 pb-6">
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatCard title="Total Deposits" value={formatCurrency(archive.stats.totalDeposits)} />
+          <StatCard title="Meal Expense" value={formatCurrency(archive.stats.totalMealExpenses)} />
+          <StatCard title="Fixed Expense" value={formatCurrency(archive.stats.totalFixedExpenses)} />
+          <StatCard title="Fixed Rate" value={formatCurrency(archive.stats.fixedCostPerMember)} />
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function StatCard({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-secondary/30 p-3">
+      <p className="text-xs uppercase text-muted-foreground">{title}</p>
+      <p className="font-bold">{value}</p>
+    </div>
+  );
+}
 
 export default function HistoryPage() {
-  const { archives, deleteArchive } = useMeal();
+  const { cycles, archives, getCycleDetails } = useMeal();
 
-  if (archives.length === 0) {
+  const pendingCycles = cycles
+    .filter((cycle) => cycle.status === 'pending')
+    .map((cycle) => getCycleDetails(cycle.id))
+    .filter((cycle): cycle is CycleDetails => Boolean(cycle));
+
+  const closedCycles = cycles
+    .filter((cycle) => cycle.status === 'closed')
+    .map((cycle) => getCycleDetails(cycle.id))
+    .filter((cycle): cycle is CycleDetails => Boolean(cycle));
+
+  if (pendingCycles.length === 0 && closedCycles.length === 0 && archives.length === 0) {
     return (
-      <div className="text-center py-20 text-muted-foreground">
-        <h1 className="text-2xl font-bold font-heading mb-2">No Past Cycles</h1>
-        <p>Archive your first cycle to see it here.</p>
+      <div className="py-20 text-center text-muted-foreground">
+        <h1 className="mb-2 text-2xl font-bold font-heading">No Past Cycles</h1>
+        <p>Close your first cycle to see settlement history here.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold font-heading">Past Cycles</h1>
+      <div>
+        <h1 className="text-2xl font-bold font-heading">History</h1>
+        <p className="text-sm text-muted-foreground">
+          Pending cycles stay editable for settlement and corrections. Closed cycles are read-only.
+        </p>
+      </div>
 
-      <Accordion type="single" collapsible className="space-y-4">
-        {archives.map((archive) => (
-          <AccordionItem key={archive.id} value={archive.id} className="border rounded-lg bg-card px-4 relative group">
-            <AccordionTrigger className="hover:no-underline py-4">
-              <div className="flex flex-1 items-center justify-between">
-                <div className="text-left">
-                  <p className="font-bold">Cycle Ended: {format(new Date(archive.endDate), 'PPP')}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {archive.members.length} Members • {archive.stats.totalMealsConsumed} Total Meals
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-                    Rate: ৳{archive.stats.currentMealRate.toFixed(2)}
-                  </Badge>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete History Entry?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This cycle history will be permanently deleted.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteArchive(archive.id)}
-                          className="bg-destructive text-destructive-foreground"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pb-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 pt-2">
-                <div className="p-3 bg-secondary/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground uppercase">Total Deposits</p>
-                  <p className="font-bold">৳{archive.stats.totalDeposits.toFixed(2)}</p>
-                </div>
-                <div className="p-3 bg-secondary/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground uppercase">Meal Expense</p>
-                  <p className="font-bold">৳{archive.stats.totalMealExpenses.toFixed(2)}</p>
-                </div>
-                <div className="p-3 bg-secondary/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground uppercase">Fixed Expense</p>
-                  <p className="font-bold">৳{archive.stats.totalFixedExpenses.toFixed(2)}</p>
-                </div>
-                <div className="p-3 bg-secondary/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground uppercase">Fixed Rate</p>
-                  <p className="font-bold">৳{archive.stats.fixedCostPerMember.toFixed(2)}</p>
-                </div>
-              </div>
+      {pendingCycles.length > 0 ? (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Archive className="h-5 w-5 text-amber-500" />
+            <h2 className="text-lg font-bold">Pending Settlement</h2>
+          </div>
+          <Accordion type="single" collapsible className="space-y-4">
+            {pendingCycles.map((cycle) => (
+              <PendingCycleCard key={cycle.cycle.id} details={cycle} />
+            ))}
+          </Accordion>
+        </section>
+      ) : null}
 
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <MemberHead>Member</MemberHead>
-                      <MemberHead className="text-center">Meals</MemberHead>
-                      <MemberHead className="text-center">Deposit</MemberHead>
-                      <MemberHead className="text-right">Final Balance</MemberHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {archive.members.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell className="font-medium">{m.name}</TableCell>
-                        <TableCell className="text-center">{m.mealsEaten}</TableCell>
-                        <TableCell className="text-center">৳{m.deposit.toFixed(2)}</TableCell>
-                        <TableCell className={cn('text-right font-bold', m.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                          {m.balance >= 0 ? '+' : '-'}{Math.round(Math.abs(m.balance))}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+      {closedCycles.length > 0 ? (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Archive className="h-5 w-5 text-emerald-500" />
+            <h2 className="text-lg font-bold">Closed Cycles</h2>
+          </div>
+          <Accordion type="single" collapsible className="space-y-4">
+            {closedCycles.map((cycle) => (
+              <ClosedCycleCard key={cycle.cycle.id} details={cycle} />
+            ))}
+          </Accordion>
+        </section>
+      ) : null}
+
+      {archives.length > 0 ? (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Archive className="h-5 w-5 text-slate-500" />
+            <h2 className="text-lg font-bold">Legacy Archives</h2>
+          </div>
+          <Accordion type="single" collapsible className="space-y-4">
+            {archives.map((archive) => (
+              <LegacyArchiveCard key={archive.id} archive={archive} />
+            ))}
+          </Accordion>
+        </section>
+      ) : null}
     </div>
   );
 }
-
-function MemberHead({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <TableHead className={cn('bg-muted/50', className)}>{children}</TableHead>;
-}
-
-const cn = (...classes: (string | undefined | false)[]) => classes.filter(Boolean).join(' ');

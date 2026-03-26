@@ -6,13 +6,28 @@ import { assertSupabaseAdmin } from "./supabase-admin";
 type MemberRow = {
   id: string;
   name: string;
-  deposit: number | string;
   is_active: boolean;
   avatar: string | null;
 };
 
+type SnapshotMember = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  avatar?: string;
+};
+
+type CycleRow = {
+  id: string;
+  status: "active" | "pending" | "closed";
+  started_at: string;
+  closed_at: string | null;
+  members_snapshot: SnapshotMember[] | null;
+};
+
 type ExpenseRow = {
   id: string;
+  cycle_id: string;
   amount: number | string;
   description: string;
   type: "meal" | "fixed";
@@ -22,23 +37,48 @@ type ExpenseRow = {
 
 type MealLogRow = {
   id: string;
+  cycle_id: string;
   date: string;
   member_id: string;
   count: number | string;
 };
 
+type CycleDepositRow = {
+  id: string;
+  cycle_id: string;
+  member_id: string;
+  amount: number | string;
+};
+
 function buildSharedPayload(
+  cycle: CycleRow,
   membersData: MemberRow[],
+  depositsData: CycleDepositRow[],
   expensesData: ExpenseRow[],
   mealLogsData: MealLogRow[],
 ) {
-  const members = membersData.map((member) => ({
-    id: member.id,
-    name: member.name,
-    deposit: Number(member.deposit),
-    isActive: member.is_active,
-    avatar: member.avatar || member.name.substring(0, 2).toUpperCase(),
-  }));
+  const members =
+    cycle.status === "active" || !cycle.members_snapshot
+      ? membersData.map((member) => ({
+          id: member.id,
+          name: member.name,
+          isActive: member.is_active,
+          avatar: member.avatar || member.name.substring(0, 2).toUpperCase(),
+        }))
+      : cycle.members_snapshot.map((member) => ({
+          id: member.id,
+          name: member.name,
+          isActive: member.isActive,
+          avatar: member.avatar || member.name.substring(0, 2).toUpperCase(),
+        }));
+
+  const depositsByMember = new Map<string, number>();
+  for (const deposit of depositsData) {
+    depositsByMember.set(
+      deposit.member_id,
+      (depositsByMember.get(deposit.member_id) || 0) + Number(deposit.amount),
+    );
+  }
 
   const expenses = expensesData.map((expense) => ({
     id: expense.id,
@@ -56,7 +96,6 @@ function buildSharedPayload(
     count: Number(log.count),
   }));
 
-  const totalDeposits = members.reduce((sum, member) => sum + member.deposit, 0);
   const totalMealExpenses = expenses
     .filter((expense) => expense.type === "meal")
     .reduce((sum, expense) => sum + expense.amount, 0);
@@ -69,20 +108,20 @@ function buildSharedPayload(
     totalMealsConsumed > 0 ? totalMealExpenses / totalMealsConsumed : 0;
   const fixedCostPerMember =
     activeMembersCount > 0 ? totalFixedExpenses / activeMembersCount : 0;
-  const remainingCash =
-    totalDeposits - (totalMealExpenses + totalFixedExpenses);
 
   const memberSummaries = members.map((member) => {
     const mealsEaten = mealLogs
       .filter((log) => log.memberId === member.id)
       .reduce((sum, log) => sum + log.count, 0);
+    const deposit = depositsByMember.get(member.id) || 0;
     const mealCost = mealsEaten * currentMealRate;
     const fixedCost = member.isActive ? fixedCostPerMember : 0;
     const totalCost = mealCost + fixedCost;
-    const balance = member.deposit - totalCost;
+    const balance = deposit - totalCost;
 
     return {
       ...member,
+      deposit,
       mealsEaten,
       mealCost,
       fixedCost,
@@ -91,7 +130,18 @@ function buildSharedPayload(
     };
   });
 
+  const totalDeposits = memberSummaries.reduce(
+    (sum, member) => sum + member.deposit,
+    0,
+  );
+  const remainingCash = totalDeposits - (totalMealExpenses + totalFixedExpenses);
+
   return {
+    cycle: {
+      id: cycle.id,
+      status: cycle.status,
+      closedAt: cycle.closed_at,
+    },
     stats: {
       totalDeposits,
       totalMealExpenses,
@@ -134,26 +184,56 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Shared view not found." });
     }
 
-    const [membersResult, expensesResult, mealLogsResult] = await Promise.all([
+    const { data: cycle, error: cycleError } = await supabaseAdmin
+      .from("cycles")
+      .select("id, status, started_at, closed_at, members_snapshot")
+      .eq("user_id", shareLink.user_id)
+      .in("status", ["pending", "active"])
+      .order("closed_at", { ascending: false, nullsFirst: false })
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cycleError) {
+      throw cycleError;
+    }
+
+    if (!cycle) {
+      return res.status(404).json({ message: "No shareable cycle found." });
+    }
+
+    const [membersResult, depositsResult, expensesResult, mealLogsResult] = await Promise.all([
       supabaseAdmin
         .from("members")
-        .select("id, name, deposit, is_active, avatar")
+        .select("id, name, is_active, avatar")
         .eq("user_id", shareLink.user_id)
         .order("created_at", { ascending: true }),
       supabaseAdmin
-        .from("expenses")
-        .select("id, amount, description, type, date, paid_by")
+        .from("cycle_deposits")
+        .select("id, cycle_id, member_id, amount")
         .eq("user_id", shareLink.user_id)
+        .eq("cycle_id", cycle.id)
+        .order("created_at", { ascending: true }),
+      supabaseAdmin
+        .from("expenses")
+        .select("id, cycle_id, amount, description, type, date, paid_by")
+        .eq("user_id", shareLink.user_id)
+        .eq("cycle_id", cycle.id)
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("meal_logs")
-        .select("id, date, member_id, count")
+        .select("id, cycle_id, date, member_id, count")
         .eq("user_id", shareLink.user_id)
+        .eq("cycle_id", cycle.id)
         .order("date", { ascending: false }),
     ]);
 
     if (membersResult.error) {
       throw membersResult.error;
+    }
+
+    if (depositsResult.error) {
+      throw depositsResult.error;
     }
 
     if (expensesResult.error) {
@@ -166,7 +246,9 @@ export async function registerRoutes(
 
     return res.json(
       buildSharedPayload(
+        cycle,
         membersResult.data || [],
+        depositsResult.data || [],
         expensesResult.data || [],
         mealLogsResult.data || [],
       ),

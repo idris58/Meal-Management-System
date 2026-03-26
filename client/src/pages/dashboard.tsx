@@ -35,7 +35,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
   const { addExpense } = useMeal();
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
-    defaultValues: { amount: 0, description: '', type: 'meal', paidBy: '' },
+    defaultValues: { amount: undefined, description: '', type: 'meal', paidBy: '' },
   });
 
   const onSubmit = (data: z.infer<typeof expenseSchema>) => {
@@ -80,7 +80,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Amount</FormLabel>
-              <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+              <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value ?? ''} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -443,7 +443,13 @@ function ShareDashboardCard() {
   );
 }
 
-function CycleManagementCard({ onCloseCycle }: { onCloseCycle: () => void }) {
+function CycleManagementCard({
+  onCloseCycle,
+  hasPendingCycle,
+}: {
+  onCloseCycle: () => void;
+  hasPendingCycle: boolean;
+}) {
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -460,22 +466,28 @@ function CycleManagementCard({ onCloseCycle }: { onCloseCycle: () => void }) {
         <div className="rounded-xl border bg-secondary/30 p-4">
           <p className="text-sm font-medium">Close current cycle</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            This will store the current cycle in History and reset the live cycle data.
+            This will move the current cycle to pending settlement and start a new clean active cycle.
           </p>
         </div>
 
+        {hasPendingCycle ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            Finish and close the existing pending cycle from History before closing another cycle.
+          </p>
+        ) : null}
+
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full gap-2">
+            <Button variant="destructive" className="w-full gap-2" disabled={hasPendingCycle}>
               <RefreshCcw className="h-4 w-4" />
-              Close & Archive Cycle
+              Close Cycle
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will clear all current expenses and meal logs. The data will be stored in History.
+                This will move this cycle into pending settlement and create a new clean active cycle.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -490,7 +502,7 @@ function CycleManagementCard({ onCloseCycle }: { onCloseCycle: () => void }) {
 }
 
 export default function Dashboard() {
-  const { stats, getMemberStats, members, resetCycle } = useMeal();
+  const { stats, getMemberStats, members, closeActiveCycle, pendingCycle } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
   const [openMeal, setOpenMeal] = useState(false);
 
@@ -608,7 +620,7 @@ export default function Dashboard() {
 
       <section className="grid gap-4 pt-2 lg:grid-cols-2">
         <ShareDashboardCard />
-        <CycleManagementCard onCloseCycle={resetCycle} />
+        <CycleManagementCard onCloseCycle={closeActiveCycle} hasPendingCycle={!!pendingCycle} />
       </section>
     </div>
   );
