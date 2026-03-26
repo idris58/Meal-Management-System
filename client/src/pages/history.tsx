@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
-import { Archive, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
+import { Archive, Pencil, Plus, Wallet } from 'lucide-react';
 
-import { useMeal, type ArchiveCycle, type CycleDetails, type CycleStatus, type Expense } from '@/lib/meal-context';
+import { useMeal, type CycleDetails, type Expense } from '@/lib/meal-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -13,7 +13,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -44,10 +43,7 @@ function SettlementForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const parsed = parseFloat(amount);
-    if (isNaN(parsed) || parsed === 0) {
-      return;
-    }
-
+    if (isNaN(parsed) || parsed === 0) return;
     await addDeposit(memberId, parsed, cycleId, note || undefined);
     onClose();
   };
@@ -59,25 +55,13 @@ function SettlementForm({
       </p>
       <div className="space-y-2">
         <label className="text-sm font-medium">Amount</label>
-        <Input
-          type="number"
-          placeholder="e.g. 300 or -300"
-          value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-          autoFocus
-        />
+        <Input type="number" placeholder="e.g. 300 or -300" value={amount} onChange={(event) => setAmount(event.target.value)} autoFocus />
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Note</label>
-        <Input
-          placeholder={`Settlement for ${memberName}`}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
+        <Input placeholder={`Settlement for ${memberName}`} value={note} onChange={(event) => setNote(event.target.value)} />
       </div>
-      <Button type="submit" className="w-full">
-        Save Settlement
-      </Button>
+      <Button type="submit" className="w-full">Save Settlement</Button>
     </form>
   );
 }
@@ -107,9 +91,7 @@ function PendingExpenseEditor({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const parsedAmount = parseFloat(amount);
-    if (!description.trim() || !paidBy.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
-      return;
-    }
+    if (!description.trim() || !paidBy.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
 
     if (expense) {
       await updateExpense(expense.id, {
@@ -136,9 +118,7 @@ function PendingExpenseEditor({
       <div className="space-y-2">
         <label className="text-sm font-medium">Expense Type</label>
         <Select value={type} onValueChange={(value: 'meal' | 'fixed') => setType(value)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="meal">Meal (Grocery/Food)</SelectItem>
             <SelectItem value="fixed">Fixed (Bills/Utilities)</SelectItem>
@@ -162,9 +142,7 @@ function PendingExpenseEditor({
         <div className="flex gap-3">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button type="button" variant="destructive" className="flex-1">
-                Delete
-              </Button>
+              <Button type="button" variant="destructive" className="flex-1">Delete</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -230,14 +208,12 @@ function PendingMealEditor({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const dateStr = format(date, 'yyyy-MM-dd');
-
     await Promise.all(
       Object.entries(mealCounts).map(async ([memberId, count]) => {
         const parsed = parseFloat(count);
         await logMeal(memberId, isNaN(parsed) ? 0 : parsed, dateStr, cycleId);
       }),
     );
-
     onClose();
   };
 
@@ -247,9 +223,7 @@ function PendingMealEditor({
         <label className="text-sm font-medium">Select Date</label>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full justify-start text-left font-normal">
-              {format(date, 'PPP')}
-            </Button>
+            <Button variant="outline" className="w-full justify-start text-left font-normal">{format(date, 'PPP')}</Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="center">
             <Calendar mode="single" selected={date} onSelect={(nextDate) => nextDate && setDate(nextDate)} initialFocus />
@@ -261,23 +235,13 @@ function PendingMealEditor({
         {details.members.map((member) => (
           <div key={member.id} className="flex items-center justify-between rounded-lg border bg-secondary/20 p-3">
             <div className="flex items-center gap-3">
-              <Avatar className="h-8 w-8 text-xs">
-                <AvatarFallback>{member.avatar}</AvatarFallback>
-              </Avatar>
+              <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
               <span className="text-sm font-medium">{member.name}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
-                -
-              </Button>
-              <Input
-                className="h-8 w-16 px-1 text-center font-bold"
-                value={mealCounts[member.id] ?? '0'}
-                onChange={(event) => setMealCounts((prev) => ({ ...prev, [member.id]: event.target.value }))}
-              />
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
-                +
-              </Button>
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>-</Button>
+              <Input className="h-8 w-16 px-1 text-center font-bold" value={mealCounts[member.id] ?? '0'} onChange={(event) => setMealCounts((prev) => ({ ...prev, [member.id]: event.target.value }))} />
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>+</Button>
             </div>
           </div>
         ))}
@@ -300,12 +264,8 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
     if (details.mealLogs.length === 0) {
       return [startOfDay(new Date(details.cycle.closedAt || details.cycle.startedAt))];
     }
-
     const logDates = details.mealLogs.map((log) => startOfDay(parseISO(log.date)));
-    return eachDayOfInterval({
-      start: min(logDates),
-      end: max(logDates),
-    }).reverse();
+    return eachDayOfInterval({ start: min(logDates), end: max(logDates) }).reverse();
   }, [details]);
 
   return (
@@ -351,9 +311,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => markCycleClosed(details.cycle.id)}>
-                  Yes, Mark Closed
-                </AlertDialogAction>
+                <AlertDialogAction onClick={() => markCycleClosed(details.cycle.id)}>Yes, Mark Closed</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -379,9 +337,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                   <TableRow key={member.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8 text-xs">
-                          <AvatarFallback>{member.avatar}</AvatarFallback>
-                        </Avatar>
+                        <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
                         <span className="font-medium">{member.name}</span>
                       </div>
                     </TableCell>
@@ -438,9 +394,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                   <tr className="border-b">
                     <th className="sticky left-0 z-30 border-r bg-card p-4 text-left font-bold">Date</th>
                     {details.members.map((member) => (
-                      <th key={member.id} className="border-r bg-card p-2 text-center font-bold">
-                        {member.name.split(' ')[0]}
-                      </th>
+                      <th key={member.id} className="border-r bg-card p-2 text-center font-bold">{member.name.split(' ')[0]}</th>
                     ))}
                     <th className="bg-card p-4 text-right font-bold">Total</th>
                   </tr>
@@ -456,11 +410,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                         <td className="sticky left-0 border-r bg-card p-4 font-medium">{format(day, 'dd MMM')}</td>
                         {details.members.map((member) => {
                           const log = dayLogs.find((entry) => entry.memberId === member.id);
-                          return (
-                            <td key={member.id} className="border-r p-4 text-center">
-                              {log ? log.count : '-'}
-                            </td>
-                          );
+                          return <td key={member.id} className="border-r p-4 text-center">{log ? log.count : '-'}</td>;
                         })}
                         <td className="p-4 text-right font-bold text-emerald-600">{total || '-'}</td>
                       </tr>
@@ -474,25 +424,16 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
 
         <Dialog open={!!depositMember} onOpenChange={(open) => !open && setDepositMember(null)}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Record Settlement</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Record Settlement</DialogTitle></DialogHeader>
             {depositMember ? (
-              <SettlementForm
-                cycleId={details.cycle.id}
-                memberId={depositMember.id}
-                memberName={depositMember.name}
-                onClose={() => setDepositMember(null)}
-              />
+              <SettlementForm cycleId={details.cycle.id} memberId={depositMember.id} memberName={depositMember.name} onClose={() => setDepositMember(null)} />
             ) : null}
           </DialogContent>
         </Dialog>
 
         <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add Expense Correction'}</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>{editingExpense ? 'Edit Expense' : 'Add Expense Correction'}</DialogTitle></DialogHeader>
             <PendingExpenseEditor
               cycleId={details.cycle.id}
               expense={editingExpense}
@@ -506,9 +447,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
 
         <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{mealDate ? `Edit Meals for ${format(mealDate, 'PPP')}` : 'Add Meal Correction'}</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>{mealDate ? `Edit Meals for ${format(mealDate, 'PPP')}` : 'Add Meal Correction'}</DialogTitle></DialogHeader>
             <PendingMealEditor
               cycleId={details.cycle.id}
               details={details}
@@ -532,9 +471,7 @@ function ClosedCycleCard({ details }: { details: CycleDetails }) {
         <div className="flex flex-1 items-center justify-between gap-4">
           <div className="text-left">
             <p className="font-bold">Cycle Closed: {format(new Date(details.cycle.finalizedAt || details.cycle.closedAt || details.cycle.startedAt), 'PPP')}</p>
-            <p className="text-sm text-muted-foreground">
-              {details.members.length} Members • {details.stats.totalMealsConsumed} Meals
-            </p>
+            <p className="text-sm text-muted-foreground">{details.members.length} Members • {details.stats.totalMealsConsumed} Meals</p>
           </div>
           <Badge variant="secondary">Closed</Badge>
         </div>
@@ -575,60 +512,6 @@ function ClosedCycleCard({ details }: { details: CycleDetails }) {
   );
 }
 
-function LegacyArchiveCard({ archive }: { archive: ArchiveCycle }) {
-  const { deleteArchive } = useMeal();
-
-  return (
-    <AccordionItem value={`legacy-${archive.id}`} className="rounded-lg border bg-card px-4">
-      <AccordionTrigger className="hover:no-underline py-4">
-        <div className="flex flex-1 items-center justify-between">
-          <div className="text-left">
-            <p className="font-bold">Legacy Cycle Ended: {format(new Date(archive.endDate), 'PPP')}</p>
-            <p className="text-sm text-muted-foreground">
-              {archive.members.length} Members • {archive.stats.totalMealsConsumed} Meals
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Badge variant="secondary">Legacy</Badge>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent onClick={(event) => event.stopPropagation()}>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete history entry?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This legacy archive will be permanently deleted.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteArchive(archive.id)}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </AccordionTrigger>
-      <AccordionContent className="space-y-4 pb-6">
-        <div className="grid gap-4 md:grid-cols-4">
-          <StatCard title="Total Deposits" value={formatCurrency(archive.stats.totalDeposits)} />
-          <StatCard title="Meal Expense" value={formatCurrency(archive.stats.totalMealExpenses)} />
-          <StatCard title="Fixed Expense" value={formatCurrency(archive.stats.totalFixedExpenses)} />
-          <StatCard title="Fixed Rate" value={formatCurrency(archive.stats.fixedCostPerMember)} />
-        </div>
-      </AccordionContent>
-    </AccordionItem>
-  );
-}
-
 function StatCard({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-lg bg-secondary/30 p-3">
@@ -639,7 +522,7 @@ function StatCard({ title, value }: { title: string; value: string }) {
 }
 
 export default function HistoryPage() {
-  const { cycles, archives, getCycleDetails } = useMeal();
+  const { cycles, getCycleDetails } = useMeal();
 
   const pendingCycles = cycles
     .filter((cycle) => cycle.status === 'pending')
@@ -651,7 +534,7 @@ export default function HistoryPage() {
     .map((cycle) => getCycleDetails(cycle.id))
     .filter((cycle): cycle is CycleDetails => Boolean(cycle));
 
-  if (pendingCycles.length === 0 && closedCycles.length === 0 && archives.length === 0) {
+  if (pendingCycles.length === 0 && closedCycles.length === 0) {
     return (
       <div className="py-20 text-center text-muted-foreground">
         <h1 className="mb-2 text-2xl font-bold font-heading">No Past Cycles</h1>
@@ -676,9 +559,7 @@ export default function HistoryPage() {
             <h2 className="text-lg font-bold">Pending Settlement</h2>
           </div>
           <Accordion type="single" collapsible className="space-y-4">
-            {pendingCycles.map((cycle) => (
-              <PendingCycleCard key={cycle.cycle.id} details={cycle} />
-            ))}
+            {pendingCycles.map((cycle) => <PendingCycleCard key={cycle.cycle.id} details={cycle} />)}
           </Accordion>
         </section>
       ) : null}
@@ -690,23 +571,7 @@ export default function HistoryPage() {
             <h2 className="text-lg font-bold">Closed Cycles</h2>
           </div>
           <Accordion type="single" collapsible className="space-y-4">
-            {closedCycles.map((cycle) => (
-              <ClosedCycleCard key={cycle.cycle.id} details={cycle} />
-            ))}
-          </Accordion>
-        </section>
-      ) : null}
-
-      {archives.length > 0 ? (
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Archive className="h-5 w-5 text-slate-500" />
-            <h2 className="text-lg font-bold">Legacy Archives</h2>
-          </div>
-          <Accordion type="single" collapsible className="space-y-4">
-            {archives.map((archive) => (
-              <LegacyArchiveCard key={archive.id} archive={archive} />
-            ))}
+            {closedCycles.map((cycle) => <ClosedCycleCard key={cycle.cycle.id} details={cycle} />)}
           </Accordion>
         </section>
       ) : null}

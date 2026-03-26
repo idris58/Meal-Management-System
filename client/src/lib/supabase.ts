@@ -78,21 +78,6 @@ export interface Database {
           count?: number;
         };
       };
-      archives: {
-        Row: {
-          id: string;
-          end_date: string;
-          stats: any;
-          members: any;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          end_date: string;
-          stats: any;
-          members: any;
-        };
-      };
     };
   };
 }

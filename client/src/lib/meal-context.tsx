@@ -56,9 +56,8 @@ type SnapshotMember = {
   avatar?: string;
 };
 
-export interface ArchiveCycle {
-  id: string;
-  endDate: string;
+export interface CycleDetails {
+  cycle: Cycle;
   stats: {
     totalDeposits: number;
     totalMealExpenses: number;
@@ -68,12 +67,6 @@ export interface ArchiveCycle {
     fixedCostPerMember: number;
     remainingCash: number;
   };
-  members: (Member & { mealCost: number; fixedCost: number; totalCost: number; balance: number })[];
-}
-
-export interface CycleDetails {
-  cycle: Cycle;
-  stats: ArchiveCycle['stats'];
   members: (Member & { mealCost: number; fixedCost: number; totalCost: number; balance: number })[];
   expenses: Expense[];
   mealLogs: MealLog[];
@@ -85,7 +78,6 @@ interface MealContextType {
   expenses: Expense[];
   mealLogs: MealLog[];
   cycles: Cycle[];
-  archives: ArchiveCycle[];
   activeCycle: Cycle | null;
   pendingCycle: Cycle | null;
   loading: boolean;
@@ -104,8 +96,7 @@ interface MealContextType {
   logMeal: (memberId: string, count: number, date: string, cycleId?: string) => Promise<void>;
   closeActiveCycle: () => Promise<void>;
   markCycleClosed: (cycleId: string) => Promise<void>;
-  deleteArchive: (id: string) => Promise<void>;
-  stats: ArchiveCycle['stats'];
+  stats: CycleDetails['stats'];
   getMemberStats: (memberId: string, cycleId?: string) => {
     mealCost: number;
     fixedCost: number;
@@ -173,7 +164,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const [allMealLogs, setAllMealLogs] = useState<MealLog[]>([]);
   const [allDeposits, setAllDeposits] = useState<CycleDeposit[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
-  const [archives, setArchives] = useState<ArchiveCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -315,7 +305,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
         depositsResult,
         expensesResult,
         mealLogsResult,
-        archivesResult,
       ] = await Promise.all([
         supabase
           .from('members')
@@ -342,11 +331,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .select('*')
           .eq('user_id', userId)
           .order('date', { ascending: false }),
-        supabase
-          .from('archives')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false }),
       ]);
 
       if (membersResult.error) throw membersResult.error;
@@ -354,7 +338,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
       if (depositsResult.error) throw depositsResult.error;
       if (expensesResult.error) throw expensesResult.error;
       if (mealLogsResult.error) throw mealLogsResult.error;
-      if (archivesResult.error) throw archivesResult.error;
 
       const nextMembers = ((membersResult.data || []) as MemberRow[]).map((member) => ({
         id: member.id,
@@ -405,19 +388,11 @@ export function MealProvider({ children }: { children: ReactNode }) {
           count: Number(log.count),
         }));
 
-      const nextArchives: ArchiveCycle[] = (archivesResult.data || []).map((archive) => ({
-        id: archive.id,
-        endDate: archive.end_date,
-        stats: archive.stats,
-        members: archive.members,
-      }));
-
       setMemberRoster(nextMembers);
       setCycles(nextCycles);
       setAllDeposits(nextDeposits);
       setAllExpenses(nextExpenses);
       setAllMealLogs(nextMealLogs);
-      setArchives(nextArchives);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -789,23 +764,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
     )));
   };
 
-  const deleteArchive = async (id: string) => {
-    if (!userId) return;
-
-    const { error } = await supabase
-      .from('archives')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId);
-
-    if (error) {
-      console.error('Error deleting archive:', error);
-      return;
-    }
-
-    setArchives((prev) => prev.filter((archive) => archive.id !== id));
-  };
-
   const activeDetails = activeCycle ? getCycleDetails(activeCycle.id) : null;
 
   const members = activeDetails?.members ?? [];
@@ -850,7 +808,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
         expenses,
         mealLogs,
         cycles,
-        archives,
         activeCycle,
         pendingCycle,
         loading,
@@ -864,7 +821,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
         logMeal,
         closeActiveCycle,
         markCycleClosed,
-        deleteArchive,
         stats,
         getMemberStats,
         getCycleDetails,
