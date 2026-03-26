@@ -109,15 +109,6 @@ This script:
 - creates an initial active cycle per user if needed
 - backfills existing current data into the new cycle-based model
 
-### 4. Optional archive cleanup
-
-If you no longer need the old legacy `archives` table, run:
-
-```text
-supabase/remove_archives.sql
-```
-
-Only run this after you are sure you do not need any old archive data.
 
 ## Auth Configuration
 
