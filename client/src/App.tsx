@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Toaster } from "@/components/ui/toaster";
 import { useAuth, AuthProvider } from "@/lib/auth-context";
 import { MealProvider, useMeal } from "@/lib/meal-context";
+import { useNetworkStatus } from "@/lib/pwa";
 import AuthPage from "@/pages/auth";
 import Dashboard from "@/pages/dashboard";
 import Expenses from "@/pages/expenses";
@@ -100,9 +101,24 @@ function AppShell() {
   );
 }
 
+function OfflineBanner() {
+  const { isOnline } = useNetworkStatus();
+
+  if (isOnline) {
+    return null;
+  }
+
+  return (
+    <div className="sticky top-0 z-[60] border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-800">
+      You are offline. The app shell is available, but live meal data and edits require an internet connection.
+    </div>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
+      <OfflineBanner />
       <AppShell />
       <Toaster />
     </AuthProvider>
