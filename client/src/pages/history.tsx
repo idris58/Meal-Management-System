@@ -282,7 +282,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
         </div>
       </AccordionTrigger>
       <AccordionContent className="space-y-6 pb-6">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
           <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
           <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
@@ -477,7 +477,7 @@ function ClosedCycleCard({ details }: { details: CycleDetails }) {
         </div>
       </AccordionTrigger>
       <AccordionContent className="space-y-4 pb-6">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
           <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
           <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />

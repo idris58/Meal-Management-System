@@ -418,7 +418,50 @@ export default function SharedPage({ token }: { token: string }) {
             <Users className="h-5 w-5 text-emerald-500" />
             <h2 className="text-xl font-heading font-bold">Members Summary</h2>
           </div>
-          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+          <div className="space-y-3 md:hidden">
+            {data.members.map((member) => (
+              <Card key={member.id}>
+                <CardContent className="space-y-4 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar className="h-8 w-8 text-xs">
+                        <AvatarFallback>{member.avatar}</AvatarFallback>
+                      </Avatar>
+                      <span className="truncate font-medium">{member.name}</span>
+                    </div>
+                    <span
+                      className={cn(
+                        "font-bold",
+                        member.balance >= 0 ? "text-emerald-600" : "text-red-600",
+                      )}
+                    >
+                      {member.balance >= 0 ? "+" : "-"}
+                      {formatBalance(member.balance)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-secondary/30 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Deposit</p>
+                      <p className="font-medium">{formatCurrency(member.deposit)}</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/30 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Deposit - Fixed</p>
+                      <p className="font-medium">{formatCurrency(member.deposit - member.fixedCost)}</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/30 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Meals</p>
+                      <p className="font-medium">{member.mealsEaten}</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/30 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Meal Cost</p>
+                      <p className="font-medium">{formatCurrency(member.mealCost)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="hidden overflow-hidden rounded-lg border bg-card shadow-sm md:block">
             <div className="overflow-auto">
               <table className="w-full min-w-[760px] border-collapse text-sm">
                 <thead className="bg-card">
