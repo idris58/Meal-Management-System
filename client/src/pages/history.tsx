@@ -325,7 +325,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                 <TableRow>
                   <TableHead>Member</TableHead>
                   <TableHead className="text-right">Deposit</TableHead>
-                  <TableHead className="text-right">Meals</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Meals</TableHead>
                   <TableHead className="text-right">Meal Cost</TableHead>
                   <TableHead className="text-right">Fixed</TableHead>
                   <TableHead className="text-right">Balance</TableHead>
@@ -338,11 +338,14 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-                        <span className="font-medium">{member.name}</span>
+                        <div className="min-w-0">
+                          <span className="block truncate font-medium">{member.name}</span>
+                          <span className="text-xs text-muted-foreground sm:hidden whitespace-nowrap">{member.mealsEaten} meals</span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(member.deposit)}</TableCell>
-                    <TableCell className="text-right">{member.mealsEaten}</TableCell>
+                    <TableCell className="hidden text-right sm:table-cell">{member.mealsEaten}</TableCell>
                     <TableCell className="text-right">{formatCurrency(member.mealCost)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(member.fixedCost)}</TableCell>
                     <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
