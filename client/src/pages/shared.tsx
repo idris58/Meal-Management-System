@@ -281,7 +281,7 @@ export default function SharedPage({ token }: { token: string }) {
                         </div>
                       </th>
                     ))}
-                    <th className="sticky right-0 z-30 min-w-[80px] bg-card p-4 text-right font-bold">
+                    <th className="z-30 min-w-[80px] bg-card p-4 text-right font-bold">
                       Total
                     </th>
                   </tr>
@@ -315,7 +315,7 @@ export default function SharedPage({ token }: { token: string }) {
                             </td>
                           );
                         })}
-                        <td className="sticky right-0 z-10 bg-card p-4 text-right font-bold text-emerald-600">
+                        <td className="bg-card p-4 text-right font-bold text-emerald-600">
                           {dayTotal > 0 ? dayTotal : "-"}
                         </td>
                       </tr>

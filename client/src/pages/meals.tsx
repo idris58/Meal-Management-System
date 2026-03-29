@@ -203,7 +203,7 @@ export default function Meals() {
                     </div>
                   </th>
                 ))}
-                <th className="sticky top-0 right-0 z-30 bg-card p-4 text-right font-bold min-w-[80px]">
+                <th className="top-0 z-30 bg-card p-4 text-right font-bold min-w-[80px]">
                   Total
                 </th>
               </tr>
@@ -236,7 +236,7 @@ export default function Meals() {
                         </td>
                       );
                     })}
-                    <td className="sticky right-0 z-10 bg-card p-4 text-right font-bold text-emerald-600">
+                    <td className="bg-card p-4 text-right font-bold text-emerald-600">
                       {dayTotal > 0 ? dayTotal : '-'}
                     </td>
                   </tr>
