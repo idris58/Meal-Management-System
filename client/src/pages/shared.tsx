@@ -66,11 +66,16 @@ type SharedPayload = {
 };
 
 function formatCurrency(amount: number) {
-  return `৳${amount.toFixed(2)}`;
+  return `\u09F3${amount.toFixed(2)}`;
 }
 
 function formatBalance(amount: number) {
-  return `৳${Math.ceil(Math.abs(amount))}`;
+  return `\u09F3${Math.ceil(Math.abs(amount))}`;
+}
+
+function formatMealCount(value: number) {
+  const rounded = Math.round((value + Number.EPSILON) * 1000) / 1000;
+  return rounded.toString();
 }
 
 export default function SharedPage({ token }: { token: string }) {
@@ -316,7 +321,7 @@ export default function SharedPage({ token }: { token: string }) {
                           );
                         })}
                         <td className="bg-card p-4 text-right font-bold text-emerald-600">
-                          {dayTotal > 0 ? dayTotal : "-"}
+                          {dayTotal > 0 ? formatMealCount(dayTotal) : "-"}
                         </td>
                       </tr>
                     );
@@ -515,3 +520,6 @@ export default function SharedPage({ token }: { token: string }) {
     </div>
   );
 }
+
+
+

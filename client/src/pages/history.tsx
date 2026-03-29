@@ -25,6 +25,11 @@ function formatBalance(amount: number) {
   return `${amount >= 0 ? '+' : '-'}${Math.round(Math.abs(amount))}`;
 }
 
+function formatMealCount(value: number) {
+  const rounded = Math.round((value + Number.EPSILON) * 1000) / 1000;
+  return rounded.toString();
+}
+
 function SettlementForm({
   cycleId,
   memberId,
@@ -415,7 +420,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                           const log = dayLogs.find((entry) => entry.memberId === member.id);
                           return <td key={member.id} className="border-r p-4 text-center">{log ? log.count : '-'}</td>;
                         })}
-                        <td className="p-4 text-right font-bold text-emerald-600">{total || '-'}</td>
+                        <td className="p-4 text-right font-bold text-emerald-600">{total > 0 ? formatMealCount(total) : '-'}</td>
                       </tr>
                     );
                   })}

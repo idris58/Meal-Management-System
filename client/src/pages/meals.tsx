@@ -10,6 +10,11 @@ import { Plus, Minus, Utensils, Calendar as CalendarIcon } from 'lucide-react';
 import { format, eachDayOfInterval, isSameDay, parseISO, min, max, startOfDay } from 'date-fns';
 import { cn } from "@/lib/utils";
 
+function formatMealCount(value: number) {
+  const rounded = Math.round((value + Number.EPSILON) * 1000) / 1000;
+  return rounded.toString();
+}
+
 function QuickLogMeal({
   onClose,
   initialDate,
@@ -237,7 +242,7 @@ export default function Meals() {
                       );
                     })}
                     <td className="bg-card p-4 text-right font-bold text-emerald-600">
-                      {dayTotal > 0 ? dayTotal : '-'}
+                      {dayTotal > 0 ? formatMealCount(dayTotal) : '-'}
                     </td>
                   </tr>
                 );
