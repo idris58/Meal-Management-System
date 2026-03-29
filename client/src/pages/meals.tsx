@@ -89,8 +89,7 @@ function QuickLogMeal({
                 }
               }}
               initialFocus
-              className="p-4"
-              style={{ '--cell-size': '3rem' } as React.CSSProperties}
+              className="p-3"
             />
           </PopoverContent>
         </Popover>
