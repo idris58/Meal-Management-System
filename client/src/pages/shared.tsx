@@ -176,7 +176,7 @@ export default function SharedPage({ token }: { token: string }) {
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-200">
               <ChefHat className="h-5 w-5" />
@@ -264,29 +264,29 @@ export default function SharedPage({ token }: { token: string }) {
             <h2 className="text-xl font-heading font-bold">Meal Logs</h2>
           </div>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-            <div className="max-h-[480px] overflow-auto">
-              <table className="w-full border-collapse text-sm">
+            <div className="max-h-[480px] overflow-auto overscroll-x-contain [scrollbar-gutter:stable_both-edges]">
+              <table className="min-w-max w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-30 bg-card">
                   <tr className="border-b shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    <th className="sticky left-0 z-40 min-w-[120px] border-r bg-card p-4 text-left font-bold">
+                    <th className="sticky left-0 z-40 min-w-[92px] border-r bg-card p-3 text-left text-xs font-bold sm:min-w-[108px] md:min-w-[120px] md:p-4 md:text-sm">
                       Date
                     </th>
                     {data.members.map((member) => (
                       <th
                         key={member.id}
-                        className="min-w-[100px] border-r bg-card p-2 text-center"
+                        className="min-w-[72px] border-r bg-card p-1.5 text-center sm:min-w-[84px] md:min-w-[100px] md:p-2"
                       >
-                        <div className="flex flex-col items-center gap-1 py-1">
-                          <Avatar className="h-6 w-6 text-[10px]">
+                        <div className="flex flex-col items-center gap-1 py-0.5 md:py-1">
+                          <Avatar className="h-5 w-5 text-[9px] md:h-6 md:w-6 md:text-[10px]">
                             <AvatarFallback>{member.avatar}</AvatarFallback>
                           </Avatar>
-                          <span className="w-20 truncate text-[10px] font-bold uppercase">
+                          <span className="w-14 truncate text-[9px] font-bold uppercase sm:w-16 md:w-20 md:text-[10px]">
                             {member.name.split(" ")[0]}
                           </span>
                         </div>
                       </th>
                     ))}
-                    <th className="z-30 min-w-[80px] bg-card p-4 text-right font-bold">
+                    <th className="min-w-[64px] bg-card p-3 text-right text-xs font-bold sm:min-w-[72px] md:min-w-[80px] md:p-4 md:text-sm">
                       Total
                     </th>
                   </tr>
@@ -299,12 +299,12 @@ export default function SharedPage({ token }: { token: string }) {
 
                     return (
                       <tr key={dateStr} className="hover:bg-muted/50">
-                        <td className="sticky left-0 z-10 border-r bg-card p-4 font-medium">
+                        <td className="sticky left-0 z-10 border-r bg-card p-3 font-medium md:p-4">
                           <div className="flex flex-col">
                             <span className={cn(isSameDay(day, new Date()) && "font-bold text-primary")}>
                               {format(day, "dd MMM")}
                             </span>
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[9px] text-muted-foreground md:text-[10px]">
                               {format(day, "EEEE")}
                             </span>
                           </div>
@@ -314,13 +314,13 @@ export default function SharedPage({ token }: { token: string }) {
                           return (
                             <td
                               key={member.id}
-                              className="border-r p-4 text-center font-mono"
+                              className="border-r p-2.5 text-center font-mono text-xs sm:p-3 sm:text-sm md:p-4"
                             >
                               {log ? formatMealCount(log.count) : "-"}
                             </td>
                           );
                         })}
-                        <td className="bg-card p-4 text-right font-bold text-emerald-600">
+                        <td className="bg-card p-3 text-right font-bold text-emerald-600 md:p-4">
                           {dayTotal > 0 ? formatMealCount(dayTotal) : "-"}
                         </td>
                       </tr>

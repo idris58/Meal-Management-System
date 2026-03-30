@@ -72,7 +72,7 @@ function QuickLogMeal({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+    <form onSubmit={handleSubmit} className="space-y-5 pt-4">
       <div className="space-y-2">
         <label className="text-sm font-medium">Select Date</label>
         <Popover>
@@ -100,25 +100,27 @@ function QuickLogMeal({
         </Popover>
       </div>
 
-      <div className="max-h-[40vh] space-y-4 overflow-y-auto pr-2">
+      <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1 sm:pr-2">
         {members.map(member => (
-          <div key={member.id} className="flex items-center justify-between rounded-lg border bg-secondary/10 p-2">
-            <div className="flex items-center gap-3">
+          <div key={member.id} className="rounded-lg border bg-secondary/10 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
               <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-              <span className="max-w-[100px] truncate text-sm font-medium">{member.name}</span>
+              <span className="truncate text-sm font-medium">{member.name}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
+            <div className="flex items-center justify-between gap-2 sm:justify-end">
+              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => updateCount(member.id, -0.5)}>
                 <Minus className="h-3 w-3" />
               </Button>
               <Input
-                className="h-8 w-16 px-1 text-center text-sm font-bold"
+                className="h-9 w-20 px-2 text-center text-sm font-bold"
                 value={mealCounts[member.id]}
                 onChange={(event) => handleInputChange(member.id, event.target.value)}
               />
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
+              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => updateCount(member.id, 0.5)}>
                 <Plus className="h-3 w-3" />
               </Button>
+            </div>
             </div>
           </div>
         ))}
@@ -153,7 +155,7 @@ export default function Meals() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold font-heading">Meal Logs</h1>
         <Dialog
           open={openMeal}
@@ -166,14 +168,14 @@ export default function Meals() {
         >
           <DialogTrigger asChild>
             <Button
-              className="gap-2"
+              className="w-full gap-2 sm:w-auto"
               onClick={() => setSelectedDate(undefined)}
             >
               <Utensils className="h-4 w-4" />
               Log Meals
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="w-[95vw] max-w-md">
             <DialogHeader>
               <DialogTitle>
                 {selectedDate ? `Edit Meals for ${format(selectedDate, 'PPP')}` : 'Log Meals by Date'}
@@ -190,25 +192,25 @@ export default function Meals() {
         </Dialog>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden border rounded-lg bg-card shadow-sm">
-        <div className="h-[calc(100vh-250px)] overflow-auto">
-          <table className="w-full border-collapse text-sm">
+      <div className="flex-1 min-h-0 overflow-hidden rounded-lg border bg-card shadow-sm">
+        <div className="h-[calc(100vh-240px)] overflow-auto overscroll-x-contain [scrollbar-gutter:stable_both-edges]">
+          <table className="min-w-max w-full border-collapse text-sm">
             <thead className="sticky top-0 z-30">
               <tr className="bg-card border-b shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                <th className="sticky left-0 top-0 z-40 bg-card p-4 text-left font-bold border-r whitespace-nowrap min-w-[120px]">
+                <th className="sticky left-0 top-0 z-40 min-w-[92px] whitespace-nowrap border-r bg-card p-3 text-left text-xs font-bold sm:min-w-[108px] md:min-w-[120px] md:p-4 md:text-sm">
                   Date
                 </th>
                 {members.map(member => (
-                  <th key={member.id} className="p-2 text-center border-r min-w-[100px] bg-card">
-                    <div className="flex flex-col items-center gap-1 py-1">
-                      <Avatar className="h-6 w-6 text-[10px]">
+                  <th key={member.id} className="min-w-[72px] border-r bg-card p-1.5 text-center sm:min-w-[84px] md:min-w-[100px] md:p-2">
+                    <div className="flex flex-col items-center gap-1 py-0.5 md:py-1">
+                      <Avatar className="h-5 w-5 text-[9px] md:h-6 md:w-6 md:text-[10px]">
                         <AvatarFallback>{member.avatar}</AvatarFallback>
                       </Avatar>
-                      <span className="text-[10px] uppercase truncate w-20 font-bold">{member.name.split(' ')[0]}</span>
+                      <span className="w-14 truncate text-[9px] font-bold uppercase sm:w-16 md:w-20 md:text-[10px]">{member.name.split(' ')[0]}</span>
                     </div>
                   </th>
                 ))}
-                <th className="top-0 z-30 bg-card p-4 text-right font-bold min-w-[80px]">
+                <th className="min-w-[64px] bg-card p-3 text-right text-xs font-bold sm:min-w-[72px] md:min-w-[80px] md:p-4 md:text-sm">
                   Total
                 </th>
               </tr>
@@ -225,23 +227,23 @@ export default function Meals() {
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => openEditorForDate(day)}
                   >
-                    <td className="sticky left-0 z-10 bg-card p-4 font-medium border-r whitespace-nowrap">
+                    <td className="sticky left-0 z-10 whitespace-nowrap border-r bg-card p-3 font-medium md:p-4">
                       <div className="flex flex-col">
                         <span className={cn(isSameDay(day, today) && "text-primary font-bold")}>
                           {format(day, 'dd MMM')}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">{format(day, 'EEEE')}</span>
+                        <span className="text-[9px] text-muted-foreground md:text-[10px]">{format(day, 'EEEE')}</span>
                       </div>
                     </td>
                     {members.map(member => {
                       const log = dayLogs.find(l => l.memberId === member.id);
                       return (
-                        <td key={member.id} className="p-4 text-center font-mono border-r">
+                        <td key={member.id} className="border-r p-2.5 text-center font-mono text-xs sm:p-3 sm:text-sm md:p-4">
                           {log ? formatMealCount(log.count) : '-'}
                         </td>
                       );
                     })}
-                    <td className="bg-card p-4 text-right font-bold text-emerald-600">
+                    <td className="bg-card p-3 text-right font-bold text-emerald-600 md:p-4">
                       {dayTotal > 0 ? formatMealCount(dayTotal) : '-'}
                     </td>
                   </tr>
