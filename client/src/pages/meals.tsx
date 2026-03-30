@@ -72,7 +72,7 @@ function QuickLogMeal({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 pt-4">
+    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
       <div className="space-y-2">
         <label className="text-sm font-medium">Select Date</label>
         <Popover>
@@ -100,27 +100,25 @@ function QuickLogMeal({
         </Popover>
       </div>
 
-      <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1 sm:pr-2">
+      <div className="max-h-[40vh] space-y-4 overflow-y-auto pr-2">
         {members.map(member => (
-          <div key={member.id} className="rounded-lg border bg-secondary/10 p-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-3">
+          <div key={member.id} className="flex items-center justify-between rounded-lg border bg-secondary/10 p-2">
+            <div className="flex items-center gap-3">
               <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-              <span className="truncate text-sm font-medium">{member.name}</span>
+              <span className="max-w-[100px] truncate text-sm font-medium">{member.name}</span>
             </div>
-            <div className="flex items-center justify-between gap-2 sm:justify-end">
-              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => updateCount(member.id, -0.5)}>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
                 <Minus className="h-3 w-3" />
               </Button>
               <Input
-                className="h-9 w-20 px-2 text-center text-sm font-bold"
+                className="h-8 w-16 px-1 text-center text-sm font-bold"
                 value={mealCounts[member.id]}
                 onChange={(event) => handleInputChange(member.id, event.target.value)}
               />
-              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => updateCount(member.id, 0.5)}>
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
                 <Plus className="h-3 w-3" />
               </Button>
-            </div>
             </div>
           </div>
         ))}
@@ -155,7 +153,7 @@ export default function Meals() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-heading">Meal Logs</h1>
         <Dialog
           open={openMeal}
@@ -168,14 +166,14 @@ export default function Meals() {
         >
           <DialogTrigger asChild>
             <Button
-              className="w-full gap-2 sm:w-auto"
+              className="gap-2"
               onClick={() => setSelectedDate(undefined)}
             >
               <Utensils className="h-4 w-4" />
               Log Meals
             </Button>
           </DialogTrigger>
-          <DialogContent className="w-[95vw] max-w-md">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>
                 {selectedDate ? `Edit Meals for ${format(selectedDate, 'PPP')}` : 'Log Meals by Date'}

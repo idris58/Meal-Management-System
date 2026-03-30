@@ -236,19 +236,17 @@ function PendingMealEditor({
         </Popover>
       </div>
 
-      <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1 sm:pr-2">
+      <div className="max-h-[45vh] space-y-4 overflow-y-auto pr-2">
         {details.members.map((member) => (
-          <div key={member.id} className="rounded-lg border bg-secondary/20 p-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-3">
+          <div key={member.id} className="flex items-center justify-between rounded-lg border bg-secondary/20 p-3">
+            <div className="flex items-center gap-3">
               <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-              <span className="truncate text-sm font-medium">{member.name}</span>
+              <span className="text-sm font-medium">{member.name}</span>
             </div>
-            <div className="flex items-center justify-between gap-2 sm:justify-end">
-              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => updateCount(member.id, -0.5)}>-</Button>
-              <Input className="h-9 w-20 px-2 text-center font-bold" value={mealCounts[member.id] ?? '0'} onChange={(event) => setMealCounts((prev) => ({ ...prev, [member.id]: event.target.value }))} />
-              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => updateCount(member.id, 0.5)}>+</Button>
-            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>-</Button>
+              <Input className="h-8 w-16 px-1 text-center font-bold" value={mealCounts[member.id] ?? '0'} onChange={(event) => setMealCounts((prev) => ({ ...prev, [member.id]: event.target.value }))} />
+              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>+</Button>
             </div>
           </div>
         ))}
