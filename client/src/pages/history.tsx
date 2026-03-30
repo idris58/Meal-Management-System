@@ -400,7 +400,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
               <table className="min-w-max w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-20 bg-card">
                   <tr className="border-b">
-                    <th className="sticky left-0 z-30 min-w-[92px] border-r bg-card p-3 text-left text-xs font-bold sm:min-w-[108px] md:min-w-[120px] md:p-4 md:text-sm">Date</th>
+                    <th className="sticky left-0 z-30 min-w-[84px] border-r bg-card p-3 text-left text-xs font-bold sm:min-w-[96px] md:min-w-[112px] md:p-4 md:text-sm">Date</th>
                     {details.members.map((member) => (
                       <th key={member.id} className="min-w-[72px] border-r bg-card p-1.5 text-center text-[9px] font-bold sm:min-w-[84px] sm:text-[10px] md:min-w-[100px] md:p-2 md:text-xs">{member.name.split(' ')[0]}</th>
                     ))}

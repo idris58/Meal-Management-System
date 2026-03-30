@@ -268,7 +268,7 @@ export default function SharedPage({ token }: { token: string }) {
               <table className="min-w-max w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-30 bg-card">
                   <tr className="border-b shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                    <th className="sticky left-0 z-40 min-w-[92px] border-r bg-card p-3 text-left text-xs font-bold sm:min-w-[108px] md:min-w-[120px] md:p-4 md:text-sm">
+                    <th className="sticky left-0 z-40 min-w-[84px] border-r bg-card p-3 text-left text-xs font-bold sm:min-w-[96px] md:min-w-[112px] md:p-4 md:text-sm">
                       Date
                     </th>
                     {data.members.map((member) => (
