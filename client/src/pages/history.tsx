@@ -230,7 +230,7 @@ function PendingMealEditor({
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full justify-start text-left font-normal">{format(date, 'PPP')}</Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center">
+          <PopoverContent className="w-[20rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
             <Calendar mode="single" selected={date} onSelect={(nextDate) => nextDate && setDate(nextDate)} initialFocus />
           </PopoverContent>
         </Popover>
