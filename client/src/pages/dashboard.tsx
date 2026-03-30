@@ -161,7 +161,7 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
               {date ? format(date, 'PPP') : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[20rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
+          <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
             <Calendar
               mode="single"
               selected={date}
