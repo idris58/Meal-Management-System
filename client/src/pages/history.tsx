@@ -280,7 +280,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
           <div className="text-left">
             <p className="font-bold">Pending Cycle Closed: {format(new Date(details.cycle.closedAt || details.cycle.startedAt), 'PPP')}</p>
             <p className="text-sm text-muted-foreground">
-              {details.members.length} Members • {details.stats.totalMealsConsumed} Meals • Settlement still editable
+              {details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals • Settlement still editable
             </p>
           </div>
           <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Pending</Badge>
@@ -345,12 +345,12 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                         <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
                         <div className="min-w-0">
                           <span className="block truncate font-medium">{member.name}</span>
-                          <span className="text-xs text-muted-foreground sm:hidden whitespace-nowrap">{member.mealsEaten} meals</span>
+                          <span className="text-xs text-muted-foreground sm:hidden whitespace-nowrap">{formatMealCount(member.mealsEaten)} meals</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(member.deposit)}</TableCell>
-                    <TableCell className="hidden text-right sm:table-cell">{member.mealsEaten}</TableCell>
+                    <TableCell className="hidden text-right sm:table-cell">{formatMealCount(member.mealsEaten)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(member.mealCost)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(member.fixedCost)}</TableCell>
                     <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
@@ -418,7 +418,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                         <td className="sticky left-0 border-r bg-card p-4 font-medium">{format(day, 'dd MMM')}</td>
                         {details.members.map((member) => {
                           const log = dayLogs.find((entry) => entry.memberId === member.id);
-                          return <td key={member.id} className="border-r p-4 text-center">{log ? log.count : '-'}</td>;
+                          return <td key={member.id} className="border-r p-4 text-center">{log ? formatMealCount(log.count) : '-'}</td>;
                         })}
                         <td className="p-4 text-right font-bold text-emerald-600">{total > 0 ? formatMealCount(total) : '-'}</td>
                       </tr>
@@ -479,7 +479,7 @@ function ClosedCycleCard({ details }: { details: CycleDetails }) {
         <div className="flex flex-1 items-center justify-between gap-4">
           <div className="text-left">
             <p className="font-bold">Cycle Closed: {format(new Date(details.cycle.finalizedAt || details.cycle.closedAt || details.cycle.startedAt), 'PPP')}</p>
-            <p className="text-sm text-muted-foreground">{details.members.length} Members • {details.stats.totalMealsConsumed} Meals</p>
+            <p className="text-sm text-muted-foreground">{details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals</p>
           </div>
           <Badge variant="secondary">Closed</Badge>
         </div>
@@ -505,7 +505,7 @@ function ClosedCycleCard({ details }: { details: CycleDetails }) {
               {details.members.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell className="text-center">{member.mealsEaten}</TableCell>
+                  <TableCell className="text-center">{formatMealCount(member.mealsEaten)}</TableCell>
                   <TableCell className="text-center">{formatCurrency(member.deposit)}</TableCell>
                   <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
                     {formatBalance(member.balance)}

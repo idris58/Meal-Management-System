@@ -15,6 +15,11 @@ const memberSchema = z.object({
   name: z.string().min(2, 'Name is required'),
 });
 
+function formatMealCount(value: number) {
+  const rounded = Math.round((value + Number.EPSILON) * 1000) / 1000;
+  return rounded.toString();
+}
+
 function AddMemberForm({ onClose }: { onClose: () => void }) {
   const { addMember } = useMeal();
   const form = useForm<z.infer<typeof memberSchema>>({
@@ -136,7 +141,7 @@ export default function Members() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Meals Eaten</span>
-                    <span className="font-medium">{member.mealsEaten}</span>
+                    <span className="font-medium">{formatMealCount(member.mealsEaten)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Meal Cost</span>

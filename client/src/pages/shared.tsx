@@ -240,7 +240,7 @@ export default function SharedPage({ token }: { token: string }) {
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Meals</span>
-                <span className="font-medium">{data.stats.totalMealsConsumed}</span>
+                <span className="font-medium">{formatMealCount(data.stats.totalMealsConsumed)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Meal Cost</span>
@@ -316,7 +316,7 @@ export default function SharedPage({ token }: { token: string }) {
                               key={member.id}
                               className="border-r p-4 text-center font-mono"
                             >
-                              {log ? log.count : "-"}
+                              {log ? formatMealCount(log.count) : "-"}
                             </td>
                           );
                         })}
@@ -455,7 +455,7 @@ export default function SharedPage({ token }: { token: string }) {
                     </div>
                     <div className="rounded-lg bg-secondary/30 px-3 py-2">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Meals</p>
-                      <p className="font-medium">{member.mealsEaten}</p>
+                      <p className="font-medium">{formatMealCount(member.mealsEaten)}</p>
                     </div>
                     <div className="rounded-lg bg-secondary/30 px-3 py-2">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Meal Cost</p>
@@ -496,7 +496,7 @@ export default function SharedPage({ token }: { token: string }) {
                       <td className="p-4 text-right font-medium">
                         {formatCurrency(member.deposit - member.fixedCost)}
                       </td>
-                      <td className="p-4 text-right font-medium">{member.mealsEaten}</td>
+                      <td className="p-4 text-right font-medium">{formatMealCount(member.mealsEaten)}</td>
                       <td className="p-4 text-right font-medium">
                         {formatCurrency(member.mealCost)}
                       </td>

@@ -237,7 +237,7 @@ export default function Meals() {
                       const log = dayLogs.find(l => l.memberId === member.id);
                       return (
                         <td key={member.id} className="p-4 text-center font-mono border-r">
-                          {log ? log.count : '-'}
+                          {log ? formatMealCount(log.count) : '-'}
                         </td>
                       );
                     })}

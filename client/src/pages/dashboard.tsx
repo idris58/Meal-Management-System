@@ -32,6 +32,11 @@ const expenseSchema = z.object({
   paidBy: z.string().min(2, 'Shopper name is required'),
 });
 
+function formatMealCount(value: number) {
+  const rounded = Math.round((value + Number.EPSILON) * 1000) / 1000;
+  return rounded.toString();
+}
+
 function QuickAddExpense({ onClose }: { onClose: () => void }) {
   const { addExpense } = useMeal();
   const form = useForm<z.infer<typeof expenseSchema>>({
@@ -606,7 +611,7 @@ export default function Dashboard() {
             <div className="mt-4 space-y-1 border-t pt-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Meals:</span>
-                <span className="font-medium">{stats.totalMealsConsumed}</span>
+                <span className="font-medium">{formatMealCount(stats.totalMealsConsumed)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Fixed Cost/Person:</span>
@@ -665,7 +670,7 @@ export default function Dashboard() {
                   <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
                   <div>
                     <p className="text-sm font-medium">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">{mStats.mealsEaten} Meals</p>
+                    <p className="text-xs text-muted-foreground">{formatMealCount(mStats.mealsEaten)} Meals</p>
                   </div>
                 </div>
                 <div className="text-right">
