@@ -685,7 +685,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="grid gap-4 pt-2 lg:grid-cols-3">
+      <section className="space-y-4 pt-2">
         <InstallAppCard />
         <ShareDashboardCard />
         <CycleManagementCard onCloseCycle={closeActiveCycle} hasPendingCycle={!!pendingCycle} />
