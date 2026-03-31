@@ -71,16 +71,25 @@ Notes:
 
 Run these SQL files in Supabase SQL Editor.
 
-### 1. Base app tables / existing setup
+### 1. Base app tables
 
-This repo assumes your main app tables already exist:
+Run:
+
+```text
+supabase/base_tables.sql
+```
+
+This creates:
 
 - `members`
 - `expenses`
 - `meal_logs`
-- `share_links`
 
-If you already have the app working, keep your current setup.
+It also adds:
+
+- `user_id` ownership
+- RLS policies for the core app tables
+- required indexes and defaults
 
 ### 2. Share link setup
 
