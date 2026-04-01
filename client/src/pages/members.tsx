@@ -61,8 +61,8 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(amount);
-    if (!isNaN(val) && val > 0) {
-      addDeposit(memberId, val);
+    if (!isNaN(val) && val !== 0) {
+      addDeposit(memberId, val, undefined, val < 0 ? 'Deduction/Refund' : undefined);
       onClose();
     }
   };
@@ -70,7 +70,7 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-4">
       <div className="space-y-2">
-        <label className="text-sm font-medium">Deposit Amount</label>
+        <label className="text-sm font-medium">Amount (use negative for deduction)</label>
         <Input
           type="number"
           placeholder="0.00"
@@ -79,7 +79,7 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
           autoFocus
         />
       </div>
-      <Button type="submit" className="w-full">Add Deposit</Button>
+      <Button type="submit" className="w-full">{amount.startsWith('-') ? 'Deduct Amount' : 'Add Deposit'}</Button>
     </form>
   );
 }
@@ -164,7 +164,7 @@ export default function Members() {
                     onClick={() => setDepositMemberId(member.id)}
                   >
                     <Wallet className="h-4 w-4" />
-                    Add Deposit
+                    Manage Deposit
                   </Button>
                 </div>
               </CardContent>
@@ -176,7 +176,7 @@ export default function Members() {
       <Dialog open={!!depositMemberId} onOpenChange={(open) => !open && setDepositMemberId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Deposit</DialogTitle>
+            <DialogTitle>Manage Deposit</DialogTitle>
           </DialogHeader>
           {depositMemberId && (
             <DepositForm memberId={depositMemberId} onClose={() => setDepositMemberId(null)} />
