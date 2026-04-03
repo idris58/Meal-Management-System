@@ -148,8 +148,6 @@ export default function ChangelogPage() {
   );
 
   const hasCycleSections = Boolean(pendingCycle || activeCycle);
-  const hasAnyVisibleEntries = filteredPendingEntries.length > 0 || filteredActiveEntries.length > 0;
-
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -205,12 +203,6 @@ export default function ChangelogPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {!hasAnyVisibleEntries ? (
-            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-              No changelog entries match the current filters.
-            </div>
-          ) : null}
-
           {activeCycle ? (
             <ChangelogSection
               title="Active Cycle Changelog"
