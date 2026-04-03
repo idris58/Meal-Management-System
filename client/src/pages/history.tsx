@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
-import { Archive, Pencil, Plus, ScrollText, Trash2, Wallet } from 'lucide-react';
+import { Archive, ChevronDown, Pencil, Plus, ScrollText, Trash2, Wallet } from 'lucide-react';
 import { Link } from 'wouter';
 
 import { useMeal, type CycleDetails, type Expense } from '@/lib/meal-context';
@@ -495,35 +496,28 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
 
   return (
     <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
-      <AccordionTrigger className="hover:no-underline py-4">
-        <div className="flex flex-1 items-center justify-between gap-4">
-          <div className="text-left">
-            <p className="font-bold">Cycle Closed: {format(new Date(details.cycle.finalizedAt || details.cycle.closedAt || details.cycle.startedAt), 'PPP')}</p>
-            <p className="text-sm text-muted-foreground">{details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {isExpanded ? (
+      <div className="flex items-center justify-between gap-4 py-4">
+        <AccordionPrimitive.Header className="min-w-0 flex-1">
+          <AccordionPrimitive.Trigger className="flex w-full items-center justify-between text-left text-sm font-medium transition-all hover:no-underline [&[data-state=open]>svg]:rotate-180">
+            <div className="text-left">
+              <p className="font-bold">Cycle Closed: {format(new Date(details.cycle.finalizedAt || details.cycle.closedAt || details.cycle.startedAt), 'PPP')}</p>
+              <p className="text-sm text-muted-foreground">{details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals</p>
+            </div>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+          </AccordionPrimitive.Trigger>
+        </AccordionPrimitive.Header>
+        <div className="flex shrink-0 items-center gap-2">
+          {isExpanded ? (
+            <>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700 sm:hidden"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hidden gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 sm:inline-flex"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete Cycle
-                    </Button>
-                  </>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700 sm:hidden"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -540,17 +534,43 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            ) : null}
-            <Badge variant="secondary">Closed</Badge>
-          </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 sm:inline-flex"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Cycle
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this closed cycle?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove the closed cycle and all of its linked expenses, meal logs, deposits, and changelog records.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteCycle(details.cycle.id)}>
+                      Yes, Delete Cycle
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : null}
+          <Badge variant="secondary">Closed</Badge>
         </div>
-      </AccordionTrigger>
+      </div>
       <AccordionContent className="space-y-4 pb-6">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
-            <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
-            <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
-            <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
+          <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
+          <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
+          <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
+          <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
         </div>
         <div className="overflow-hidden rounded-lg border">
           <Table>
