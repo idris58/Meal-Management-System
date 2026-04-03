@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
-import { Archive, Pencil, Plus, ScrollText, Wallet } from 'lucide-react';
+import { Archive, Pencil, Plus, ScrollText, Trash2, Wallet } from 'lucide-react';
 import { Link } from 'wouter';
 
 import { useMeal, type CycleDetails, type Expense } from '@/lib/meal-context';
@@ -491,6 +491,8 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
 }
 
 function ClosedCycleCard({ details }: { details: CycleDetails }) {
+  const { deleteCycle } = useMeal();
+
   return (
     <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
       <AccordionTrigger className="hover:no-underline py-4">
@@ -508,6 +510,30 @@ function ClosedCycleCard({ details }: { details: CycleDetails }) {
           <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
           <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
           <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
+        </div>
+        <div className="flex justify-end">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="gap-2">
+                <Trash2 className="h-4 w-4" />
+                Delete Cycle
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this closed cycle?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove the closed cycle and all of its linked expenses, meal logs, deposits, and changelog records.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteCycle(details.cycle.id)}>
+                  Yes, Delete Cycle
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
         <div className="overflow-hidden rounded-lg border">
           <Table>

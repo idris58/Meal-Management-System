@@ -122,6 +122,7 @@ interface MealContextType {
   logMeal: (memberId: string, count: number, date: string, cycleId?: string) => Promise<void>;
   closeActiveCycle: () => Promise<void>;
   markCycleClosed: (cycleId: string) => Promise<void>;
+  deleteCycle: (cycleId: string) => Promise<void>;
   stats: CycleDetails['stats'];
   getMemberStats: (memberId: string, cycleId?: string) => {
     mealCost: number;
@@ -1077,6 +1078,33 @@ export function MealProvider({ children }: { children: ReactNode }) {
     setAllChangelogEntries((prev) => prev.filter((entry) => entry.cycleId !== cycleId));
   };
 
+  const deleteCycle = async (cycleId: string) => {
+    if (!userId) return;
+
+    const targetCycle = cycles.find((cycle) => cycle.id === cycleId);
+    if (!targetCycle || targetCycle.status !== 'closed') {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('cycles')
+      .delete()
+      .eq('id', cycleId)
+      .eq('user_id', userId)
+      .eq('status', 'closed');
+
+    if (error) {
+      console.error('Error deleting closed cycle:', error);
+      return;
+    }
+
+    setCycles((prev) => prev.filter((cycle) => cycle.id !== cycleId));
+    setAllExpenses((prev) => prev.filter((expense) => expense.cycleId !== cycleId));
+    setAllMealLogs((prev) => prev.filter((log) => log.cycleId !== cycleId));
+    setAllDeposits((prev) => prev.filter((deposit) => deposit.cycleId !== cycleId));
+    setAllChangelogEntries((prev) => prev.filter((entry) => entry.cycleId !== cycleId));
+  };
+
   const activeDetails = activeCycle ? getCycleDetails(activeCycle.id) : null;
 
   const members = activeDetails?.members ?? [];
@@ -1136,6 +1164,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         logMeal,
         closeActiveCycle,
         markCycleClosed,
+        deleteCycle,
         stats,
         getMemberStats,
         getCycleDetails,
