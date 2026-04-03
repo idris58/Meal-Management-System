@@ -115,6 +115,7 @@ interface MealContextType {
     description: string;
     type: 'meal' | 'fixed';
     paidBy: string;
+    date?: string;
   }) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   addDeposit: (memberId: string, amount: number, cycleId?: string, note?: string) => Promise<void>;
@@ -729,6 +730,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       description: string;
       type: 'meal' | 'fixed';
       paidBy: string;
+      date?: string;
     },
   ) => {
     if (!userId) return;
@@ -753,6 +755,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         description: updates.description,
         type: updates.type,
         paid_by: updates.paidBy,
+        ...(updates.date ? { date: updates.date } : {}),
       })
       .eq('id', id)
       .eq('user_id', userId);
@@ -764,7 +767,14 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     setAllExpenses((prev) => prev.map((expense) => (
       expense.id === id
-        ? { ...expense, amount: updates.amount, description: updates.description, type: updates.type, paidBy: updates.paidBy }
+        ? {
+            ...expense,
+            amount: updates.amount,
+            description: updates.description,
+            type: updates.type,
+            paidBy: updates.paidBy,
+            date: updates.date ?? expense.date,
+          }
         : expense
     )));
 

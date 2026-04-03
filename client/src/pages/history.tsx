@@ -107,6 +107,7 @@ function PendingExpenseEditor({
         amount: parsedAmount,
         type,
         paidBy: paidBy.trim(),
+        date: format(date, 'yyyy-MM-dd'),
       });
     } else {
       await addExpense(parsedAmount, description.trim(), type, paidBy.trim(), cycleId, format(date, 'yyyy-MM-dd'));
@@ -137,22 +138,20 @@ function PendingExpenseEditor({
         <label className="text-sm font-medium">Description</label>
         <Input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="e.g. Rice, WiFi bill" />
       </div>
-      {!expense ? (
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Date</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}>
-                <Pencil className="mr-2 h-4 w-4 opacity-0" />
-                {date ? format(date, 'PPP') : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
-              <Calendar mode="single" selected={date} onSelect={(nextDate) => nextDate && setDate(nextDate)} initialFocus />
-            </PopoverContent>
-          </Popover>
-        </div>
-      ) : null}
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Date</label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}>
+              <span className="mr-2 inline-block h-4 w-4" />
+              {date ? format(date, 'PPP') : <span>Pick a date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
+            <Calendar mode="single" selected={date} onSelect={(nextDate) => nextDate && setDate(nextDate)} initialFocus />
+          </PopoverContent>
+        </Popover>
+      </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Amount</label>
         <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" />

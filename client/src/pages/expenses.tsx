@@ -61,7 +61,10 @@ function ExpenseEditor({
 
   const onSubmit = async (data: z.infer<typeof expenseSchema>) => {
     if (expense) {
-      await updateExpense(expense.id, data);
+      await updateExpense(expense.id, {
+        ...data,
+        date: format(date, 'yyyy-MM-dd'),
+      });
     } else {
       await addExpense(data.amount, data.description, data.type, data.paidBy, undefined, format(date, 'yyyy-MM-dd'));
     }
@@ -106,33 +109,31 @@ function ExpenseEditor({
             </FormItem>
           )}
         />
-        {!expense ? (
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Date</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, 'PPP') : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={(nextDate) => {
-                    if (nextDate) {
-                      setDate(nextDate);
-                      const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
-                      document.dispatchEvent(escapeEvent);
-                    }
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        ) : null}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Date</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, 'PPP') : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={(nextDate) => {
+                  if (nextDate) {
+                    setDate(nextDate);
+                    const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
+                    document.dispatchEvent(escapeEvent);
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
         <FormField
           control={form.control}
           name="amount"
