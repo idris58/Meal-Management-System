@@ -15,6 +15,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Calendar as CalendarIcon } from 'lucide-react';
 
 const expenseSchema = z.object({
   amount: z.preprocess(
@@ -34,6 +38,7 @@ function ExpenseEditor({
   onClose: () => void;
 }) {
   const { addExpense, updateExpense, deleteExpense } = useMeal();
+  const [date, setDate] = useState<Date>(expense ? new Date(expense.date) : new Date());
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
@@ -51,13 +56,14 @@ function ExpenseEditor({
       type: expense?.type ?? 'meal',
       paidBy: expense?.paidBy ?? '',
     });
+    setDate(expense ? new Date(expense.date) : new Date());
   }, [expense, form]);
 
   const onSubmit = async (data: z.infer<typeof expenseSchema>) => {
     if (expense) {
       await updateExpense(expense.id, data);
     } else {
-      await addExpense(data.amount, data.description, data.type, data.paidBy);
+      await addExpense(data.amount, data.description, data.type, data.paidBy, undefined, format(date, 'yyyy-MM-dd'));
     }
 
     onClose();
@@ -100,6 +106,33 @@ function ExpenseEditor({
             </FormItem>
           )}
         />
+        {!expense ? (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(nextDate) => {
+                    if (nextDate) {
+                      setDate(nextDate);
+                      const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
+                      document.dispatchEvent(escapeEvent);
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        ) : null}
         <FormField
           control={form.control}
           name="amount"

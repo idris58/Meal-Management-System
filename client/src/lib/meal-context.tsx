@@ -109,7 +109,7 @@ interface MealContextType {
   addMember: (name: string) => Promise<void>;
   updateMember: (id: string, updates: Partial<Member>) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
-  addExpense: (amount: number, description: string, type: 'meal' | 'fixed', paidBy: string, cycleId?: string) => Promise<void>;
+  addExpense: (amount: number, description: string, type: 'meal' | 'fixed', paidBy: string, cycleId?: string, expenseDate?: string) => Promise<void>;
   updateExpense: (id: string, updates: {
     amount: number;
     description: string;
@@ -670,6 +670,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     type: 'meal' | 'fixed',
     paidBy: string,
     cycleId?: string,
+    expenseDate?: string,
   ) => {
     if (!userId) return;
 
@@ -683,7 +684,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         description,
         type,
         paid_by: paidBy,
-        date: new Date().toISOString(),
+        date: expenseDate ?? new Date().toISOString(),
         user_id: userId,
         cycle_id: targetCycleId,
       }])
