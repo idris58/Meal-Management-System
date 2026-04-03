@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
-import { Archive, Pencil, Plus, Wallet } from 'lucide-react';
+import { Archive, Pencil, Plus, ScrollText, Wallet } from 'lucide-react';
+import { Link } from 'wouter';
 
 import { useMeal, type CycleDetails, type Expense } from '@/lib/meal-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -553,11 +554,18 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold font-heading">History</h1>
-        <p className="text-sm text-muted-foreground">
-          Pending cycles stay editable for settlement and corrections. Closed cycles are read-only.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold font-heading">History</h1>
+          <p className="text-sm text-muted-foreground">
+            Pending cycles stay editable for settlement and corrections. Closed cycles are read-only.
+          </p>
+        </div>
+        <Button variant="outline" size="icon" asChild title="View Changelog" aria-label="View Changelog">
+          <Link href="/changelog">
+            <ScrollText className="h-4 w-4" />
+          </Link>
+        </Button>
       </div>
 
       {pendingCycles.length > 0 ? (

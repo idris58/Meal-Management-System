@@ -8,6 +8,7 @@ import { useAuth, AuthProvider } from "@/lib/auth-context";
 import { MealProvider, useMeal } from "@/lib/meal-context";
 import { useNetworkStatus } from "@/lib/pwa";
 import AuthPage from "@/pages/auth";
+import ChangelogPage from "@/pages/changelog";
 import Dashboard from "@/pages/dashboard";
 import Expenses from "@/pages/expenses";
 import HistoryPage from "@/pages/history";
@@ -38,6 +39,7 @@ function Router() {
         <Route path="/expenses" component={Expenses} />
         <Route path="/meals" component={Meals} />
         <Route path="/history" component={HistoryPage} />
+        <Route path="/changelog" component={ChangelogPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

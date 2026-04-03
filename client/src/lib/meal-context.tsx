@@ -39,6 +39,29 @@ export interface CycleDeposit {
 }
 
 export type CycleStatus = 'active' | 'pending' | 'closed';
+export type ChangelogEntityType = 'member' | 'expense' | 'meal_log' | 'deposit';
+export type ChangelogAction = 'create' | 'update' | 'delete';
+
+type ChangelogValue = string | number | boolean | null;
+
+export interface ChangelogChange {
+  field: string;
+  label: string;
+  value?: ChangelogValue;
+  from?: ChangelogValue;
+  to?: ChangelogValue;
+}
+
+export interface ChangelogEntry {
+  id: string;
+  cycleId: string;
+  entityType: ChangelogEntityType;
+  entityId: string;
+  action: ChangelogAction;
+  title: string;
+  changes: ChangelogChange[];
+  createdAt: string;
+}
 
 export interface Cycle {
   id: string;
@@ -78,6 +101,7 @@ interface MealContextType {
   expenses: Expense[];
   mealLogs: MealLog[];
   cycles: Cycle[];
+  changelogEntries: ChangelogEntry[];
   activeCycle: Cycle | null;
   pendingCycle: Cycle | null;
   loading: boolean;
@@ -154,8 +178,32 @@ type CycleDepositRow = {
   created_at: string;
 };
 
+type ChangelogRow = {
+  id: string;
+  cycle_id: string;
+  entity_type: ChangelogEntityType;
+  entity_id: string;
+  action: ChangelogAction;
+  title: string;
+  changes: ChangelogChange[] | null;
+  created_at: string;
+};
+
 function toAvatar(name: string, fallback?: string | null) {
   return fallback || name.substring(0, 2).toUpperCase();
+}
+
+function buildUpdateChange(
+  field: string,
+  label: string,
+  from: ChangelogValue,
+  to: ChangelogValue,
+): ChangelogChange | null {
+  return from === to ? null : { field, label, from, to };
+}
+
+function buildSnapshotChange(field: string, label: string, value: ChangelogValue): ChangelogChange {
+  return { field, label, value };
 }
 
 export function MealProvider({ children }: { children: ReactNode }) {
@@ -163,6 +211,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [allMealLogs, setAllMealLogs] = useState<MealLog[]>([]);
   const [allDeposits, setAllDeposits] = useState<CycleDeposit[]>([]);
+  const [allChangelogEntries, setAllChangelogEntries] = useState<ChangelogEntry[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -194,6 +243,11 @@ export function MealProvider({ children }: { children: ReactNode }) {
     [cycles],
   );
 
+  const changelogEntries = useMemo(
+    () => activeCycle ? allChangelogEntries.filter((entry) => entry.cycleId === activeCycle.id) : [],
+    [activeCycle, allChangelogEntries],
+  );
+
   const getCycleMembers = (cycleId: string) => {
     const cycle = cycles.find((entry) => entry.id === cycleId);
     if (!cycle) {
@@ -218,6 +272,59 @@ export function MealProvider({ children }: { children: ReactNode }) {
       deposit: 0,
       mealsEaten: 0,
     }));
+  };
+
+  const getMemberName = (memberId: string, cycleId?: string) => {
+    const scopedMembers = cycleId ? getCycleMembers(cycleId) : memberRoster;
+    return scopedMembers.find((member) => member.id === memberId)?.name ?? 'Unknown member';
+  };
+
+  const recordChangelog = async ({
+    cycleId,
+    entityType,
+    entityId,
+    action,
+    title,
+    changes,
+  }: {
+    cycleId: string | null;
+    entityType: ChangelogEntityType;
+    entityId: string;
+    action: ChangelogAction;
+    title: string;
+    changes: ChangelogChange[];
+  }) => {
+    if (!userId || !cycleId) return;
+
+    const { data, error } = await supabase
+      .from('changelog_entries')
+      .insert([{
+        user_id: userId,
+        cycle_id: cycleId,
+        entity_type: entityType,
+        entity_id: entityId,
+        action,
+        title,
+        changes,
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error recording changelog entry:', error);
+      return;
+    }
+
+    setAllChangelogEntries((prev) => [{
+      id: data.id,
+      cycleId: data.cycle_id,
+      entityType: data.entity_type,
+      entityId: data.entity_id,
+      action: data.action,
+      title: data.title,
+      changes: (data.changes as ChangelogChange[] | null) ?? [],
+      createdAt: data.created_at,
+    }, ...prev]);
   };
 
   const getCycleDetails = (cycleId: string): CycleDetails | null => {
@@ -305,6 +412,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         depositsResult,
         expensesResult,
         mealLogsResult,
+        changelogResult,
       ] = await Promise.all([
         supabase
           .from('members')
@@ -331,6 +439,11 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .select('*')
           .eq('user_id', userId)
           .order('date', { ascending: false }),
+        supabase
+          .from('changelog_entries')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false }),
       ]);
 
       if (membersResult.error) throw membersResult.error;
@@ -338,6 +451,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       if (depositsResult.error) throw depositsResult.error;
       if (expensesResult.error) throw expensesResult.error;
       if (mealLogsResult.error) throw mealLogsResult.error;
+      if (changelogResult.error) throw changelogResult.error;
 
       const nextMembers = ((membersResult.data || []) as MemberRow[]).map((member) => ({
         id: member.id,
@@ -388,11 +502,23 @@ export function MealProvider({ children }: { children: ReactNode }) {
           count: Number(log.count),
         }));
 
+      const nextChangelogEntries = ((changelogResult.data || []) as ChangelogRow[]).map((entry) => ({
+        id: entry.id,
+        cycleId: entry.cycle_id,
+        entityType: entry.entity_type,
+        entityId: entry.entity_id,
+        action: entry.action,
+        title: entry.title,
+        changes: entry.changes ?? [],
+        createdAt: entry.created_at,
+      }));
+
       setMemberRoster(nextMembers);
       setCycles(nextCycles);
       setAllDeposits(nextDeposits);
       setAllExpenses(nextExpenses);
       setAllMealLogs(nextMealLogs);
+      setAllChangelogEntries(nextChangelogEntries);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -406,6 +532,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
   const addMember = async (name: string) => {
     if (!userId) return;
+    const targetCycleId = activeCycle?.id ?? null;
 
     const avatar = name.substring(0, 2).toUpperCase();
     const { data, error } = await supabase
@@ -430,15 +557,40 @@ export function MealProvider({ children }: { children: ReactNode }) {
         avatar: toAvatar(data.name, data.avatar),
       },
     ]);
+
+    await recordChangelog({
+      cycleId: targetCycleId,
+      entityType: 'member',
+      entityId: data.id,
+      action: 'create',
+      title: `Added member ${data.name}`,
+      changes: [
+        buildSnapshotChange('name', 'Name', data.name),
+        buildSnapshotChange('is_active', 'Active', data.is_active),
+      ],
+    });
   };
 
   const updateMember = async (id: string, updates: Partial<Member>) => {
     if (!userId) return;
+    const existingMember = memberRoster.find((member) => member.id === id);
+    const targetCycleId = activeCycle?.id ?? null;
+    if (!existingMember) return;
 
     const dbUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
     if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar;
+
+    const changes = [
+      buildUpdateChange('name', 'Name', existingMember.name, updates.name ?? existingMember.name),
+      buildUpdateChange('is_active', 'Active', existingMember.isActive, updates.isActive ?? existingMember.isActive),
+      buildUpdateChange('avatar', 'Avatar', existingMember.avatar ?? null, updates.avatar ?? existingMember.avatar ?? null),
+    ].filter((change): change is ChangelogChange => Boolean(change));
+
+    if (changes.length === 0) {
+      return;
+    }
 
     const { error } = await supabase
       .from('members')
@@ -461,10 +613,22 @@ export function MealProvider({ children }: { children: ReactNode }) {
           }
         : member
     )));
+
+    await recordChangelog({
+      cycleId: targetCycleId,
+      entityType: 'member',
+      entityId: id,
+      action: 'update',
+      title: `Updated member ${existingMember.name}`,
+      changes,
+    });
   };
 
   const removeMember = async (id: string) => {
     if (!userId) return;
+    const existingMember = memberRoster.find((member) => member.id === id);
+    const targetCycleId = activeCycle?.id ?? null;
+    if (!existingMember) return;
 
     const { error } = await supabase
       .from('members')
@@ -480,6 +644,18 @@ export function MealProvider({ children }: { children: ReactNode }) {
     setMemberRoster((prev) => prev.filter((member) => member.id !== id));
     setAllMealLogs((prev) => prev.filter((log) => log.memberId !== id));
     setAllDeposits((prev) => prev.filter((deposit) => deposit.memberId !== id));
+
+    await recordChangelog({
+      cycleId: targetCycleId,
+      entityType: 'member',
+      entityId: id,
+      action: 'delete',
+      title: `Deleted member ${existingMember.name}`,
+      changes: [
+        buildSnapshotChange('name', 'Name', existingMember.name),
+        buildSnapshotChange('is_active', 'Active', existingMember.isActive),
+      ],
+    });
   };
 
   const addExpense = async (
@@ -522,6 +698,21 @@ export function MealProvider({ children }: { children: ReactNode }) {
       date: data.date,
       paidBy: data.paid_by,
     }, ...prev]);
+
+    await recordChangelog({
+      cycleId: targetCycleId,
+      entityType: 'expense',
+      entityId: data.id,
+      action: 'create',
+      title: `Added ${data.type} expense`,
+      changes: [
+        buildSnapshotChange('description', 'Description', data.description),
+        buildSnapshotChange('amount', 'Amount', Number(data.amount)),
+        buildSnapshotChange('type', 'Type', data.type),
+        buildSnapshotChange('paid_by', 'Paid By', data.paid_by),
+        buildSnapshotChange('date', 'Date', data.date),
+      ],
+    });
   };
 
   const updateExpense = async (
@@ -534,6 +725,19 @@ export function MealProvider({ children }: { children: ReactNode }) {
     },
   ) => {
     if (!userId) return;
+    const existingExpense = allExpenses.find((expense) => expense.id === id);
+    if (!existingExpense) return;
+
+    const changes = [
+      buildUpdateChange('amount', 'Amount', existingExpense.amount, updates.amount),
+      buildUpdateChange('description', 'Description', existingExpense.description, updates.description),
+      buildUpdateChange('type', 'Type', existingExpense.type, updates.type),
+      buildUpdateChange('paid_by', 'Paid By', existingExpense.paidBy, updates.paidBy),
+    ].filter((change): change is ChangelogChange => Boolean(change));
+
+    if (changes.length === 0) {
+      return;
+    }
 
     const { error } = await supabase
       .from('expenses')
@@ -556,10 +760,21 @@ export function MealProvider({ children }: { children: ReactNode }) {
         ? { ...expense, amount: updates.amount, description: updates.description, type: updates.type, paidBy: updates.paidBy }
         : expense
     )));
+
+    await recordChangelog({
+      cycleId: existingExpense.cycleId,
+      entityType: 'expense',
+      entityId: id,
+      action: 'update',
+      title: `Updated ${existingExpense.type} expense`,
+      changes,
+    });
   };
 
   const deleteExpense = async (id: string) => {
     if (!userId) return;
+    const existingExpense = allExpenses.find((expense) => expense.id === id);
+    if (!existingExpense) return;
 
     const { error } = await supabase
       .from('expenses')
@@ -573,6 +788,21 @@ export function MealProvider({ children }: { children: ReactNode }) {
     }
 
     setAllExpenses((prev) => prev.filter((expense) => expense.id !== id));
+
+    await recordChangelog({
+      cycleId: existingExpense.cycleId,
+      entityType: 'expense',
+      entityId: id,
+      action: 'delete',
+      title: `Deleted ${existingExpense.type} expense`,
+      changes: [
+        buildSnapshotChange('description', 'Description', existingExpense.description),
+        buildSnapshotChange('amount', 'Amount', existingExpense.amount),
+        buildSnapshotChange('type', 'Type', existingExpense.type),
+        buildSnapshotChange('paid_by', 'Paid By', existingExpense.paidBy),
+        buildSnapshotChange('date', 'Date', existingExpense.date),
+      ],
+    });
   };
 
   const addDeposit = async (memberId: string, amount: number, cycleId?: string, note?: string) => {
@@ -606,6 +836,19 @@ export function MealProvider({ children }: { children: ReactNode }) {
       note: data.note ?? undefined,
       createdAt: data.created_at,
     }]);
+
+    await recordChangelog({
+      cycleId: targetCycleId,
+      entityType: 'deposit',
+      entityId: data.id,
+      action: 'create',
+      title: `Added deposit for ${getMemberName(memberId, targetCycleId)}`,
+      changes: [
+        buildSnapshotChange('member', 'Member', getMemberName(memberId, targetCycleId)),
+        buildSnapshotChange('amount', 'Amount', Number(data.amount)),
+        buildSnapshotChange('note', 'Note', data.note ?? null),
+      ],
+    });
   };
 
   const logMeal = async (memberId: string, count: number, dateStr: string, cycleId?: string) => {
@@ -619,6 +862,10 @@ export function MealProvider({ children }: { children: ReactNode }) {
     ));
 
     if (existingLog) {
+      if (existingLog.count === count) {
+        return;
+      }
+
       if (count === 0) {
         const { error } = await supabase
           .from('meal_logs')
@@ -632,6 +879,19 @@ export function MealProvider({ children }: { children: ReactNode }) {
         }
 
         setAllMealLogs((prev) => prev.filter((log) => log.id !== existingLog.id));
+
+        await recordChangelog({
+          cycleId: targetCycleId,
+          entityType: 'meal_log',
+          entityId: existingLog.id,
+          action: 'delete',
+          title: `Deleted meal log for ${getMemberName(memberId, targetCycleId)}`,
+          changes: [
+            buildSnapshotChange('member', 'Member', getMemberName(memberId, targetCycleId)),
+            buildSnapshotChange('date', 'Date', dateStr),
+            buildSnapshotChange('count', 'Meals', existingLog.count),
+          ],
+        });
       } else {
         const { error } = await supabase
           .from('meal_logs')
@@ -647,6 +907,17 @@ export function MealProvider({ children }: { children: ReactNode }) {
         setAllMealLogs((prev) => prev.map((log) => (
           log.id === existingLog.id ? { ...log, count } : log
         )));
+
+        await recordChangelog({
+          cycleId: targetCycleId,
+          entityType: 'meal_log',
+          entityId: existingLog.id,
+          action: 'update',
+          title: `Updated meal log for ${getMemberName(memberId, targetCycleId)}`,
+          changes: [
+            buildUpdateChange('count', 'Meals', existingLog.count, count)!,
+          ],
+        });
       }
       return;
     }
@@ -677,6 +948,19 @@ export function MealProvider({ children }: { children: ReactNode }) {
       date: data.date,
       count: Number(data.count),
     }]);
+
+    await recordChangelog({
+      cycleId: targetCycleId,
+      entityType: 'meal_log',
+      entityId: data.id,
+      action: 'create',
+      title: `Added meal log for ${getMemberName(memberId, targetCycleId)}`,
+      changes: [
+        buildSnapshotChange('member', 'Member', getMemberName(memberId, targetCycleId)),
+        buildSnapshotChange('date', 'Date', data.date),
+        buildSnapshotChange('count', 'Meals', Number(data.count)),
+      ],
+    });
   };
 
   const closeActiveCycle = async () => {
@@ -808,6 +1092,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         expenses,
         mealLogs,
         cycles,
+        changelogEntries,
         activeCycle,
         pendingCycle,
         loading,

@@ -118,6 +118,23 @@ This script:
 - creates an initial active cycle per user if needed
 - backfills existing current data into the new cycle-based model
 
+### 4. Changelog setup
+
+Run:
+
+```text
+supabase/changelog_entries.sql
+```
+
+This creates:
+
+- `changelog_entries`
+
+It also adds:
+
+- owner-only RLS for changelog rows
+- indexes for cycle-scoped activity queries
+
 
 ## Auth Configuration
 
