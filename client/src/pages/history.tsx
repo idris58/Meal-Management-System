@@ -505,16 +505,20 @@ function ClosedCycleCard({ details }: { details: CycleDetails }) {
         </div>
       </AccordionTrigger>
       <AccordionContent className="space-y-4 pb-6">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
-          <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
-          <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
-          <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
-        </div>
-        <div className="flex justify-end">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="grid flex-1 grid-cols-2 gap-4 md:grid-cols-4">
+            <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
+            <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
+            <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
+            <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
+          </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-2 self-end border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 sm:self-start"
+              >
                 <Trash2 className="h-4 w-4" />
                 Delete Cycle
               </Button>
