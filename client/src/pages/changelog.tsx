@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMeal, type ChangelogAction, type ChangelogChange, type ChangelogEntityType } from '@/lib/meal-context';
+import { useMeal, type ChangelogAction, type ChangelogChange, type ChangelogEntityType, type ChangelogEntry } from '@/lib/meal-context';
 
 const actionOptions: { label: string; value: ChangelogAction | 'all' }[] = [
   { label: 'All Actions', value: 'all' },
@@ -66,31 +66,100 @@ function actionBadgeVariant(action: ChangelogAction) {
   return 'destructive';
 }
 
+function filterEntries(
+  entries: ChangelogEntry[],
+  actionFilter: ChangelogAction | 'all',
+  entityFilter: ChangelogEntityType | 'all',
+) {
+  return entries.filter((entry) => (
+    (actionFilter === 'all' || entry.action === actionFilter) &&
+    (entityFilter === 'all' || entry.entityType === entityFilter)
+  ));
+}
+
+function ChangelogSection({
+  title,
+  description,
+  entries,
+}: {
+  title: string;
+  description: string;
+  entries: ChangelogEntry[];
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="space-y-1">
+        <h2 className="font-heading text-xl font-bold">{title}</h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+
+      {entries.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+          No matching changelog entries in this section.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {entries.map((entry) => (
+            <Card key={entry.id}>
+              <CardHeader className="gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-base">{entry.title}</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {format(new Date(entry.createdAt), 'PPP p')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="capitalize">
+                    {entry.entityType.replace('_', ' ')}
+                  </Badge>
+                  <Badge variant={actionBadgeVariant(entry.action)} className="capitalize">
+                    {entry.action}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {entry.changes.map((change, index) => (
+                  <p key={`${entry.id}-${change.field}-${index}`} className="text-sm text-muted-foreground">
+                    {formatChange(change)}
+                  </p>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function ChangelogPage() {
-  const { changelogEntries, activeCycle, pendingCycle } = useMeal();
+  const { activeCycle, activeCycleChangelogEntries, pendingCycle, pendingCycleChangelogEntries } = useMeal();
   const [actionFilter, setActionFilter] = useState<ChangelogAction | 'all'>('all');
   const [entityFilter, setEntityFilter] = useState<ChangelogEntityType | 'all'>('all');
-  const viewedCycle = pendingCycle ?? activeCycle;
 
-  const filteredEntries = useMemo(
-    () =>
-      changelogEntries.filter((entry) => (
-        (actionFilter === 'all' || entry.action === actionFilter) &&
-        (entityFilter === 'all' || entry.entityType === entityFilter)
-      )),
-    [actionFilter, changelogEntries, entityFilter],
+  const filteredPendingEntries = useMemo(
+    () => filterEntries(pendingCycleChangelogEntries, actionFilter, entityFilter),
+    [actionFilter, entityFilter, pendingCycleChangelogEntries],
   );
+
+  const filteredActiveEntries = useMemo(
+    () => filterEntries(activeCycleChangelogEntries, actionFilter, entityFilter),
+    [actionFilter, activeCycleChangelogEntries, entityFilter],
+  );
+
+  const hasCycleSections = Boolean(pendingCycle || activeCycle);
+  const hasAnyVisibleEntries = filteredPendingEntries.length > 0 || filteredActiveEntries.length > 0;
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="font-heading text-2xl font-bold">Changelog</h1>
         <p className="text-sm text-muted-foreground">
-          {viewedCycle
-            ? pendingCycle
-              ? 'Track create, update, and delete activity for the current pending cycle until it is fully closed.'
-              : 'Track create, update, and delete activity for the current active cycle.'
-            : 'No active cycle is available yet.'}
+          {pendingCycle
+            ? 'Track settlement changes in the pending cycle and new changes in the active cycle side by side.'
+            : activeCycle
+              ? 'Track create, update, and delete activity for the current active cycle.'
+              : 'No active cycle is available yet.'}
         </p>
       </div>
 
@@ -130,39 +199,33 @@ export default function ChangelogPage() {
         </CardContent>
       </Card>
 
-      {filteredEntries.length === 0 ? (
+      {!hasCycleSections ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          There are no logged changes for the current {pendingCycle ? 'pending' : 'active'} cycle yet.
+          There is no available cycle changelog yet.
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredEntries.map((entry) => (
-            <Card key={entry.id}>
-              <CardHeader className="gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-base">{entry.title}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {format(new Date(entry.createdAt), 'PPP p')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="capitalize">
-                    {entry.entityType.replace('_', ' ')}
-                  </Badge>
-                  <Badge variant={actionBadgeVariant(entry.action)} className="capitalize">
-                    {entry.action}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {entry.changes.map((change, index) => (
-                  <p key={`${entry.id}-${change.field}-${index}`} className="text-sm text-muted-foreground">
-                    {formatChange(change)}
-                  </p>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
+          {!hasAnyVisibleEntries ? (
+            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No changelog entries match the current filters.
+            </div>
+          ) : null}
+
+          {pendingCycle ? (
+            <ChangelogSection
+              title="Pending Cycle Changelog"
+              description="Settlement and correction activity for the cycle that is still pending."
+              entries={filteredPendingEntries}
+            />
+          ) : null}
+
+          {activeCycle ? (
+            <ChangelogSection
+              title="Active Cycle Changelog"
+              description="New changes happening in the currently active cycle."
+              entries={filteredActiveEntries}
+            />
+          ) : null}
         </div>
       )}
     </div>

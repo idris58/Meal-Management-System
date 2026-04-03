@@ -101,7 +101,8 @@ interface MealContextType {
   expenses: Expense[];
   mealLogs: MealLog[];
   cycles: Cycle[];
-  changelogEntries: ChangelogEntry[];
+  activeCycleChangelogEntries: ChangelogEntry[];
+  pendingCycleChangelogEntries: ChangelogEntry[];
   activeCycle: Cycle | null;
   pendingCycle: Cycle | null;
   loading: boolean;
@@ -243,14 +244,14 @@ export function MealProvider({ children }: { children: ReactNode }) {
     [cycles],
   );
 
-  const changelogCycle = useMemo(
-    () => pendingCycle ?? activeCycle ?? null,
-    [activeCycle, pendingCycle],
+  const activeCycleChangelogEntries = useMemo(
+    () => activeCycle ? allChangelogEntries.filter((entry) => entry.cycleId === activeCycle.id) : [],
+    [activeCycle, allChangelogEntries],
   );
 
-  const changelogEntries = useMemo(
-    () => changelogCycle ? allChangelogEntries.filter((entry) => entry.cycleId === changelogCycle.id) : [],
-    [allChangelogEntries, changelogCycle],
+  const pendingCycleChangelogEntries = useMemo(
+    () => pendingCycle ? allChangelogEntries.filter((entry) => entry.cycleId === pendingCycle.id) : [],
+    [allChangelogEntries, pendingCycle],
   );
 
   const getCycleMembers = (cycleId: string) => {
@@ -1109,7 +1110,8 @@ export function MealProvider({ children }: { children: ReactNode }) {
         expenses,
         mealLogs,
         cycles,
-        changelogEntries,
+        activeCycleChangelogEntries,
+        pendingCycleChangelogEntries,
         activeCycle,
         pendingCycle,
         loading,
