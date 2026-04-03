@@ -42,10 +42,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b bg-card sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <ChefHat className="h-6 w-6 text-primary" />
-          <span className="font-heading font-bold text-lg text-primary">MealManager</span>
-        </div>
+        <Link href="/">
+          <div className="flex cursor-pointer items-center gap-2">
+            <ChefHat className="h-6 w-6 text-primary" />
+            <span className="font-heading font-bold text-lg text-primary">MealManager</span>
+          </div>
+        </Link>
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="h-11 w-11 p-0">
@@ -55,10 +57,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <SheetContent side="left" className="w-[80%] max-w-[300px] p-0">
             <div className="h-full flex flex-col bg-card">
               <div className="p-6 border-b">
-                <div className="flex items-center gap-2">
-                  <ChefHat className="h-6 w-6 text-primary" />
-                  <span className="font-heading font-bold text-xl">MealManager</span>
-                </div>
+                <Link href="/">
+                  <div className="flex cursor-pointer items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
+                    <ChefHat className="h-6 w-6 text-primary" />
+                    <span className="font-heading font-bold text-xl">MealManager</span>
+                  </div>
+                </Link>
               </div>
               <nav className="flex-1 p-4 space-y-2">
                 {navItems.map((item) => (
@@ -94,10 +98,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r bg-card h-screen sticky top-0">
         <div className="p-6 border-b">
-          <div className="flex items-center gap-2">
-            <ChefHat className="h-8 w-8 text-primary" />
-            <span className="font-heading font-bold text-xl text-primary">MealManager</span>
-          </div>
+          <Link href="/">
+            <div className="flex cursor-pointer items-center gap-2">
+              <ChefHat className="h-8 w-8 text-primary" />
+              <span className="font-heading font-bold text-xl text-primary">MealManager</span>
+            </div>
+          </Link>
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
