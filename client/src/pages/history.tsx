@@ -490,7 +490,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
   );
 }
 
-function ClosedCycleCard({ details }: { details: CycleDetails }) {
+function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExpanded: boolean }) {
   const { deleteCycle } = useMeal();
 
   return (
@@ -501,43 +501,56 @@ function ClosedCycleCard({ details }: { details: CycleDetails }) {
             <p className="font-bold">Cycle Closed: {format(new Date(details.cycle.finalizedAt || details.cycle.closedAt || details.cycle.startedAt), 'PPP')}</p>
             <p className="text-sm text-muted-foreground">{details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals</p>
           </div>
-          <Badge variant="secondary">Closed</Badge>
+          <div className="flex items-center gap-2">
+            {isExpanded ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700 sm:hidden"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hidden gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 sm:inline-flex"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Cycle
+                    </Button>
+                  </>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this closed cycle?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove the closed cycle and all of its linked expenses, meal logs, deposits, and changelog records.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteCycle(details.cycle.id)}>
+                      Yes, Delete Cycle
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
+            <Badge variant="secondary">Closed</Badge>
+          </div>
         </div>
       </AccordionTrigger>
       <AccordionContent className="space-y-4 pb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="grid flex-1 grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
             <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
             <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
             <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
-          </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 gap-2 self-end border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 sm:self-start"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Cycle
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this closed cycle?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently remove the closed cycle and all of its linked expenses, meal logs, deposits, and changelog records.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteCycle(details.cycle.id)}>
-                  Yes, Delete Cycle
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
         <div className="overflow-hidden rounded-lg border">
           <Table>
@@ -579,6 +592,7 @@ function StatCard({ title, value }: { title: string; value: string }) {
 
 export default function HistoryPage() {
   const { cycles, getCycleDetails } = useMeal();
+  const [openClosedCycleId, setOpenClosedCycleId] = useState('');
 
   const pendingCycles = cycles
     .filter((cycle) => cycle.status === 'pending')
@@ -631,8 +645,20 @@ export default function HistoryPage() {
             <Archive className="h-5 w-5 text-emerald-500" />
             <h2 className="text-lg font-bold">Closed Cycles</h2>
           </div>
-          <Accordion type="single" collapsible className="space-y-4">
-            {closedCycles.map((cycle) => <ClosedCycleCard key={cycle.cycle.id} details={cycle} />)}
+          <Accordion
+            type="single"
+            collapsible
+            className="space-y-4"
+            value={openClosedCycleId}
+            onValueChange={setOpenClosedCycleId}
+          >
+            {closedCycles.map((cycle) => (
+              <ClosedCycleCard
+                key={cycle.cycle.id}
+                details={cycle}
+                isExpanded={openClosedCycleId === cycle.cycle.id}
+              />
+            ))}
           </Accordion>
         </section>
       ) : null}
