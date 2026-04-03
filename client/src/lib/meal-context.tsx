@@ -1043,9 +1043,21 @@ export function MealProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const { error: changelogError } = await supabase
+      .from('changelog_entries')
+      .delete()
+      .eq('cycle_id', cycleId)
+      .eq('user_id', userId);
+
+    if (changelogError) {
+      console.error('Error deleting cycle changelog entries:', changelogError);
+      return;
+    }
+
     setCycles((prev) => prev.map((cycle) => (
       cycle.id === cycleId ? { ...cycle, status: 'closed', finalizedAt } : cycle
     )));
+    setAllChangelogEntries((prev) => prev.filter((entry) => entry.cycleId !== cycleId));
   };
 
   const activeDetails = activeCycle ? getCycleDetails(activeCycle.id) : null;
