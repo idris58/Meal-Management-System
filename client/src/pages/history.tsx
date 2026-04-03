@@ -543,15 +543,6 @@ export default function HistoryPage() {
     .map((cycle) => getCycleDetails(cycle.id))
     .filter((cycle): cycle is CycleDetails => Boolean(cycle));
 
-  if (pendingCycles.length === 0 && closedCycles.length === 0) {
-    return (
-      <div className="py-20 text-center text-muted-foreground">
-        <h1 className="mb-2 text-2xl font-bold font-heading">No Past Cycles</h1>
-        <p>Close your first cycle to see settlement history here.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -567,6 +558,13 @@ export default function HistoryPage() {
           </Link>
         </Button>
       </div>
+
+      {pendingCycles.length === 0 && closedCycles.length === 0 ? (
+        <div className="py-20 text-center text-muted-foreground">
+          <h2 className="mb-2 text-2xl font-bold font-heading">No Past Cycles</h2>
+          <p>Close your first cycle to see settlement history here.</p>
+        </div>
+      ) : null}
 
       {pendingCycles.length > 0 ? (
         <section className="space-y-4">
