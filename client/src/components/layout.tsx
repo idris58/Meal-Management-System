@@ -9,6 +9,7 @@ import {
   ChefHat,
   UtensilsCrossed,
   LogOut,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -19,6 +20,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // A single call gives both values and avoids two separate router subscriptions.
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { user, signOut } = useAuth();
 
   const navItems = [
@@ -30,11 +32,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
     try {
       await signOut();
       setLocation('/auth');
     } catch (error) {
       console.error('Error logging out:', error);
+      setIsLoggingOut(false);
     }
   };
 
@@ -85,9 +90,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <div className="px-2 text-sm text-muted-foreground truncate">
                   {user?.email ?? 'Signed in'}
                 </div>
-                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }}>
-                  <LogOut className="h-4 w-4" />
-                  Logout
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  disabled={isLoggingOut}
+                  onClick={() => { setIsMobileMenuOpen(false); void handleLogout(); }}
+                >
+                  {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                  {isLoggingOut ? 'Logging out...' : 'Logout'}
                 </Button>
               </div>
             </div>
@@ -127,9 +137,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="px-2 text-sm text-muted-foreground truncate">
             {user?.email ?? 'Signed in'}
           </div>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-            Logout
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            disabled={isLoggingOut}
+            onClick={() => void handleLogout()}
+          >
+            {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+            {isLoggingOut ? 'Logging out...' : 'Logout'}
           </Button>
         </div>
       </aside>
