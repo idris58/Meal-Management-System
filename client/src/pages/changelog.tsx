@@ -211,19 +211,19 @@ export default function ChangelogPage() {
             </div>
           ) : null}
 
-          {pendingCycle ? (
-            <ChangelogSection
-              title="Pending Cycle Changelog"
-              description="Settlement and correction activity for the cycle that is still pending."
-              entries={filteredPendingEntries}
-            />
-          ) : null}
-
           {activeCycle ? (
             <ChangelogSection
               title="Active Cycle Changelog"
               description="New changes happening in the currently active cycle."
               entries={filteredActiveEntries}
+            />
+          ) : null}
+
+          {pendingCycle ? (
+            <ChangelogSection
+              title="Pending Cycle Changelog"
+              description="Settlement and correction activity for the cycle that is still pending."
+              entries={filteredPendingEntries}
             />
           ) : null}
         </div>
