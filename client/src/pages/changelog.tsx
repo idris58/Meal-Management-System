@@ -67,9 +67,10 @@ function actionBadgeVariant(action: ChangelogAction) {
 }
 
 export default function ChangelogPage() {
-  const { changelogEntries, activeCycle } = useMeal();
+  const { changelogEntries, activeCycle, pendingCycle } = useMeal();
   const [actionFilter, setActionFilter] = useState<ChangelogAction | 'all'>('all');
   const [entityFilter, setEntityFilter] = useState<ChangelogEntityType | 'all'>('all');
+  const viewedCycle = pendingCycle ?? activeCycle;
 
   const filteredEntries = useMemo(
     () =>
@@ -85,8 +86,10 @@ export default function ChangelogPage() {
       <div className="space-y-2">
         <h1 className="font-heading text-2xl font-bold">Changelog</h1>
         <p className="text-sm text-muted-foreground">
-          {activeCycle
-            ? 'Track create, update, and delete activity for the current active cycle.'
+          {viewedCycle
+            ? pendingCycle
+              ? 'Track create, update, and delete activity for the current pending cycle until it is fully closed.'
+              : 'Track create, update, and delete activity for the current active cycle.'
             : 'No active cycle is available yet.'}
         </p>
       </div>
@@ -129,7 +132,7 @@ export default function ChangelogPage() {
 
       {filteredEntries.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          There are no logged changes for the current cycle yet.
+          There are no logged changes for the current {pendingCycle ? 'pending' : 'active'} cycle yet.
         </div>
       ) : (
         <div className="space-y-4">

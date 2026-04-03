@@ -243,9 +243,14 @@ export function MealProvider({ children }: { children: ReactNode }) {
     [cycles],
   );
 
+  const changelogCycle = useMemo(
+    () => pendingCycle ?? activeCycle ?? null,
+    [activeCycle, pendingCycle],
+  );
+
   const changelogEntries = useMemo(
-    () => activeCycle ? allChangelogEntries.filter((entry) => entry.cycleId === activeCycle.id) : [],
-    [activeCycle, allChangelogEntries],
+    () => changelogCycle ? allChangelogEntries.filter((entry) => entry.cycleId === changelogCycle.id) : [],
+    [allChangelogEntries, changelogCycle],
   );
 
   const getCycleMembers = (cycleId: string) => {
