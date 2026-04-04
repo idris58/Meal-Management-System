@@ -349,11 +349,12 @@ export default function SharedPage({ token }: { token: string }) {
                   ? [...data.expenses]
                   : data.expenses.filter((expense) => expense.type === tab);
               const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+              const useScrollableExpenseList = expenses.length > 8;
 
               return (
                 <TabsContent key={tab} value={tab} className="m-0">
                   <div className="space-y-3">
-                      {expenses.length === 0 ? (
+                    {expenses.length === 0 ? (
                         <Card>
                           <CardContent className="py-8 text-center text-sm text-muted-foreground">
                             No expenses found.
@@ -361,6 +362,13 @@ export default function SharedPage({ token }: { token: string }) {
                         </Card>
                       ) : (
                         <>
+                        <div
+                          className={cn(
+                            "space-y-3",
+                            useScrollableExpenseList &&
+                              "max-h-[420px] overflow-y-auto overscroll-contain rounded-lg border border-dashed bg-muted/10 p-2 sm:max-h-[460px] md:max-h-[540px]",
+                          )}
+                        >
                           {expenses.map((expense) => (
                             <div
                               key={expense.id}
@@ -398,11 +406,12 @@ export default function SharedPage({ token }: { token: string }) {
                               </div>
                             </div>
                           ))}
-                          <Card className="border-dashed">
-                            <CardContent className="flex items-center justify-between py-4">
-                              <span className="text-sm font-medium text-muted-foreground">Total</span>
-                              <span className="font-heading text-xl font-bold">
-                                {formatCurrency(total)}
+                        </div>
+                        <Card className="border-dashed">
+                          <CardContent className="flex items-center justify-between py-4">
+                            <span className="text-sm font-medium text-muted-foreground">Total</span>
+                            <span className="font-heading text-xl font-bold">
+                              {formatCurrency(total)}
                               </span>
                             </CardContent>
                           </Card>
