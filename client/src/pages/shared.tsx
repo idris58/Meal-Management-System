@@ -366,7 +366,7 @@ export default function SharedPage({ token }: { token: string }) {
                           className={cn(
                             "space-y-3",
                             useScrollableExpenseList &&
-                              "max-h-[420px] overflow-y-auto overscroll-contain rounded-lg border border-dashed bg-muted/10 p-2 sm:max-h-[460px] md:max-h-[540px]",
+                              "max-h-[420px] overflow-y-auto rounded-lg border border-dashed bg-muted/10 p-2 sm:max-h-[460px] md:max-h-[540px]",
                           )}
                         >
                           {expenses.map((expense) => (
