@@ -12,7 +12,6 @@ import { eachDayOfInterval, format, isSameDay, max, min, parseISO, startOfDay } 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -353,8 +352,7 @@ export default function SharedPage({ token }: { token: string }) {
 
               return (
                 <TabsContent key={tab} value={tab} className="m-0">
-                  <ScrollArea className="max-h-[420px]">
-                    <div className="space-y-3">
+                  <div className="space-y-3">
                       {expenses.length === 0 ? (
                         <Card>
                           <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -410,8 +408,7 @@ export default function SharedPage({ token }: { token: string }) {
                           </Card>
                         </>
                       )}
-                    </div>
-                  </ScrollArea>
+                  </div>
                 </TabsContent>
               );
             })}
