@@ -344,7 +344,7 @@ export default function SharedPage({ token }: { token: string }) {
                     );
                   })}
                   <tr className="border-t-2 bg-secondary/20">
-                    <td className="sticky left-0 z-10 border-r bg-secondary/20 p-3 font-bold md:p-4">
+                    <td className="sticky left-0 z-20 min-w-[84px] whitespace-nowrap border-r bg-card p-3 font-bold sm:min-w-[96px] md:min-w-[112px] md:p-4">
                       Total
                     </td>
                     {data.members.map((member) => (
