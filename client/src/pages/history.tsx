@@ -300,6 +300,12 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
   const managerGetPlusRemaining = managerShouldGet + roundedRemainingBalance;
   const settlementMismatch = managerShouldGive - managerGetPlusRemaining;
   const isSettlementMatched = settlementMismatch === 0;
+  const settlementLeftLabel =
+    roundedRemainingBalance >= 0 ? 'Manager Get + Remaining' : 'Manager Get - Shortfall';
+  const settlementFormulaText =
+    roundedRemainingBalance >= 0
+      ? `${formatCurrency(managerShouldGet)} + ${formatCurrency(roundedRemainingBalance)}`
+      : `${formatCurrency(managerShouldGet)} - ${formatCurrency(Math.abs(roundedRemainingBalance))}`;
 
   const days = useMemo(() => {
     if (details.mealLogs.length === 0) {
@@ -410,7 +416,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
           </div>
           <Card>
             <CardContent className="space-y-4 py-4">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold">Settlement Check</p>
                   <p className="text-xs text-muted-foreground">
@@ -419,28 +425,30 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                 </div>
                 <p
                   className={cn(
-                    'text-sm font-semibold',
-                    isSettlementMatched ? 'text-emerald-600' : 'text-red-600',
+                    'inline-flex items-center self-start rounded-full px-2.5 py-1 text-sm font-semibold',
+                    isSettlementMatched
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'bg-red-50 text-red-700',
                   )}
                 >
                   {isSettlementMatched ? 'Calculation matched' : 'Calculation mismatch'}
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-lg bg-secondary/30 p-3">
                   <p className="text-xs uppercase text-muted-foreground">
-                    Manager Get + Remaining
+                    {settlementLeftLabel}
                   </p>
-                  <p className="mt-1 text-lg font-bold">
+                  <p className="mt-1 text-xl font-bold">
                     {formatCurrency(managerGetPlusRemaining)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formatCurrency(managerShouldGet)} + {formatCurrency(roundedRemainingBalance)}
+                    {settlementFormulaText}
                   </p>
                 </div>
                 <div className="rounded-lg bg-secondary/30 p-3">
                   <p className="text-xs uppercase text-muted-foreground">Manager Give</p>
-                  <p className="mt-1 text-lg font-bold">
+                  <p className="mt-1 text-xl font-bold">
                     {formatCurrency(managerShouldGive)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
