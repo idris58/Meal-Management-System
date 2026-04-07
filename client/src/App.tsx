@@ -1,10 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Route, Switch, useLocation, useRoute } from "wouter";
 
 import { Layout } from "@/components/layout";
+import { ToastAction } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Toaster } from "@/components/ui/toaster";
 import { useAuth, AuthProvider } from "@/lib/auth-context";
+import { toast } from "@/hooks/use-toast";
 import { MealProvider, useMeal } from "@/lib/meal-context";
 import { useNetworkStatus } from "@/lib/pwa";
 import AuthPage from "@/pages/auth";
@@ -136,10 +138,70 @@ function OfflineBanner() {
   );
 }
 
+function PwaUpdateNotifier() {
+  const hasShownUpdateToast = useRef(false);
+
+  useEffect(() => {
+    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    const showUpdateToast = () => {
+      if (hasShownUpdateToast.current) {
+        return;
+      }
+
+      hasShownUpdateToast.current = true;
+      toast({
+        title: "New version available",
+        description: "Refresh to load the latest app changes.",
+        action: (
+          <ToastAction altText="Refresh app" onClick={() => window.location.reload()}>
+            Refresh
+          </ToastAction>
+        ),
+      });
+    };
+
+    const attachRegistrationListeners = (
+      registration: ServiceWorkerRegistration | null | undefined,
+    ) => {
+      if (!registration) {
+        return;
+      }
+
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        showUpdateToast();
+      }
+
+      registration.addEventListener("updatefound", () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) {
+          return;
+        }
+
+        installingWorker.addEventListener("statechange", () => {
+          if (
+            installingWorker.state === "installed" &&
+            navigator.serviceWorker.controller
+          ) {
+            showUpdateToast();
+          }
+        });
+      });
+    };
+
+    void navigator.serviceWorker.getRegistration().then(attachRegistrationListeners);
+  }, []);
+
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
       <OfflineBanner />
+      <PwaUpdateNotifier />
       <AppShell />
       <Toaster />
     </AuthProvider>
