@@ -60,6 +60,25 @@ function AppShell() {
 
   useEffect(() => {
     if (isSharedRoute) {
+      document.title = "Shared View - MealManager";
+      return;
+    }
+
+    const pageTitleMap: Record<string, string> = {
+      "/": "Dashboard - MealManager",
+      "/members": "Members - MealManager",
+      "/expenses": "Expenses - MealManager",
+      "/meals": "Meals - MealManager",
+      "/history": "History - MealManager",
+      "/changelog": "Changelog - MealManager",
+      "/auth": isRecoveryFlow ? "Reset Password - MealManager" : "Authentication - MealManager",
+    };
+
+    document.title = pageTitleMap[location] ?? "MealManager";
+  }, [isRecoveryFlow, isSharedRoute, location]);
+
+  useEffect(() => {
+    if (isSharedRoute) {
       return;
     }
 
