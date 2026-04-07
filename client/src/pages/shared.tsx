@@ -427,13 +427,8 @@ export default function SharedPage({ token }: { token: string }) {
                 <tbody className="divide-y">
                   {data.members.map((member) => (
                     <tr key={member.id} className="hover:bg-muted/50">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8 text-xs">
-                            <AvatarFallback>{member.avatar}</AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{member.name}</span>
-                        </div>
+                      <td className="p-4 font-medium">
+                        {member.name}
                       </td>
                       <td className="p-4 text-right font-medium">
                         {formatCurrency(member.deposit)}
