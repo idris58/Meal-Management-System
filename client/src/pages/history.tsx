@@ -288,6 +288,18 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
     details.stats.totalDeposits -
     details.stats.totalMealExpenses -
     details.stats.totalFixedExpenses;
+  const roundedRemainingBalance = Math.round(remainingBalance);
+  const managerShouldGet = details.members.reduce((sum, member) => {
+    if (member.balance >= 0) return sum;
+    return sum + Math.abs(Math.round(member.balance));
+  }, 0);
+  const managerShouldGive = details.members.reduce((sum, member) => {
+    if (member.balance <= 0) return sum;
+    return sum + Math.round(member.balance);
+  }, 0);
+  const managerGetPlusRemaining = managerShouldGet + roundedRemainingBalance;
+  const settlementMismatch = managerShouldGive - managerGetPlusRemaining;
+  const isSettlementMatched = settlementMismatch === 0;
 
   const days = useMemo(() => {
     if (details.mealLogs.length === 0) {
@@ -396,6 +408,53 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
               </TableBody>
             </Table>
           </div>
+          <Card>
+            <CardContent className="space-y-4 py-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Settlement Check</p>
+                  <p className="text-xs text-muted-foreground">
+                    Confirms whether the pending-cycle settlement math is balanced.
+                  </p>
+                </div>
+                <p
+                  className={cn(
+                    'text-sm font-semibold',
+                    isSettlementMatched ? 'text-emerald-600' : 'text-red-600',
+                  )}
+                >
+                  {isSettlementMatched ? 'Calculation matched' : 'Calculation mismatch'}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-secondary/30 p-3">
+                  <p className="text-xs uppercase text-muted-foreground">
+                    Manager Get + Remaining
+                  </p>
+                  <p className="mt-1 text-lg font-bold">
+                    {formatCurrency(managerGetPlusRemaining)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatCurrency(managerShouldGet)} + {formatCurrency(roundedRemainingBalance)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-secondary/30 p-3">
+                  <p className="text-xs uppercase text-muted-foreground">Manager Give</p>
+                  <p className="mt-1 text-lg font-bold">
+                    {formatCurrency(managerShouldGive)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Total of positive member balances
+                  </p>
+                </div>
+              </div>
+              {!isSettlementMatched ? (
+                <p className="text-sm font-medium text-red-600">
+                  Mismatch: {formatCurrency(Math.abs(settlementMismatch))}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
         </section>
 
         <section className="space-y-3">
