@@ -136,6 +136,24 @@ export default function SharedPage({ token }: { token: string }) {
     return eachDayOfInterval({ start: startDate, end: endDate }).reverse();
   }, [data]);
 
+  const memberMealTotals = useMemo(() => {
+    if (!data) {
+      return new Map<string, number>();
+    }
+
+    const totals = new Map<string, number>();
+
+    for (const member of data.members) {
+      totals.set(member.id, 0);
+    }
+
+    for (const log of data.mealLogs) {
+      totals.set(log.memberId, (totals.get(log.memberId) ?? 0) + log.count);
+    }
+
+    return totals;
+  }, [data]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -325,6 +343,22 @@ export default function SharedPage({ token }: { token: string }) {
                       </tr>
                     );
                   })}
+                  <tr className="border-t-2 bg-secondary/20">
+                    <td className="sticky left-0 z-10 border-r bg-secondary/20 p-3 font-bold md:p-4">
+                      Total
+                    </td>
+                    {data.members.map((member) => (
+                      <td
+                        key={member.id}
+                        className="border-r p-2.5 text-center font-bold text-emerald-700 sm:p-3 sm:text-sm md:p-4"
+                      >
+                        {formatMealCount(memberMealTotals.get(member.id) ?? 0)}
+                      </td>
+                    ))}
+                    <td className="bg-secondary/20 p-3 text-right font-bold text-emerald-700 md:p-4">
+                      {formatMealCount(data.stats.totalMealsConsumed)}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -367,10 +401,6 @@ export default function SharedPage({ token }: { token: string }) {
                       <p className="font-medium">{formatCurrency(member.deposit - member.fixedCost)}</p>
                     </div>
                     <div className="rounded-lg bg-secondary/30 px-3 py-2">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Meals</p>
-                      <p className="font-medium">{formatMealCount(member.mealsEaten)}</p>
-                    </div>
-                    <div className="rounded-lg bg-secondary/30 px-3 py-2">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Meal Cost</p>
                       <p className="font-medium">{formatCurrency(member.mealCost)}</p>
                     </div>
@@ -387,7 +417,6 @@ export default function SharedPage({ token }: { token: string }) {
                     <th className="p-4 text-left font-bold">Member</th>
                     <th className="p-4 text-right font-bold">Deposit</th>
                     <th className="p-4 text-right font-bold">Deposit - Fixed</th>
-                    <th className="p-4 text-right font-bold">Total Meals</th>
                     <th className="p-4 text-right font-bold">Meal Cost</th>
                     <th className="p-4 text-right font-bold">Balance</th>
                   </tr>
@@ -409,7 +438,6 @@ export default function SharedPage({ token }: { token: string }) {
                       <td className="p-4 text-right font-medium">
                         {formatCurrency(member.deposit - member.fixedCost)}
                       </td>
-                      <td className="p-4 text-right font-medium">{formatMealCount(member.mealsEaten)}</td>
                       <td className="p-4 text-right font-medium">
                         {formatCurrency(member.mealCost)}
                       </td>
