@@ -377,9 +377,9 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                 <TableRow>
                   <TableHead>Member</TableHead>
                   <TableHead className="text-right">Deposit</TableHead>
-                  <TableHead className="hidden text-right sm:table-cell">Meals</TableHead>
+                  <TableHead className="text-right">Deposit - Fixed</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Total Meals</TableHead>
                   <TableHead className="text-right">Meal Cost</TableHead>
-                  <TableHead className="text-right">Fixed</TableHead>
                   <TableHead className="text-right">Balance</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
@@ -397,9 +397,9 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(member.deposit)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(member.deposit - member.fixedCost)}</TableCell>
                     <TableCell className="hidden text-right sm:table-cell">{formatMealCount(member.mealsEaten)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(member.mealCost)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(member.fixedCost)}</TableCell>
                     <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
                       {formatBalance(member.balance)}
                     </TableCell>
