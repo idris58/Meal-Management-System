@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
-import { Archive, ChevronDown, Pencil, Plus, ScrollText, Trash2, Wallet } from 'lucide-react';
+import { Archive, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Wallet, Zap } from 'lucide-react';
 import { Link } from 'wouter';
 
 import { useMeal, type CycleDetails, type Expense } from '@/lib/meal-context';
@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 function formatCurrency(amount: number) {
@@ -390,26 +391,91 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
 
         <section className="space-y-3">
           <h3 className="font-semibold">Expenses</h3>
-          <div className="space-y-3">
-            {details.expenses.length === 0 ? (
-              <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">No expenses recorded.</CardContent></Card>
-            ) : details.expenses.map((expense) => (
-              <div key={expense.id} className="flex items-center justify-between rounded-lg border bg-card p-4">
-                <div>
-                  <p className="font-medium">{expense.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(expense.date), 'MMM d, yyyy')} • {expense.type} • Paid by {expense.paidBy}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" size="icon" onClick={() => { setEditingExpense(expense); setExpenseDialogOpen(true); }}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <span className="font-bold">{formatCurrency(expense.amount)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <Tabs defaultValue="all" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="meal">Meals</TabsTrigger>
+              <TabsTrigger value="fixed">Fixed</TabsTrigger>
+            </TabsList>
+            {(['all', 'meal', 'fixed'] as const).map((tab) => {
+              const expenses =
+                tab === 'all'
+                  ? [...details.expenses]
+                  : details.expenses.filter((expense) => expense.type === tab);
+              const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+              const useScrollableExpenseList = expenses.length > 8;
+
+              return (
+                <TabsContent key={tab} value={tab} className="m-0">
+                  <div className="space-y-3">
+                    {expenses.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                          No expenses found.
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <>
+                        <div
+                          className={cn(
+                            'space-y-3',
+                            useScrollableExpenseList &&
+                              'max-h-[420px] overflow-y-auto rounded-lg border border-dashed bg-muted/10 p-2 sm:max-h-[460px] md:max-h-[540px]',
+                          )}
+                        >
+                          {expenses.map((expense) => (
+                            <div key={expense.id} className="flex items-center justify-between rounded-lg border bg-card p-4">
+                              <div className="flex items-center gap-4">
+                                <div
+                                  className={cn(
+                                    'rounded-full p-2',
+                                    expense.type === 'meal'
+                                      ? 'bg-emerald-100 text-emerald-600'
+                                      : 'bg-slate-100 text-slate-600',
+                                  )}
+                                >
+                                  {expense.type === 'meal' ? (
+                                    <ShoppingBag className="h-5 w-5" />
+                                  ) : (
+                                    <Zap className="h-5 w-5" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-medium">{expense.description}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(expense.date), 'MMM d, yyyy')} • Paid by {expense.paidBy}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <p className="font-bold">{formatCurrency(expense.amount)}</p>
+                                  <Badge variant="secondary" className="text-[10px] uppercase">
+                                    {expense.type}
+                                  </Badge>
+                                </div>
+                                <Button variant="outline" size="icon" onClick={() => { setEditingExpense(expense); setExpenseDialogOpen(true); }}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <Card className="border-dashed">
+                          <CardContent className="flex items-center justify-between py-4">
+                            <span className="text-sm font-medium text-muted-foreground">Total</span>
+                            <span className="font-heading text-xl font-bold">
+                              {formatCurrency(total)}
+                            </span>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
+                  </div>
+                </TabsContent>
+              );
+            })}
+          </Tabs>
         </section>
 
         <section className="space-y-3">
@@ -685,3 +751,4 @@ export default function HistoryPage() {
     </div>
   );
 }
+
