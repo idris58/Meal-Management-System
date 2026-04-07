@@ -37,6 +37,10 @@ function formatMealCount(value: number) {
   return rounded.toString();
 }
 
+function formatCurrency(amount: number) {
+  return `৳${amount.toFixed(0)}`;
+}
+
 function QuickAddExpense({ onClose }: { onClose: () => void }) {
   const { addExpense } = useMeal();
   const [date, setDate] = useState<Date>(new Date());
@@ -598,6 +602,19 @@ export default function Dashboard() {
   const { stats, getMemberStats, members, closeActiveCycle, pendingCycle } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
   const [openMeal, setOpenMeal] = useState(false);
+  const memberSettlementRows = members.map((member) => {
+    const memberStats = getMemberStats(member.id);
+    const roundedBalance = Math.round(memberStats.balance);
+
+    return {
+      ...member,
+      mealsEaten: memberStats.mealsEaten,
+      managerWillGet: roundedBalance < 0 ? Math.abs(roundedBalance) : 0,
+      managerWillGive: roundedBalance > 0 ? roundedBalance : 0,
+    };
+  });
+  const totalManagerWillGet = memberSettlementRows.reduce((sum, member) => sum + member.managerWillGet, 0);
+  const totalManagerWillGive = memberSettlementRows.reduce((sum, member) => sum + member.managerWillGive, 0);
 
   return (
     <div className="space-y-6 pb-20">
@@ -687,27 +704,51 @@ export default function Dashboard() {
           <h2 className="text-lg font-bold">All Members Summary</h2>
           <Button variant="ghost" size="sm" asChild><a href="/members">View Details</a></Button>
         </div>
-        <div className="grid gap-3">
-          {members.map(member => {
-            const mStats = getMemberStats(member.id);
-            return (
-              <div key={member.id} className="flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-                  <div>
-                    <p className="text-sm font-medium">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatMealCount(mStats.mealsEaten)} Meals</p>
+        <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 border-b bg-secondary/20 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div>Member</div>
+            <div className="text-right">Manager Will Get</div>
+            <div className="text-right">Manager Will Give</div>
+          </div>
+          <div className="divide-y">
+            {memberSettlementRows.map((member) => (
+              <div
+                key={member.id}
+                className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 px-4 py-3"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar className="h-8 w-8 text-xs">
+                    <AvatarFallback>{member.avatar}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{member.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatMealCount(member.mealsEaten)} Meals
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-bold ${mStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {mStats.balance >= 0 ? '+' : '-'}{Math.round(Math.abs(mStats.balance))}
+                  <p className={cn('text-sm font-semibold', member.managerWillGet > 0 ? 'text-red-600' : 'text-muted-foreground')}>
+                    {member.managerWillGet > 0 ? formatCurrency(member.managerWillGet) : '৳0'}
                   </p>
-                  <p className="text-xs text-muted-foreground">Bal</p>
+                </div>
+                <div className="text-right">
+                  <p className={cn('text-sm font-semibold', member.managerWillGive > 0 ? 'text-emerald-600' : 'text-muted-foreground')}>
+                    {member.managerWillGive > 0 ? formatCurrency(member.managerWillGive) : '৳0'}
+                  </p>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 border-t bg-secondary/20 px-4 py-3">
+            <div className="text-sm font-semibold">Total</div>
+            <div className="text-right text-sm font-bold text-red-600">
+              {formatCurrency(totalManagerWillGet)}
+            </div>
+            <div className="text-right text-sm font-bold text-emerald-600">
+              {formatCurrency(totalManagerWillGive)}
+            </div>
+          </div>
         </div>
       </section>
 
