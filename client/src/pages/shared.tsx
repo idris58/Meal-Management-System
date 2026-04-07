@@ -196,24 +196,24 @@ export default function SharedPage({ token }: { token: string }) {
       </div>
 
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 md:px-8">
-        <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-          <Card className="col-span-1 border-none bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg xl:col-span-2">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-none bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg xl:col-span-2">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium uppercase tracking-wide text-emerald-100">
                 Remaining Balance
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold sm:text-4xl">
+              <div className="text-4xl font-heading font-bold">
                 {formatCurrency(data.stats.remainingCash)}
               </div>
-              <p className="mt-2 text-xs text-emerald-100 sm:text-sm">
+              <p className="mt-2 text-sm text-emerald-100">
                 {formatCurrency(data.stats.totalDeposits)} collected in total
               </p>
             </CardContent>
           </Card>
 
-          <Card className="col-span-1">
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm uppercase text-muted-foreground">
                 <UtensilsCrossed className="h-4 w-4 text-emerald-500" />
@@ -221,16 +221,16 @@ export default function SharedPage({ token }: { token: string }) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-heading font-bold sm:text-3xl">
+              <div className="text-3xl font-heading font-bold">
                 {formatCurrency(data.stats.currentMealRate)}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Fixed cost/person: {formatCurrency(data.stats.fixedCostPerMember)}
               </p>
             </CardContent>
           </Card>
 
-          <Card className="col-span-2 xl:col-span-1">
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm uppercase text-muted-foreground">
                 Totals
