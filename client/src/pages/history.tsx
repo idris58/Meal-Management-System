@@ -284,6 +284,10 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [mealDate, setMealDate] = useState<Date | undefined>(undefined);
+  const remainingBalance =
+    details.stats.totalDeposits -
+    details.stats.totalMealExpenses -
+    details.stats.totalFixedExpenses;
 
   const days = useMemo(() => {
     if (details.mealLogs.length === 0) {
@@ -307,10 +311,15 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
         </div>
       </AccordionTrigger>
       <AccordionContent className="space-y-6 pb-6">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
           <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
           <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
           <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
+          <StatCard
+            title="Remaining Balance"
+            value={`${remainingBalance >= 0 ? '' : '-'}${formatCurrency(Math.abs(remainingBalance))}`}
+            tone={remainingBalance >= 0 ? 'positive' : 'negative'}
+          />
           <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
         </div>
 
@@ -658,11 +667,40 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
   );
 }
 
-function StatCard({ title, value }: { title: string; value: string }) {
+function StatCard({
+  title,
+  value,
+  tone = 'default',
+}: {
+  title: string;
+  value: string;
+  tone?: 'default' | 'positive' | 'negative';
+}) {
   return (
-    <div className="rounded-lg bg-secondary/30 p-3">
-      <p className="text-xs uppercase text-muted-foreground">{title}</p>
-      <p className="font-bold">{value}</p>
+    <div
+      className={cn(
+        'rounded-lg bg-secondary/30 p-3',
+      )}
+    >
+      <p
+        className={cn(
+          'text-xs uppercase',
+          tone === 'default' && 'text-muted-foreground',
+          tone === 'positive' && 'text-emerald-700',
+          tone === 'negative' && 'text-red-700',
+        )}
+      >
+        {title}
+      </p>
+      <p
+        className={cn(
+          'font-bold',
+          tone === 'positive' && 'text-emerald-700',
+          tone === 'negative' && 'text-red-700',
+        )}
+      >
+        {value}
+      </p>
     </div>
   );
 }
