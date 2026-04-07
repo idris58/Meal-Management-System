@@ -306,6 +306,19 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
       : `(-${formatCurrency(Math.abs(roundedRemainingBalance))})`;
   const settlementFormulaText =
     `${formatCurrency(managerShouldGet)} + ${signedRemainingBalanceText}`;
+  const memberMealTotals = useMemo(() => {
+    const totals = new Map<string, number>();
+
+    for (const member of details.members) {
+      totals.set(member.id, 0);
+    }
+
+    for (const log of details.mealLogs) {
+      totals.set(log.memberId, (totals.get(log.memberId) ?? 0) + log.count);
+    }
+
+    return totals;
+  }, [details.mealLogs, details.members]);
 
   const days = useMemo(() => {
     if (details.mealLogs.length === 0) {
@@ -576,6 +589,20 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                       </tr>
                     );
                   })}
+                  <tr className="border-t-2 bg-secondary/20">
+                    <td className="sticky left-0 border-r bg-secondary/20 p-3 font-bold md:p-4">Total</td>
+                    {details.members.map((member) => (
+                      <td
+                        key={member.id}
+                        className="border-r p-2.5 text-center font-bold text-emerald-700 sm:p-3 sm:text-sm md:p-4"
+                      >
+                        {formatMealCount(memberMealTotals.get(member.id) ?? 0)}
+                      </td>
+                    ))}
+                    <td className="bg-secondary/20 p-3 text-right font-bold text-emerald-700 md:p-4">
+                      {formatMealCount(details.stats.totalMealsConsumed)}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>

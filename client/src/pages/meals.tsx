@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMeal } from '@/lib/meal-context';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from '@/components/ui/button';
@@ -146,6 +146,20 @@ export default function Meals() {
     days = [today];
   }
 
+  const memberMealTotals = useMemo(() => {
+    const totals = new Map<string, number>();
+
+    for (const member of members) {
+      totals.set(member.id, 0);
+    }
+
+    for (const log of mealLogs) {
+      totals.set(log.memberId, (totals.get(log.memberId) ?? 0) + log.count);
+    }
+
+    return totals;
+  }, [mealLogs, members]);
+
   const openEditorForDate = (day: Date) => {
     setSelectedDate(day);
     setOpenMeal(true);
@@ -247,6 +261,22 @@ export default function Meals() {
                   </tr>
                 );
               })}
+              <tr className="border-t-2 bg-secondary/20">
+                <td className="sticky left-0 z-10 whitespace-nowrap border-r bg-secondary/20 p-3 font-bold md:p-4">
+                  Total
+                </td>
+                {members.map(member => (
+                  <td
+                    key={member.id}
+                    className="border-r p-2.5 text-center font-bold text-emerald-700 sm:p-3 sm:text-sm md:p-4"
+                  >
+                    {formatMealCount(memberMealTotals.get(member.id) ?? 0)}
+                  </td>
+                ))}
+                <td className="bg-secondary/20 p-3 text-right font-bold text-emerald-700 md:p-4">
+                  {formatMealCount(mealLogs.reduce((sum, log) => sum + log.count, 0))}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
