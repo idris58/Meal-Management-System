@@ -300,12 +300,12 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
   const managerGetPlusRemaining = managerShouldGet + roundedRemainingBalance;
   const settlementMismatch = managerShouldGive - managerGetPlusRemaining;
   const isSettlementMatched = settlementMismatch === 0;
-  const settlementLeftLabel =
-    roundedRemainingBalance >= 0 ? 'Manager Get + Remaining' : 'Manager Get - Shortfall';
-  const settlementFormulaText =
+  const signedRemainingBalanceText =
     roundedRemainingBalance >= 0
-      ? `${formatCurrency(managerShouldGet)} + ${formatCurrency(roundedRemainingBalance)}`
-      : `${formatCurrency(managerShouldGet)} - ${formatCurrency(Math.abs(roundedRemainingBalance))}`;
+      ? formatCurrency(roundedRemainingBalance)
+      : `(-${formatCurrency(Math.abs(roundedRemainingBalance))})`;
+  const settlementFormulaText =
+    `${formatCurrency(managerShouldGet)} + ${signedRemainingBalanceText}`;
 
   const days = useMemo(() => {
     if (details.mealLogs.length === 0) {
@@ -437,7 +437,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-lg bg-secondary/30 p-3">
                   <p className="text-xs uppercase text-muted-foreground">
-                    {settlementLeftLabel}
+                    Manager Get + Remaining
                   </p>
                   <p className="mt-1 text-xl font-bold">
                     {formatCurrency(managerGetPlusRemaining)}
