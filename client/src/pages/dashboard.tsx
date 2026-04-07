@@ -705,10 +705,12 @@ export default function Dashboard() {
           <Button variant="ghost" size="sm" asChild><a href="/members">View Details</a></Button>
         </div>
         <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 border-b bg-secondary/20 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 border-b bg-secondary/20 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
             <div>Member</div>
-            <div className="text-right">Manager Will Get</div>
-            <div className="text-right">Manager Will Give</div>
+            <div className="text-right sm:hidden">Manager Get</div>
+            <div className="hidden text-right sm:block">Manager Will Get</div>
+            <div className="text-right sm:hidden">Manager Give</div>
+            <div className="hidden text-right sm:block">Manager Will Give</div>
           </div>
           <div className="divide-y">
             {memberSettlementRows.map((member) => (
