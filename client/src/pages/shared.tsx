@@ -374,22 +374,11 @@ export default function SharedPage({ token }: { token: string }) {
             {data.members.map((member) => (
               <Card key={member.id}>
                 <CardContent className="space-y-4 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Avatar className="h-8 w-8 text-xs">
-                        <AvatarFallback>{member.avatar}</AvatarFallback>
-                      </Avatar>
-                      <span className="truncate font-medium">{member.name}</span>
-                    </div>
-                    <span
-                      className={cn(
-                        "font-bold",
-                        member.balance >= 0 ? "text-emerald-600" : "text-red-600",
-                      )}
-                    >
-                      {member.balance >= 0 ? "+" : "-"}
-                      {formatBalance(member.balance)}
-                    </span>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar className="h-8 w-8 text-xs">
+                      <AvatarFallback>{member.avatar}</AvatarFallback>
+                    </Avatar>
+                    <span className="truncate font-medium">{member.name}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="rounded-lg bg-secondary/30 px-3 py-2">
@@ -403,6 +392,20 @@ export default function SharedPage({ token }: { token: string }) {
                     <div className="rounded-lg bg-secondary/30 px-3 py-2">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Meal Cost</p>
                       <p className="font-medium">{formatCurrency(member.mealCost)}</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/30 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {member.balance < 0 ? "Manager Pabe" : "Manager Dibe"}
+                      </p>
+                      <p
+                        className={cn(
+                          "font-medium",
+                          member.balance >= 0 ? "text-emerald-600" : "text-red-600",
+                        )}
+                      >
+                        {member.balance >= 0 ? "+" : "-"}
+                        {formatBalance(member.balance)}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
