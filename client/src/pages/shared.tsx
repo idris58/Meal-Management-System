@@ -69,7 +69,7 @@ function formatCurrency(amount: number) {
 }
 
 function formatBalance(amount: number) {
-  return `\u09F3${Math.ceil(Math.abs(amount))}`;
+  return `\u09F3${Math.round(Math.abs(amount))}`;
 }
 
 function formatMealCount(value: number) {
