@@ -402,7 +402,6 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                 tab === 'all'
                   ? [...details.expenses]
                   : details.expenses.filter((expense) => expense.type === tab);
-              const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
               const useScrollableExpenseList = expenses.length > 8;
 
               return (
@@ -461,14 +460,6 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                             </div>
                           ))}
                         </div>
-                        <Card className="border-dashed">
-                          <CardContent className="flex items-center justify-between py-4">
-                            <span className="text-sm font-medium text-muted-foreground">Total</span>
-                            <span className="font-heading text-xl font-bold">
-                              {formatCurrency(total)}
-                            </span>
-                          </CardContent>
-                        </Card>
                       </>
                     )}
                   </div>
