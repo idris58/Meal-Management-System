@@ -724,9 +724,6 @@ export default function Dashboard() {
                   </Avatar>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatMealCount(member.mealsEaten)} Meals
-                    </p>
                   </div>
                 </div>
                 <div className="text-right">
