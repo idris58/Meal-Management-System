@@ -56,9 +56,9 @@ function AppShell() {
     window.location.hash.toLowerCase().includes("type=recovery") ||
     window.location.hash.toLowerCase().includes("access_token") ||
     window.location.search.toLowerCase().includes("type=recovery");
-  const isRecoveryFlow =
-    location === "/auth" &&
-    (recoveryTokenInUrl || lastAuthEvent === "PASSWORD_RECOVERY");
+  const hasRecoveryContext =
+    recoveryTokenInUrl || lastAuthEvent === "PASSWORD_RECOVERY";
+  const isRecoveryFlow = location === "/auth" && hasRecoveryContext;
 
   useEffect(() => {
     if (isSharedRoute) {
@@ -84,6 +84,16 @@ function AppShell() {
       return;
     }
 
+    if (hasRecoveryContext && location !== "/auth") {
+      window.history.replaceState(
+        null,
+        document.title,
+        `/auth${window.location.search}${window.location.hash}`,
+      );
+      setLocation("/auth");
+      return;
+    }
+
     if (loading) {
       return;
     }
@@ -96,7 +106,7 @@ function AppShell() {
     if (session && location === "/auth" && !isRecoveryFlow) {
       setLocation("/");
     }
-  }, [isRecoveryFlow, isSharedRoute, loading, location, session, setLocation]);
+  }, [hasRecoveryContext, isRecoveryFlow, isSharedRoute, loading, location, session, setLocation]);
 
   if (isSharedRoute && sharedParams?.token) {
     return <SharedPage token={sharedParams.token} />;
