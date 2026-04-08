@@ -1,7 +1,7 @@
 import { useMeal } from '@/lib/meal-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon, Copy, Link2, Share2, Archive, Download } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon, Copy, Link2, Share2, Archive, Download, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -440,16 +440,19 @@ function ShareDashboardCard() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-2"
-            onClick={handleCopy}
-            disabled={!config?.is_enabled || !shareUrl}
-          >
-            <Link2 className="h-4 w-4" />
-            Copy Link
-          </Button>
+          {config?.is_enabled && shareUrl ? (
+            <Button type="button" variant="outline" className="gap-2" asChild>
+              <a href={shareUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" />
+                Open Shared View
+              </a>
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" className="gap-2" disabled>
+              <ExternalLink className="h-4 w-4" />
+              Open Shared View
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
