@@ -129,10 +129,12 @@ export default function SharedPage({ token }: { token: string }) {
       return [startOfDay(new Date())];
     }
 
-    const today = startOfDay(new Date());
     const logDates = data.mealLogs.map((log) => startOfDay(parseISO(log.date)));
     const startDate = min(logDates);
-    const endDate = max([...logDates, today]);
+    const endDate =
+      data.cycle.status === "active"
+        ? max([...logDates, startOfDay(new Date())])
+        : max(logDates);
     return eachDayOfInterval({ start: startDate, end: endDate }).reverse();
   }, [data]);
 
