@@ -57,7 +57,9 @@ function mapAuthError(message: string, mode: AuthMode) {
     normalized.includes("security purposes") ||
     normalized.includes("too many requests")
   ) {
-    return "Please wait a little before requesting another password reset email.";
+    return mode === "forgot-password"
+      ? "A reset email was requested recently. Please wait a little and try again."
+      : "Please wait a little before trying again.";
   }
 
   if (
@@ -143,6 +145,11 @@ export default function AuthPage() {
 
   const handleEmailAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (submitting) {
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setMessage(null);
@@ -169,24 +176,9 @@ export default function AuthPage() {
       }
 
       if (mode === "forgot-password") {
-        let { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
           email.trim(),
-          {
-            redirectTo: `${window.location.origin}/`,
-          },
         );
-
-        if (
-          resetError &&
-          /redirect|redirect_to|not allowed|invalid redirect/i.test(
-            resetError.message,
-          )
-        ) {
-          const fallbackResponse = await supabase.auth.resetPasswordForEmail(
-            email.trim(),
-          );
-          resetError = fallbackResponse.error;
-        }
 
         if (resetError) {
           throw resetError;
@@ -250,6 +242,9 @@ export default function AuthPage() {
       }
     } catch (caughtError) {
       const nextError = caughtError instanceof Error ? caughtError.message : "";
+      if (mode === "forgot-password") {
+        console.error("Password reset email error:", nextError);
+      }
       setError(mapAuthError(nextError, mode));
     } finally {
       setSubmitting(false);
