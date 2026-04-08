@@ -52,6 +52,23 @@ function mapAuthError(message: string, mode: AuthMode) {
     return "We could not reach the authentication service. Please try again.";
   }
 
+  if (
+    normalized.includes("rate limit") ||
+    normalized.includes("security purposes") ||
+    normalized.includes("too many requests")
+  ) {
+    return "Please wait a little before requesting another password reset email.";
+  }
+
+  if (
+    normalized.includes("redirect") ||
+    normalized.includes("redirect_to") ||
+    normalized.includes("not allowed") ||
+    normalized.includes("invalid redirect")
+  ) {
+    return "This app URL is not allowed in Supabase Auth redirect settings. Add it there or try again from the deployed app.";
+  }
+
   return "Authentication failed. Please try again.";
 }
 
@@ -152,12 +169,24 @@ export default function AuthPage() {
       }
 
       if (mode === "forgot-password") {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        let { error: resetError } = await supabase.auth.resetPasswordForEmail(
           email.trim(),
           {
-            redirectTo: `${window.location.origin}/auth`,
+            redirectTo: `${window.location.origin}/`,
           },
         );
+
+        if (
+          resetError &&
+          /redirect|redirect_to|not allowed|invalid redirect/i.test(
+            resetError.message,
+          )
+        ) {
+          const fallbackResponse = await supabase.auth.resetPasswordForEmail(
+            email.trim(),
+          );
+          resetError = fallbackResponse.error;
+        }
 
         if (resetError) {
           throw resetError;
