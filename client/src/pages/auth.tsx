@@ -20,6 +20,17 @@ type AuthMode = "login" | "signup" | "forgot-password" | "reset-password";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function getAuthRedirectUrl() {
+  const origin = window.location.origin;
+  const hostname = window.location.hostname.toLowerCase();
+  const isLocalHost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1";
+
+  return isLocalHost ? `${origin}/` : `${origin}/auth`;
+}
+
 function mapAuthError(message: string, mode: AuthMode) {
   const normalized = message.toLowerCase();
 
@@ -178,6 +189,9 @@ export default function AuthPage() {
       if (mode === "forgot-password") {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(
           email.trim(),
+          {
+            redirectTo: getAuthRedirectUrl(),
+          },
         );
 
         if (resetError) {
