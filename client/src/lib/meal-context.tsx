@@ -139,7 +139,6 @@ const MealContext = createContext<MealContextType | undefined>(undefined);
 type MemberRow = {
   id: string;
   name: string;
-  deposit: number | string;
   is_active: boolean;
   avatar: string | null;
 };
@@ -464,7 +463,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       const nextMembers = ((membersResult.data || []) as MemberRow[]).map((member) => ({
         id: member.id,
         name: member.name,
-        deposit: Number(member.deposit),
+        deposit: 0,
         mealsEaten: 0,
         isActive: member.is_active,
         avatar: toAvatar(member.name, member.avatar),
@@ -545,7 +544,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const avatar = name.substring(0, 2).toUpperCase();
     const { data, error } = await supabase
       .from('members')
-      .insert([{ name, avatar, deposit: 0, is_active: true, user_id: userId }])
+      .insert([{ name, avatar, is_active: true, user_id: userId }])
       .select()
       .single();
 
@@ -559,7 +558,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       {
         id: data.id,
         name: data.name,
-        deposit: Number(data.deposit),
+        deposit: 0,
         mealsEaten: 0,
         isActive: data.is_active,
         avatar: toAvatar(data.name, data.avatar),
