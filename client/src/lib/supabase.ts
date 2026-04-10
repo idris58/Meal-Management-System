@@ -18,26 +18,17 @@ export interface Database {
         Row: {
           id: string;
           name: string;
-          role: 'admin' | 'viewer';
-          deposit: number;
-          is_active: boolean;
           avatar: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           name: string;
-          role: 'admin' | 'viewer';
-          deposit?: number;
-          is_active?: boolean;
           avatar?: string | null;
         };
         Update: {
           id?: string;
           name?: string;
-          role?: 'admin' | 'viewer';
-          deposit?: number;
-          is_active?: boolean;
           avatar?: string | null;
         };
       };

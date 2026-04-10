@@ -6,14 +6,12 @@ import { assertSupabaseAdmin } from "./supabase-admin";
 type MemberRow = {
   id: string;
   name: string;
-  is_active: boolean;
   avatar: string | null;
 };
 
 type SnapshotMember = {
   id: string;
   name: string;
-  isActive: boolean;
   avatar?: string;
 };
 
@@ -62,13 +60,11 @@ function buildSharedPayload(
       ? membersData.map((member) => ({
           id: member.id,
           name: member.name,
-          isActive: member.is_active,
           avatar: member.avatar || member.name.substring(0, 2).toUpperCase(),
         }))
       : cycle.members_snapshot.map((member) => ({
           id: member.id,
           name: member.name,
-          isActive: member.isActive,
           avatar: member.avatar || member.name.substring(0, 2).toUpperCase(),
         }));
 
@@ -103,11 +99,11 @@ function buildSharedPayload(
     .filter((expense) => expense.type === "fixed")
     .reduce((sum, expense) => sum + expense.amount, 0);
   const totalMealsConsumed = mealLogs.reduce((sum, log) => sum + log.count, 0);
-  const activeMembersCount = members.filter((member) => member.isActive).length;
+  const memberCount = members.length;
   const currentMealRate =
     totalMealsConsumed > 0 ? totalMealExpenses / totalMealsConsumed : 0;
   const fixedCostPerMember =
-    activeMembersCount > 0 ? totalFixedExpenses / activeMembersCount : 0;
+    memberCount > 0 ? totalFixedExpenses / memberCount : 0;
 
   const memberSummaries = members.map((member) => {
     const mealsEaten = mealLogs
@@ -115,7 +111,7 @@ function buildSharedPayload(
       .reduce((sum, log) => sum + log.count, 0);
     const deposit = depositsByMember.get(member.id) || 0;
     const mealCost = mealsEaten * currentMealRate;
-    const fixedCost = member.isActive ? fixedCostPerMember : 0;
+    const fixedCost = fixedCostPerMember;
     const totalCost = mealCost + fixedCost;
     const balance = deposit - totalCost;
 
@@ -203,11 +199,11 @@ export async function registerRoutes(
     }
 
     const [membersResult, depositsResult, expensesResult, mealLogsResult] = await Promise.all([
-      supabaseAdmin
-        .from("members")
-        .select("id, name, is_active, avatar")
-        .eq("user_id", shareLink.user_id)
-        .order("created_at", { ascending: true }),
+        supabaseAdmin
+          .from("members")
+          .select("id, name, avatar")
+          .eq("user_id", shareLink.user_id)
+          .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("cycle_deposits")
         .select("id, cycle_id, member_id, amount")

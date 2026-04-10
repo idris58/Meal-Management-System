@@ -7,7 +7,6 @@ export interface Member {
   name: string;
   deposit: number;
   mealsEaten: number;
-  isActive: boolean;
   avatar?: string;
 }
 
@@ -75,7 +74,6 @@ export interface Cycle {
 type SnapshotMember = {
   id: string;
   name: string;
-  isActive: boolean;
   avatar?: string;
 };
 
@@ -139,7 +137,6 @@ const MealContext = createContext<MealContextType | undefined>(undefined);
 type MemberRow = {
   id: string;
   name: string;
-  is_active: boolean;
   avatar: string | null;
 };
 
@@ -264,15 +261,14 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const snapshot = cycle.membersSnapshot;
 
     if (snapshot && cycle.status !== 'active') {
-      return snapshot.map((member) => ({
-        id: member.id,
-        name: member.name,
-        deposit: 0,
-        mealsEaten: 0,
-        isActive: member.isActive,
-        avatar: toAvatar(member.name, member.avatar),
-      }));
-    }
+        return snapshot.map((member) => ({
+          id: member.id,
+          name: member.name,
+          deposit: 0,
+          mealsEaten: 0,
+          avatar: toAvatar(member.name, member.avatar),
+        }));
+      }
 
     return memberRoster.map((member) => ({
       ...member,
@@ -369,14 +365,14 @@ export function MealProvider({ children }: { children: ReactNode }) {
       .filter((expense) => expense.type === 'fixed')
       .reduce((sum, expense) => sum + expense.amount, 0);
     const totalMealsConsumed = cycleMealLogs.reduce((sum, log) => sum + log.count, 0);
-    const activeMembersCount = baseMembers.filter((member) => member.isActive).length;
+    const memberCount = baseMembers.length;
     const currentMealRate = totalMealsConsumed > 0 ? totalMealExpenses / totalMealsConsumed : 0;
-    const fixedCostPerMember = activeMembersCount > 0 ? totalFixedExpenses / activeMembersCount : 0;
+    const fixedCostPerMember = memberCount > 0 ? totalFixedExpenses / memberCount : 0;
     const remainingCash = totalDeposits - (totalMealExpenses + totalFixedExpenses);
 
     const computedMembers = baseMembers.map((member) => {
       const mealCost = member.mealsEaten * currentMealRate;
-      const fixedCost = member.isActive ? fixedCostPerMember : 0;
+      const fixedCost = fixedCostPerMember;
       const totalCost = mealCost + fixedCost;
       const balance = member.deposit - totalCost;
 
@@ -465,7 +461,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
         name: member.name,
         deposit: 0,
         mealsEaten: 0,
-        isActive: member.is_active,
         avatar: toAvatar(member.name, member.avatar),
       }));
 
@@ -544,7 +539,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const avatar = name.substring(0, 2).toUpperCase();
     const { data, error } = await supabase
       .from('members')
-      .insert([{ name, avatar, is_active: true, user_id: userId }])
+      .insert([{ name, avatar, user_id: userId }])
       .select()
       .single();
 
@@ -560,7 +555,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
         name: data.name,
         deposit: 0,
         mealsEaten: 0,
-        isActive: data.is_active,
         avatar: toAvatar(data.name, data.avatar),
       },
     ]);
@@ -573,7 +567,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
       title: `Added member ${data.name}`,
       changes: [
         buildSnapshotChange('name', 'Name', data.name),
-        buildSnapshotChange('is_active', 'Active', data.is_active),
       ],
     });
   };
@@ -586,12 +579,10 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     const dbUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
-    if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
     if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar;
 
     const changes = [
       buildUpdateChange('name', 'Name', existingMember.name, updates.name ?? existingMember.name),
-      buildUpdateChange('is_active', 'Active', existingMember.isActive, updates.isActive ?? existingMember.isActive),
       buildUpdateChange('avatar', 'Avatar', existingMember.avatar ?? null, updates.avatar ?? existingMember.avatar ?? null),
     ].filter((change): change is ChangelogChange => Boolean(change));
 
@@ -660,7 +651,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
       title: `Deleted member ${existingMember.name}`,
       changes: [
         buildSnapshotChange('name', 'Name', existingMember.name),
-        buildSnapshotChange('is_active', 'Active', existingMember.isActive),
       ],
     });
   };
@@ -989,7 +979,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const snapshot = memberRoster.map((member) => ({
       id: member.id,
       name: member.name,
-      isActive: member.isActive,
       avatar: member.avatar,
     }));
 

@@ -19,7 +19,6 @@ type SharedMember = {
   id: string;
   name: string;
   deposit: number;
-  isActive: boolean;
   avatar: string;
   mealsEaten: number;
   mealCost: number;
