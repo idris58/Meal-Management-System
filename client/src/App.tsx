@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Switch, useLocation, useRoute } from "wouter";
 
 import { Layout } from "@/components/layout";
@@ -9,6 +9,7 @@ import { useAuth, AuthProvider } from "@/lib/auth-context";
 import { toast } from "@/hooks/use-toast";
 import { MealProvider, useMeal } from "@/lib/meal-context";
 import { useNetworkStatus } from "@/lib/pwa";
+import { supabase } from "@/lib/supabase";
 import AuthPage from "@/pages/auth";
 import ChangelogPage from "@/pages/changelog";
 import Dashboard from "@/pages/dashboard";
@@ -52,12 +53,72 @@ function AppShell() {
   const { session, loading, lastAuthEvent } = useAuth();
   const [location, setLocation] = useLocation();
   const [isSharedRoute, sharedParams] = useRoute("/shared/:token");
+  const searchParams = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const authCode = searchParams.get("code");
+  const recoveryType =
+    searchParams.get("type")?.toLowerCase() ??
+    hashParams.get("type")?.toLowerCase() ??
+    "";
+  const recoveryTokenHash = searchParams.get("token_hash");
   const recoveryTokenInUrl =
-    window.location.hash.toLowerCase().includes("type=recovery") ||
-    window.location.hash.toLowerCase().includes("access_token") ||
-    window.location.search.toLowerCase().includes("type=recovery");
+    recoveryType === "recovery" ||
+    hashParams.has("access_token") ||
+    (Boolean(recoveryTokenHash) && recoveryType === "recovery");
+  const [authLinkResolved, setAuthLinkResolved] = useState(
+    !authCode && !(recoveryTokenHash && recoveryType === "recovery"),
+  );
+  const [recoveryLinkVerified, setRecoveryLinkVerified] = useState(recoveryTokenInUrl);
+
+  useEffect(() => {
+    const needsCodeExchange = Boolean(authCode);
+    const needsRecoveryVerification =
+      Boolean(recoveryTokenHash) && recoveryType === "recovery" && !authCode;
+
+    if (!needsCodeExchange && !needsRecoveryVerification) {
+      setAuthLinkResolved(true);
+      return;
+    }
+
+    let cancelled = false;
+    setAuthLinkResolved(false);
+
+    const resolveAuthLink = async () => {
+      let error: Error | null = null;
+
+      if (needsCodeExchange && authCode) {
+        const result = await supabase.auth.exchangeCodeForSession(authCode);
+        error = result.error;
+      } else if (needsRecoveryVerification && recoveryTokenHash) {
+        const result = await supabase.auth.verifyOtp({
+          token_hash: recoveryTokenHash,
+          type: "recovery",
+        });
+        error = result.error;
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        console.error("Error resolving auth recovery link:", error);
+      } else {
+        setRecoveryLinkVerified(true);
+      }
+
+      setAuthLinkResolved(true);
+    };
+
+    void resolveAuthLink();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authCode, recoveryTokenHash, recoveryType]);
+
   const hasRecoveryContext =
-    recoveryTokenInUrl || lastAuthEvent === "PASSWORD_RECOVERY";
+    recoveryLinkVerified || recoveryTokenInUrl || lastAuthEvent === "PASSWORD_RECOVERY";
   const isRecoveryFlow = location === "/auth" && hasRecoveryContext;
 
   useEffect(() => {
@@ -84,6 +145,10 @@ function AppShell() {
       return;
     }
 
+    if (!authLinkResolved) {
+      return;
+    }
+
     if (hasRecoveryContext && location !== "/auth") {
       window.history.replaceState(
         null,
@@ -106,18 +171,20 @@ function AppShell() {
     if (session && location === "/auth" && !isRecoveryFlow) {
       setLocation("/");
     }
-  }, [hasRecoveryContext, isRecoveryFlow, isSharedRoute, loading, location, session, setLocation]);
+  }, [authLinkResolved, hasRecoveryContext, isRecoveryFlow, isSharedRoute, loading, location, session, setLocation]);
 
   if (isSharedRoute && sharedParams?.token) {
     return <SharedPage token={sharedParams.token} />;
   }
 
-  if (loading) {
+  if (loading || !authLinkResolved) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-4 text-center">
           <Spinner className="mx-auto h-8 w-8 text-primary" />
-          <p className="text-muted-foreground">Checking your session...</p>
+          <p className="text-muted-foreground">
+            {authLinkResolved ? "Checking your session..." : "Preparing your reset link..."}
+          </p>
         </div>
       </div>
     );
