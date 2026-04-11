@@ -84,24 +84,5 @@ begin
     set cycle_id = active_cycle_id
     where user_id = cycle_record.user_id
       and cycle_id is null;
-
-    insert into public.cycle_deposits (user_id, cycle_id, member_id, amount, note, created_at)
-    select
-      cycle_record.user_id,
-      active_cycle_id,
-      m.id,
-      m.deposit,
-      'Migrated from member deposit',
-      now()
-    from public.members m
-    where m.user_id = cycle_record.user_id
-      and coalesce(m.deposit, 0) <> 0
-      and not exists (
-        select 1
-        from public.cycle_deposits d
-        where d.cycle_id = active_cycle_id
-          and d.member_id = m.id
-          and d.note = 'Migrated from member deposit'
-      );
   end loop;
 end $$;

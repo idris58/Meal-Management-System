@@ -71,12 +71,12 @@ Notes:
 
 Run these SQL files in Supabase SQL Editor.
 
-### 1. Base app tables
+### 1. Core app tables
 
 Run:
 
 ```text
-supabase/base_tables.sql
+supabase/1_base_tables.sql
 ```
 
 This creates:
@@ -96,7 +96,7 @@ It also adds:
 Run:
 
 ```text
-supabase/share_links.sql
+supabase/2_share_links.sql
 ```
 
 This creates the `share_links` table and RLS needed for public read-only sharing.
@@ -106,7 +106,7 @@ This creates the `share_links` table and RLS needed for public read-only sharing
 Run:
 
 ```text
-supabase/cycles.sql
+supabase/3_cycles.sql
 ```
 
 This script:
@@ -116,14 +116,14 @@ This script:
 - adds `cycle_id` to `expenses` and `meal_logs`
 - adds RLS for the new tables
 - creates an initial active cycle per user if needed
-- backfills existing current data into the new cycle-based model
+- backfills existing `expenses` and `meal_logs` rows into the active cycle
 
 ### 4. Changelog setup
 
 Run:
 
 ```text
-supabase/changelog_entries.sql
+supabase/4_changelog_entries.sql
 ```
 
 This creates:
