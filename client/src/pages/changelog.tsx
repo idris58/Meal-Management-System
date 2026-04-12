@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMeal, type ChangelogAction, type ChangelogChange, type ChangelogEntityType, type ChangelogEntry } from '@/lib/meal-context';
+import {
+  useMeal,
+  type ChangelogAction,
+  type ChangelogChange,
+  type ChangelogEntityType,
+  type ChangelogEntry,
+} from '@/lib/meal-context';
 
 const actionOptions: { label: string; value: ChangelogAction | 'all' }[] = [
   { label: 'All Actions', value: 'all' },
@@ -77,23 +83,23 @@ function actionBadgeVariant(action: ChangelogAction) {
   return 'destructive';
 }
 
-function filterEntries(
-  entries: ChangelogEntry[],
-  actionFilter: ChangelogAction | 'all',
-  entityFilter: ChangelogEntityType | 'all',
-) {
-  return entries.filter((entry) => (
-    (actionFilter === 'all' || entry.action === actionFilter) &&
-    (entityFilter === 'all' || entry.entityType === entityFilter)
-  ));
-}
-
 function getChange(entry: ChangelogEntry, field: string) {
   return entry.changes.find((change) => change.field === field);
 }
 
 function getDisplayAction(entry: ChangelogEntry): ChangelogAction {
   return entry.entityType === 'deposit' ? 'update' : entry.action;
+}
+
+function filterEntries(
+  entries: ChangelogEntry[],
+  actionFilter: ChangelogAction | 'all',
+  entityFilter: ChangelogEntityType | 'all',
+) {
+  return entries.filter((entry) => (
+    (actionFilter === 'all' || getDisplayAction(entry) === actionFilter) &&
+    (entityFilter === 'all' || entry.entityType === entityFilter)
+  ));
 }
 
 function getDisplayTitle(entry: ChangelogEntry) {
@@ -109,7 +115,7 @@ function getEntrySummary(entry: ChangelogEntry) {
   if (entry.entityType === 'meal_log') {
     const dateChange = getChange(entry, 'date');
     const changedMembers = entry.changes.filter((change) => change.field.startsWith('member:')).length || 1;
-    const formattedDate = dateChange ? formatValue(dateChange.value) : 'Unknown date';
+    const formattedDate = dateChange ? formatValue(dateChange.value) : format(new Date(entry.createdAt), 'PPP');
     return `${formattedDate} · ${changedMembers} ${changedMembers === 1 ? 'member change' : 'member changes'}`;
   }
 
@@ -119,6 +125,7 @@ function getEntrySummary(entry: ChangelogEntry) {
       const prefix = transactionChange.value < 0 ? 'Deduction' : 'Transaction';
       return `${prefix}: ${formatCurrency(transactionChange.value)}`;
     }
+
     return 'Deposit balance updated';
   }
 
@@ -247,6 +254,7 @@ export default function ChangelogPage() {
   );
 
   const hasCycleSections = Boolean(pendingCycle || activeCycle);
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
