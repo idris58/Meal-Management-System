@@ -58,20 +58,40 @@ function AddMemberForm({ onClose }: { onClose: () => void }) {
 function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => void }) {
   const { addDeposit } = useMeal();
   const [amount, setAmount] = useState('');
+  const [mode, setMode] = useState<'add' | 'deduct'>('add');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(amount);
     if (!isNaN(val) && val !== 0) {
-      addDeposit(memberId, val, undefined, val < 0 ? 'Deduction/Refund' : undefined);
+      const signedAmount = mode === 'deduct' ? -Math.abs(val) : Math.abs(val);
+      addDeposit(memberId, signedAmount, undefined, mode === 'deduct' ? 'Deduction/Refund' : undefined);
       onClose();
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          type="button"
+          variant={mode === 'add' ? 'default' : 'outline'}
+          onClick={() => setMode('add')}
+        >
+          Add
+        </Button>
+        <Button
+          type="button"
+          variant={mode === 'deduct' ? 'destructive' : 'outline'}
+          onClick={() => setMode('deduct')}
+        >
+          Deduct
+        </Button>
+      </div>
       <div className="space-y-2">
-        <label className="text-sm font-medium">Amount (use negative for deduction)</label>
+        <label className="text-sm font-medium">
+          Amount {mode === 'deduct' ? '(deduction)' : '(deposit)'}
+        </label>
         <Input
           type="number"
           placeholder="0.00"
@@ -80,7 +100,9 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
           autoFocus
         />
       </div>
-      <Button type="submit" className="w-full">{amount.startsWith('-') ? 'Deduct Amount' : 'Add Deposit'}</Button>
+      <Button type="submit" className="w-full">
+        {mode === 'deduct' ? 'Deduct Amount' : 'Add Deposit'}
+      </Button>
     </form>
   );
 }
