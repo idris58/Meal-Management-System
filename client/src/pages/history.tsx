@@ -202,7 +202,7 @@ function PendingMealEditor({
   initialDate?: Date;
   onClose: () => void;
 }) {
-  const { logMeal } = useMeal();
+  const { saveMealLogs } = useMeal();
   const [date, setDate] = useState<Date>(initialDate ?? new Date());
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
     Object.fromEntries(details.members.map((member) => [member.id, '0'])),
@@ -233,11 +233,13 @@ function PendingMealEditor({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const dateStr = format(date, 'yyyy-MM-dd');
-    await Promise.all(
-      Object.entries(mealCounts).map(async ([memberId, count]) => {
-        const parsed = parseFloat(count);
-        await logMeal(memberId, isNaN(parsed) ? 0 : parsed, dateStr, cycleId);
-      }),
+    await saveMealLogs(
+      Object.entries(mealCounts).map(([memberId, count]) => ({
+        memberId,
+        count: parseFloat(count),
+      })),
+      dateStr,
+      cycleId,
     );
     onClose();
   };

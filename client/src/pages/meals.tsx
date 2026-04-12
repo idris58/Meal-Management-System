@@ -22,7 +22,7 @@ function QuickLogMeal({
   onClose: () => void;
   initialDate?: Date;
 }) {
-  const { logMeal, members, mealLogs } = useMeal();
+  const { saveMealLogs, members, mealLogs } = useMeal();
   const [date, setDate] = useState<Date>(initialDate ?? new Date());
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
     Object.fromEntries(members.map(member => [member.id, '0']))
@@ -61,11 +61,12 @@ function QuickLogMeal({
     event.preventDefault();
     const dateStr = format(date, 'yyyy-MM-dd');
 
-    await Promise.all(
-      Object.entries(mealCounts).map(async ([memberId, countStr]) => {
-        const count = parseFloat(countStr);
-        await logMeal(memberId, isNaN(count) ? 0 : count, dateStr);
-      }),
+    await saveMealLogs(
+      Object.entries(mealCounts).map(([memberId, countStr]) => ({
+        memberId,
+        count: parseFloat(countStr),
+      })),
+      dateStr,
     );
 
     onClose();

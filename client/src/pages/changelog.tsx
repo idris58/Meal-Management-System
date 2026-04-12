@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
+import { ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMeal, type ChangelogAction, type ChangelogChange, type ChangelogEntityType, type ChangelogEntry } from '@/lib/meal-context';
 
@@ -21,10 +24,18 @@ const entityOptions: { label: string; value: ChangelogEntityType | 'all' }[] = [
 ];
 
 function formatCurrency(value: number) {
-  return `৳${value.toFixed(2)}`;
+  const absoluteValue = Math.abs(value).toFixed(2);
+  return value < 0 ? `-৳${absoluteValue}` : `৳${absoluteValue}`;
 }
 
 function formatValue(value: string | number | boolean | null | undefined) {
+  if (typeof value === 'string') {
+    const parsedDate = parseISO(value);
+    if (isValid(parsedDate) && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return format(parsedDate, 'PPP');
+    }
+  }
+
   if (typeof value === 'number') {
     return Number.isInteger(value) ? value.toString() : value.toFixed(2).replace(/\.?0+$/, '');
   }
@@ -41,14 +52,14 @@ function formatValue(value: string | number | boolean | null | undefined) {
 }
 
 function formatChange(change: ChangelogChange) {
-  if (typeof change.value === 'number' && ['amount'].includes(change.field)) {
+  if (typeof change.value === 'number' && ['amount', 'deposit_balance', 'transaction_amount'].includes(change.field)) {
     return `${change.label}: ${formatCurrency(change.value)}`;
   }
 
   if (
     typeof change.from === 'number' &&
     typeof change.to === 'number' &&
-    ['amount'].includes(change.field)
+    ['amount', 'deposit_balance', 'transaction_amount'].includes(change.field)
   ) {
     return `${change.label}: ${formatCurrency(change.from)} -> ${formatCurrency(change.to)}`;
   }
@@ -77,6 +88,31 @@ function filterEntries(
   ));
 }
 
+function getEntrySummary(entry: ChangelogEntry) {
+  if (entry.entityType === 'meal_log') {
+    const dateChange = entry.changes.find((change) => change.field === 'date');
+    const changedMembers = entry.changes.filter((change) => change.field.startsWith('member:')).length;
+    const formattedDate = dateChange ? formatValue(dateChange.value) : 'Unknown date';
+    return `${formattedDate} · ${changedMembers} ${changedMembers === 1 ? 'member change' : 'member changes'}`;
+  }
+
+  if (entry.entityType === 'deposit') {
+    const transactionChange = entry.changes.find((change) => change.field === 'transaction_amount');
+    return transactionChange ? formatChange(transactionChange) : 'Deposit balance updated';
+  }
+
+  const meaningfulChanges = entry.changes.filter((change) => change.field !== 'member' && change.field !== 'members_changed');
+  if (meaningfulChanges.length === 0) {
+    return 'View details';
+  }
+
+  return meaningfulChanges.slice(0, 2).map((change) => formatChange(change)).join(' · ');
+}
+
+function getDetailedChanges(entry: ChangelogEntry) {
+  return entry.changes.filter((change) => change.field !== 'members_changed');
+}
+
 function ChangelogSection({
   title,
   description,
@@ -100,31 +136,48 @@ function ChangelogSection({
       ) : (
         <div className="space-y-4">
           {entries.map((entry) => (
-            <Card key={entry.id}>
-              <CardHeader className="gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-base">{entry.title}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {format(new Date(entry.createdAt), 'PPP p')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="capitalize">
-                    {entry.entityType.replace('_', ' ')}
-                  </Badge>
-                  <Badge variant={actionBadgeVariant(entry.action)} className="capitalize">
-                    {entry.action}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {entry.changes.map((change, index) => (
-                  <p key={`${entry.id}-${change.field}-${index}`} className="text-sm text-muted-foreground">
-                    {formatChange(change)}
-                  </p>
-                ))}
-              </CardContent>
-            </Card>
+            <Collapsible key={entry.id}>
+              <Card>
+                <CardHeader className="gap-3 pb-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-base">{entry.title}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(entry.createdAt), 'PPP p')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="capitalize">
+                        {entry.entityType.replace('_', ' ')}
+                      </Badge>
+                      <Badge variant={actionBadgeVariant(entry.action)} className="capitalize">
+                        {entry.action}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">{getEntrySummary(entry)}</p>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="w-fit gap-2 text-muted-foreground">
+                        View details
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                </CardHeader>
+
+                <CollapsibleContent>
+                  <CardContent className="space-y-2 border-t pt-4">
+                    {getDetailedChanges(entry).map((change, index) => (
+                      <p key={`${entry.id}-${change.field}-${index}`} className="text-sm text-muted-foreground">
+                        {formatChange(change)}
+                      </p>
+                    ))}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           ))}
         </div>
       )}

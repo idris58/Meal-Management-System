@@ -139,7 +139,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
 }
 
 function QuickLogMeal({ onClose }: { onClose: () => void }) {
-  const { logMeal, members, mealLogs } = useMeal();
+  const { saveMealLogs, members, mealLogs } = useMeal();
   const [date, setDate] = useState<Date>(new Date());
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
     Object.fromEntries(members.map(m => [m.id, '0']))
@@ -170,13 +170,16 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const dateStr = format(date, 'yyyy-MM-dd');
-    Object.entries(mealCounts).forEach(([memberId, countStr]) => {
-      const count = parseFloat(countStr);
-      logMeal(memberId, isNaN(count) ? 0 : count, dateStr);
-    });
+    await saveMealLogs(
+      Object.entries(mealCounts).map(([memberId, countStr]) => ({
+        memberId,
+        count: parseFloat(countStr),
+      })),
+      dateStr,
+    );
     onClose();
   };
 

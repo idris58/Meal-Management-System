@@ -117,6 +117,7 @@ interface MealContextType {
   }) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   addDeposit: (memberId: string, amount: number, cycleId?: string, note?: string) => Promise<void>;
+  saveMealLogs: (entries: Array<{ memberId: string; count: number }>, date: string, cycleId?: string) => Promise<void>;
   logMeal: (memberId: string, count: number, date: string, cycleId?: string) => Promise<void>;
   closeActiveCycle: () => Promise<void>;
   markCycleClosed: (cycleId: string) => Promise<void>;
@@ -203,6 +204,20 @@ function buildUpdateChange(
 
 function buildSnapshotChange(field: string, label: string, value: ChangelogValue): ChangelogChange {
   return { field, label, value };
+}
+
+function getMealLogAction(changes: ChangelogChange[]): ChangelogAction {
+  const created = changes.some((change) => change.from === 0 && typeof change.to === 'number' && change.to > 0);
+  const deleted = changes.some((change) => typeof change.from === 'number' && change.from > 0 && change.to === 0);
+  const updated = changes.some((change) => typeof change.from === 'number' && typeof change.to === 'number' && change.from > 0 && change.to > 0 && change.from !== change.to);
+
+  if (updated || (created && deleted) || (created && updated) || (deleted && updated)) {
+    return 'update';
+  }
+
+  if (deleted) return 'delete';
+  if (created) return 'create';
+  return 'update';
 }
 
 export function MealProvider({ children }: { children: ReactNode }) {
@@ -817,6 +832,11 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     const targetCycleId = getRequiredCycleId(cycleId);
     if (!targetCycleId) return;
+    const memberName = getMemberName(memberId, targetCycleId);
+    const previousDepositBalance = allDeposits
+      .filter((deposit) => deposit.cycleId === targetCycleId && deposit.memberId === memberId)
+      .reduce((sum, deposit) => sum + deposit.amount, 0);
+    const nextDepositBalance = previousDepositBalance + amount;
 
     const { data, error } = await supabase
       .from('cycle_deposits')
@@ -848,61 +868,66 @@ export function MealProvider({ children }: { children: ReactNode }) {
       cycleId: targetCycleId,
       entityType: 'deposit',
       entityId: data.id,
-      action: 'create',
-      title: `Added deposit for ${getMemberName(memberId, targetCycleId)}`,
+      action: 'update',
+      title: `Updated deposit for ${memberName}`,
       changes: [
-        buildSnapshotChange('member', 'Member', getMemberName(memberId, targetCycleId)),
-        buildSnapshotChange('amount', 'Amount', Number(data.amount)),
-        buildSnapshotChange('note', 'Note', data.note ?? null),
+        buildSnapshotChange('member', 'Member', memberName),
+        buildUpdateChange('deposit_balance', 'Deposit Balance', previousDepositBalance, nextDepositBalance)!,
+        buildSnapshotChange('transaction_amount', 'Transaction', Number(data.amount)),
+        ...(data.note ? [buildSnapshotChange('note', 'Note', data.note)] : []),
       ],
     });
   };
 
-  const logMeal = async (memberId: string, count: number, dateStr: string, cycleId?: string) => {
+  const saveMealLogs = async (
+    entries: Array<{ memberId: string; count: number }>,
+    dateStr: string,
+    cycleId?: string,
+  ) => {
     if (!userId) return;
 
     const targetCycleId = getRequiredCycleId(cycleId);
     if (!targetCycleId) return;
 
-    const existingLog = allMealLogs.find((log) => (
-      log.memberId === memberId && log.date === dateStr && log.cycleId === targetCycleId
-    ));
+    let nextMealLogs = [...allMealLogs];
+    const mealLogChanges: ChangelogChange[] = [];
 
-    if (existingLog) {
-      if (existingLog.count === count) {
-        return;
-      }
+    for (const entry of entries) {
+      const normalizedCount = Number.isNaN(entry.count) ? 0 : entry.count;
+      const existingLog = nextMealLogs.find((log) => (
+        log.memberId === entry.memberId && log.date === dateStr && log.cycleId === targetCycleId
+      ));
 
-      if (count === 0) {
-        const { error } = await supabase
-          .from('meal_logs')
-          .delete()
-          .eq('id', existingLog.id)
-          .eq('user_id', userId);
-
-        if (error) {
-          console.error('Error deleting meal log:', error);
-          return;
+      if (existingLog) {
+        if (existingLog.count === normalizedCount) {
+          continue;
         }
 
-        setAllMealLogs((prev) => prev.filter((log) => log.id !== existingLog.id));
+        if (normalizedCount === 0) {
+          const { error } = await supabase
+            .from('meal_logs')
+            .delete()
+            .eq('id', existingLog.id)
+            .eq('user_id', userId);
 
-        await recordChangelog({
-          cycleId: targetCycleId,
-          entityType: 'meal_log',
-          entityId: existingLog.id,
-          action: 'delete',
-          title: `Deleted meal log for ${getMemberName(memberId, targetCycleId)}`,
-          changes: [
-            buildSnapshotChange('member', 'Member', getMemberName(memberId, targetCycleId)),
-            buildSnapshotChange('date', 'Date', dateStr),
-            buildSnapshotChange('count', 'Meals', existingLog.count),
-          ],
-        });
-      } else {
+          if (error) {
+            console.error('Error deleting meal log:', error);
+            return;
+          }
+
+          nextMealLogs = nextMealLogs.filter((log) => log.id !== existingLog.id);
+          mealLogChanges.push({
+            field: `member:${entry.memberId}`,
+            label: getMemberName(entry.memberId, targetCycleId),
+            from: existingLog.count,
+            to: 0,
+          });
+          continue;
+        }
+
         const { error } = await supabase
           .from('meal_logs')
-          .update({ count })
+          .update({ count: normalizedCount })
           .eq('id', existingLog.id)
           .eq('user_id', userId);
 
@@ -911,63 +936,77 @@ export function MealProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        setAllMealLogs((prev) => prev.map((log) => (
-          log.id === existingLog.id ? { ...log, count } : log
-        )));
-
-        await recordChangelog({
-          cycleId: targetCycleId,
-          entityType: 'meal_log',
-          entityId: existingLog.id,
-          action: 'update',
-          title: `Updated meal log for ${getMemberName(memberId, targetCycleId)}`,
-          changes: [
-            buildUpdateChange('count', 'Meals', existingLog.count, count)!,
-          ],
+        nextMealLogs = nextMealLogs.map((log) => (
+          log.id === existingLog.id ? { ...log, count: normalizedCount } : log
+        ));
+        mealLogChanges.push({
+          field: `member:${entry.memberId}`,
+          label: getMemberName(entry.memberId, targetCycleId),
+          from: existingLog.count,
+          to: normalizedCount,
         });
+        continue;
       }
+
+      if (normalizedCount <= 0) {
+        continue;
+      }
+
+      const { data, error } = await supabase
+        .from('meal_logs')
+        .insert([{
+          member_id: entry.memberId,
+          cycle_id: targetCycleId,
+          date: dateStr,
+          count: normalizedCount,
+          user_id: userId,
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating meal log:', error);
+        return;
+      }
+
+      nextMealLogs = [...nextMealLogs, {
+        id: data.id,
+        cycleId: data.cycle_id,
+        memberId: data.member_id,
+        date: data.date,
+        count: Number(data.count),
+      }];
+      mealLogChanges.push({
+        field: `member:${entry.memberId}`,
+        label: getMemberName(entry.memberId, targetCycleId),
+        from: 0,
+        to: Number(data.count),
+      });
+    }
+
+    if (mealLogChanges.length === 0) {
       return;
     }
 
-    if (count <= 0) return;
+    setAllMealLogs(nextMealLogs);
 
-    const { data, error } = await supabase
-      .from('meal_logs')
-      .insert([{
-        member_id: memberId,
-        cycle_id: targetCycleId,
-        date: dateStr,
-        count,
-        user_id: userId,
-      }])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating meal log:', error);
-      return;
-    }
-
-    setAllMealLogs((prev) => [...prev, {
-      id: data.id,
-      cycleId: data.cycle_id,
-      memberId: data.member_id,
-      date: data.date,
-      count: Number(data.count),
-    }]);
-
+    const sortedMealLogChanges = mealLogChanges.sort((left, right) => left.label.localeCompare(right.label));
     await recordChangelog({
       cycleId: targetCycleId,
       entityType: 'meal_log',
-      entityId: data.id,
-      action: 'create',
-      title: `Added meal log for ${getMemberName(memberId, targetCycleId)}`,
+      entityId: `${targetCycleId}:${dateStr}`,
+      action: getMealLogAction(sortedMealLogChanges),
+      title: `Saved meal log for ${sortedMealLogChanges.length} ${sortedMealLogChanges.length === 1 ? 'member' : 'members'}`,
       changes: [
-        buildSnapshotChange('member', 'Member', getMemberName(memberId, targetCycleId)),
-        buildSnapshotChange('date', 'Date', data.date),
-        buildSnapshotChange('count', 'Meals', Number(data.count)),
+        buildSnapshotChange('date', 'Date', dateStr),
+        buildSnapshotChange('members_changed', 'Members Changed', sortedMealLogChanges.length),
+        ...sortedMealLogChanges,
       ],
     });
+  };
+
+  const logMeal = async (memberId: string, count: number, dateStr: string, cycleId?: string) => {
+    await saveMealLogs([{ memberId, count }], dateStr, cycleId);
   };
 
   const closeActiveCycle = async () => {
@@ -1149,6 +1188,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         updateExpense,
         deleteExpense,
         addDeposit,
+        saveMealLogs,
         logMeal,
         closeActiveCycle,
         markCycleClosed,
