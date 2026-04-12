@@ -88,17 +88,38 @@ function filterEntries(
   ));
 }
 
+function getChange(entry: ChangelogEntry, field: string) {
+  return entry.changes.find((change) => change.field === field);
+}
+
+function getDisplayAction(entry: ChangelogEntry): ChangelogAction {
+  return entry.entityType === 'deposit' ? 'update' : entry.action;
+}
+
+function getDisplayTitle(entry: ChangelogEntry) {
+  if (entry.entityType === 'deposit') {
+    const member = getChange(entry, 'member')?.value;
+    return `Updated deposit for ${member ?? 'member'}`;
+  }
+
+  return entry.title;
+}
+
 function getEntrySummary(entry: ChangelogEntry) {
   if (entry.entityType === 'meal_log') {
-    const dateChange = entry.changes.find((change) => change.field === 'date');
-    const changedMembers = entry.changes.filter((change) => change.field.startsWith('member:')).length;
+    const dateChange = getChange(entry, 'date');
+    const changedMembers = entry.changes.filter((change) => change.field.startsWith('member:')).length || 1;
     const formattedDate = dateChange ? formatValue(dateChange.value) : 'Unknown date';
     return `${formattedDate} · ${changedMembers} ${changedMembers === 1 ? 'member change' : 'member changes'}`;
   }
 
   if (entry.entityType === 'deposit') {
-    const transactionChange = entry.changes.find((change) => change.field === 'transaction_amount');
-    return transactionChange ? formatChange(transactionChange) : 'Deposit balance updated';
+    const transactionChange = getChange(entry, 'transaction_amount') ?? getChange(entry, 'amount');
+    if (transactionChange && typeof transactionChange.value === 'number') {
+      const prefix = transactionChange.value < 0 ? 'Deduction' : 'Transaction';
+      return `${prefix}: ${formatCurrency(transactionChange.value)}`;
+    }
+    return 'Deposit balance updated';
   }
 
   const meaningfulChanges = entry.changes.filter((change) => change.field !== 'member' && change.field !== 'members_changed');
@@ -110,6 +131,31 @@ function getEntrySummary(entry: ChangelogEntry) {
 }
 
 function getDetailedChanges(entry: ChangelogEntry) {
+  if (entry.entityType === 'meal_log' && entry.changes.some((change) => change.field.startsWith('member:'))) {
+    return [
+      ...entry.changes.filter((change) => change.field === 'date'),
+      ...entry.changes.filter((change) => change.field.startsWith('member:')),
+    ];
+  }
+
+  if (entry.entityType === 'deposit') {
+    const member = getChange(entry, 'member');
+    const balance = getChange(entry, 'deposit_balance');
+    const transaction = getChange(entry, 'transaction_amount') ?? getChange(entry, 'amount');
+    const note = getChange(entry, 'note');
+
+    return [
+      ...(member ? [member] : []),
+      ...(balance ? [balance] : []),
+      ...(transaction ? [{
+        ...transaction,
+        field: 'transaction_amount',
+        label: 'Transaction',
+      }] : []),
+      ...(note ? [note] : []),
+    ];
+  }
+
   return entry.changes.filter((change) => change.field !== 'members_changed');
 }
 
@@ -141,7 +187,7 @@ function ChangelogSection({
                 <CardHeader className="gap-3 pb-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
-                      <CardTitle className="text-base">{entry.title}</CardTitle>
+                      <CardTitle className="text-base">{getDisplayTitle(entry)}</CardTitle>
                       <p className="text-sm text-muted-foreground">
                         {format(new Date(entry.createdAt), 'PPP p')}
                       </p>
@@ -150,8 +196,8 @@ function ChangelogSection({
                       <Badge variant="outline" className="capitalize">
                         {entry.entityType.replace('_', ' ')}
                       </Badge>
-                      <Badge variant={actionBadgeVariant(entry.action)} className="capitalize">
-                        {entry.action}
+                      <Badge variant={actionBadgeVariant(getDisplayAction(entry))} className="capitalize">
+                        {getDisplayAction(entry)}
                       </Badge>
                     </div>
                   </div>
