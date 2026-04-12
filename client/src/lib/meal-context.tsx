@@ -994,7 +994,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     await recordChangelog({
       cycleId: targetCycleId,
       entityType: 'meal_log',
-      entityId: `${targetCycleId}:${dateStr}`,
+      entityId: targetCycleId,
       action: getMealLogAction(sortedMealLogChanges),
       title: `Saved meal log for ${sortedMealLogChanges.length} ${sortedMealLogChanges.length === 1 ? 'member' : 'members'}`,
       changes: [
