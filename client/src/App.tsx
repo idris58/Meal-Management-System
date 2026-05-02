@@ -18,7 +18,7 @@ import HistoryPage from "@/pages/history";
 import Meals from "@/pages/meals";
 import Members from "@/pages/members";
 import NotFound from "@/pages/not-found";
-import SharedPage from "@/pages/shared";
+import SharedPage, { SharedAccessPage } from "@/pages/shared";
 
 function Router() {
   const { loading } = useMeal();
@@ -52,6 +52,7 @@ function Router() {
 function AppShell() {
   const { session, loading, lastAuthEvent } = useAuth();
   const [location, setLocation] = useLocation();
+  const [isSharedLandingRoute] = useRoute("/shared");
   const [isSharedRoute, sharedParams] = useRoute("/shared/:token");
   const searchParams = new URLSearchParams(window.location.search);
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -122,6 +123,11 @@ function AppShell() {
   const isRecoveryFlow = location === "/auth" && hasRecoveryContext;
 
   useEffect(() => {
+    if (isSharedLandingRoute) {
+      document.title = "Meal Code - MealManager";
+      return;
+    }
+
     if (isSharedRoute) {
       document.title = "Shared View - MealManager";
       return;
@@ -138,10 +144,10 @@ function AppShell() {
     };
 
     document.title = pageTitleMap[location] ?? "MealManager";
-  }, [isRecoveryFlow, isSharedRoute, location]);
+  }, [isRecoveryFlow, isSharedLandingRoute, isSharedRoute, location]);
 
   useEffect(() => {
-    if (isSharedRoute) {
+    if (isSharedLandingRoute || isSharedRoute) {
       return;
     }
 
@@ -171,7 +177,11 @@ function AppShell() {
     if (session && location === "/auth" && !isRecoveryFlow) {
       setLocation("/");
     }
-  }, [authLinkResolved, hasRecoveryContext, isRecoveryFlow, isSharedRoute, loading, location, session, setLocation]);
+  }, [authLinkResolved, hasRecoveryContext, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, loading, location, session, setLocation]);
+
+  if (isSharedLandingRoute) {
+    return <SharedAccessPage />;
+  }
 
   if (isSharedRoute && sharedParams?.token) {
     return <SharedPage token={sharedParams.token} />;

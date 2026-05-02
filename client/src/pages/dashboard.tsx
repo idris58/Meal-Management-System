@@ -1,7 +1,7 @@
 import { useMeal } from '@/lib/meal-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon, Copy, Link2, Share2, Archive, Download, ExternalLink } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon, Copy, Share2, Archive, Download, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -300,6 +300,7 @@ function ShareDashboardCard() {
 
   const shareUrl =
     config?.token ? `${window.location.origin}/shared/${config.token}` : '';
+  const mealCode = config?.token ?? '';
 
   const upsertConfig = async (nextConfig: ShareLinkConfig) => {
     if (!user?.id) {
@@ -387,6 +388,21 @@ function ShareDashboardCard() {
     }
   };
 
+  const handleCopyMealCode = async () => {
+    if (!mealCode || !config?.is_enabled) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(mealCode);
+      setMessage('Meal Code copied to clipboard.');
+      setError(null);
+    } catch (caughtError) {
+      console.error('Error copying Meal Code:', caughtError);
+      setError('Unable to copy the Meal Code right now. Copy it manually from the field below.');
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -438,6 +454,25 @@ function ShareDashboardCard() {
               disabled={!config?.is_enabled || !shareUrl}
             >
               <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Meal Code</label>
+          <div className="flex gap-2">
+            <Input
+              value={mealCode}
+              readOnly
+              placeholder="Enable sharing to generate a Meal Code"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCopyMealCode}
+              disabled={!config?.is_enabled || !mealCode}
+            >
+              Copy Meal Code
             </Button>
           </div>
         </div>

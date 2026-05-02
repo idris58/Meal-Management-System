@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeftRight,
   ChefHat,
   Share2,
   ShoppingBag,
@@ -8,10 +9,13 @@ import {
   Zap,
 } from "lucide-react";
 import { eachDayOfInterval, format, isSameDay, max, min, parseISO, startOfDay } from "date-fns";
+import { useLocation } from "wouter";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +80,106 @@ function formatMealCount(value: number) {
   return rounded.toString();
 }
 
+export function SharedAccessPage() {
+  const [, setLocation] = useLocation();
+  const [mealCode, setMealCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedCode = mealCode.trim();
+
+    if (!normalizedCode) {
+      setError("Enter a Meal Code to open the shared view.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/share/${encodeURIComponent(normalizedCode)}`);
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(body?.message || "This Meal Code is invalid or disabled. Ask the manager for a valid code.");
+      }
+
+      setLocation(`/shared/${normalizedCode}`);
+    } catch (caughtError) {
+      const nextError =
+        caughtError instanceof Error
+          ? caughtError.message
+          : "This Meal Code is invalid or disabled. Ask the manager for a valid code.";
+      setError(nextError);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+      <Card className="w-full max-w-lg border-none shadow-xl shadow-emerald-100/50">
+        <CardHeader className="space-y-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-200">
+            <ChefHat className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-700">
+              Shared View
+            </p>
+            <CardTitle className="font-heading text-2xl">Open with Meal Code</CardTitle>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Enter the Meal Code shared by the manager to view the current meal cycle. If you already have the full link, opening it directly will still work.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="meal-code" className="text-sm font-medium">
+                Meal Code
+              </label>
+              <Input
+                id="meal-code"
+                value={mealCode}
+                onChange={(event) => {
+                  setMealCode(event.target.value);
+                  if (error) {
+                    setError(null);
+                  }
+                }}
+                placeholder="Enter Meal Code"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                disabled={loading}
+              />
+            </div>
+
+            {error ? (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            ) : (
+              <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                Enter a Meal Code to view the current shared meal cycle.
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Opening Shared View..." : "Open Shared View"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function SharedPage({ token }: { token: string }) {
+  const [, setLocation] = useLocation();
   const [data, setData] = useState<SharedPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,13 +281,17 @@ export default function SharedPage({ token }: { token: string }) {
               Shared Dashboard Unavailable
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
               {error || "This shared link is invalid or disabled."}
             </p>
             <p className="text-sm text-muted-foreground">
-              Ask the owner for a fresh share link if you still need access.
+              Ask the owner for a fresh share link or Meal Code if you still need access.
             </p>
+            <Button variant="outline" className="gap-2" onClick={() => setLocation("/shared")}>
+              <ArrowLeftRight className="h-4 w-4" />
+              Change Meal Code
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -208,9 +315,15 @@ export default function SharedPage({ token }: { token: string }) {
               </h1>
             </div>
           </div>
-          <Badge variant="secondary" className="hidden sm:inline-flex">
-            Read only
-          </Badge>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setLocation("/shared")}>
+              <ArrowLeftRight className="h-4 w-4" />
+              Change Meal Code
+            </Button>
+            <Badge variant="secondary" className="hidden sm:inline-flex">
+              Read only
+            </Badge>
+          </div>
         </div>
       </div>
 
