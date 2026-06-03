@@ -26,12 +26,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-    { icon: Users, label: 'Members', href: '/members' },
-    { icon: UtensilsCrossed, label: 'Meals', href: '/meals' },
-    { icon: Receipt, label: 'Expenses', href: '/expenses' },
-    { icon: History, label: 'History', href: '/history' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/app' },
+    { icon: Users, label: 'Members', href: '/app/members' },
+    { icon: UtensilsCrossed, label: 'Meals', href: '/app/meals' },
+    { icon: Receipt, label: 'Expenses', href: '/app/expenses' },
+    { icon: History, label: 'History', href: '/app/history' },
+    { icon: Settings, label: 'Settings', href: '/app/settings' },
   ];
 
   const handleLogout = async () => {
@@ -50,7 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b bg-card sticky top-0 z-50">
-        <Link href="/">
+        <Link href="/app">
           <div className="flex cursor-pointer items-center gap-2">
             <ChefHat className="h-6 w-6 text-primary" />
             <span className="font-heading font-bold text-lg text-primary">MealTrack</span>
@@ -67,7 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <SheetContent side="left" className="w-[80%] max-w-[300px] p-0">
             <div className="h-full flex flex-col bg-card">
               <div className="p-6 border-b">
-                <Link href="/">
+                <Link href="/app">
                   <div className="flex cursor-pointer items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
                     <ChefHat className="h-6 w-6 text-primary" />
                     <span className="font-heading font-bold text-xl">MealTrack</span>
@@ -114,7 +114,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r bg-card h-screen sticky top-0">
         <div className="p-6 border-b">
-          <Link href="/">
+          <Link href="/app">
             <div className="flex cursor-pointer items-center gap-2">
               <ChefHat className="h-8 w-8 text-primary" />
               <span className="font-heading font-bold text-xl text-primary">MealTrack</span>

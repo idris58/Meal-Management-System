@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "/app",
   "name": "MealTrack",
   "short_name": "MealTrack",
   "description": "A professional, mobile-first Meal Management System for shared living environments.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/app",
+  "scope": "/app",
   "display": "standalone",
   "theme_color": "#18b77b",
   "background_color": "#f8fafc",

@@ -66,18 +66,28 @@ function Router() {
   return (
     <Layout>
       <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/members" component={Members} />
-        <Route path="/expenses" component={Expenses} />
-        <Route path="/meals" component={Meals} />
-        <Route path="/history" component={HistoryPage} />
-        <Route path="/changelog" component={ChangelogPage} />
-        <Route path="/settings" component={Settings} />
+        <Route path="/app" component={Dashboard} />
+        <Route path="/app/members" component={Members} />
+        <Route path="/app/expenses" component={Expenses} />
+        <Route path="/app/meals" component={Meals} />
+        <Route path="/app/history" component={HistoryPage} />
+        <Route path="/app/changelog" component={ChangelogPage} />
+        <Route path="/app/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
   );
 }
+
+const legacyMainRouteMap: Record<string, string> = {
+  "/": "/app",
+  "/members": "/app/members",
+  "/expenses": "/app/expenses",
+  "/meals": "/app/meals",
+  "/history": "/app/history",
+  "/changelog": "/app/changelog",
+  "/settings": "/app/settings",
+};
 
 function AppShell() {
   const { session, loading, lastAuthEvent } = useAuth();
@@ -177,12 +187,19 @@ function AppShell() {
 
     const pageTitleMap: Record<string, string> = {
       "/": "Dashboard - MealTrack",
+      "/app": "Dashboard - MealTrack",
       "/members": "Members - MealTrack",
+      "/app/members": "Members - MealTrack",
       "/expenses": "Expenses - MealTrack",
+      "/app/expenses": "Expenses - MealTrack",
       "/meals": "Meals - MealTrack",
+      "/app/meals": "Meals - MealTrack",
       "/history": "History - MealTrack",
+      "/app/history": "History - MealTrack",
       "/changelog": "Changelog - MealTrack",
+      "/app/changelog": "Changelog - MealTrack",
       "/settings": "Settings - MealTrack",
+      "/app/settings": "Settings - MealTrack",
       "/auth": isRecoveryFlow ? "Reset Password - MealTrack" : "Authentication - MealTrack",
     };
 
@@ -218,7 +235,12 @@ function AppShell() {
     }
 
     if (session && location === "/auth" && !isRecoveryFlow) {
-      setLocation("/");
+      setLocation("/app");
+      return;
+    }
+
+    if (session && legacyMainRouteMap[location]) {
+      setLocation(legacyMainRouteMap[location]);
     }
   }, [authLinkResolved, hasRecoveryContext, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, loading, location, session, setLocation]);
 

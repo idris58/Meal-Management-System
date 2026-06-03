@@ -405,7 +405,7 @@ export default function Dashboard() {
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">All Members Summary</h2>
-          <Button variant="ghost" size="sm" asChild><a href="/members">View Details</a></Button>
+          <Button variant="ghost" size="sm" asChild><a href="/app/members">View Details</a></Button>
         </div>
         <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
           <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 border-b bg-secondary/20 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">

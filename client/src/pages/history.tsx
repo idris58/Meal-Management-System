@@ -834,7 +834,7 @@ export default function HistoryPage() {
           </p>
         </div>
         <Button variant="outline" size="icon" asChild title="View Changelog" aria-label="View Changelog">
-          <Link href="/changelog">
+          <Link href="/app/changelog">
             <ScrollText className="h-4 w-4" />
           </Link>
         </Button>

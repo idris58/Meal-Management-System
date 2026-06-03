@@ -41,4 +41,16 @@ fix: keep iOS PWA install instructions
 - Keep direct native install behavior for supported browsers
 - Avoid fallback dialogs on non-iOS browsers without install prompts
 
-another thing is in shared landing page the install button is show and after click it even work
+fix: prevent main PWA manifest from overriding shared install
+
+- Use a route-aware manifest link before the browser evaluates installability
+- Move the main PWA manifest to a static public manifest file
+- Disable Vite PWA manifest injection to avoid duplicate main manifest links
+- Keep shared routes using the shared manifest when MealTrack is already installed
+
+fix: separate main and shared PWA install scopes
+
+- Move the main MealTrack PWA scope from root to /app
+- Route authenticated main app pages through /app paths
+- Redirect old main app routes to their new /app equivalents
+- Keep shared routes outside the main PWA scope so shared install remains available
