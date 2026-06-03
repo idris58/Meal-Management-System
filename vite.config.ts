@@ -18,36 +18,10 @@ export default defineConfig({
         "icon-192.png",
         "icon-512.png",
         "opengraph.jpg",
+        "manifest.webmanifest",
         "shared-manifest.webmanifest",
       ],
-      manifest: {
-        id: "/",
-        name: "MealTrack",
-        short_name: "MealTrack",
-        description: "A professional, mobile-first Meal Management System for shared living environments.",
-        start_url: "/",
-        scope: "/",
-        display: "standalone",
-        theme_color: "#18b77b",
-        background_color: "#f8fafc",
-        icons: [
-          {
-            src: "/icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-          {
-            src: "/apple-touch-icon.png",
-            sizes: "180x180",
-            type: "image/png",
-          },
-        ],
-      },
+      manifest: false,
       workbox: {
         cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{js,css,html,png,jpg,jpeg,svg,webmanifest,woff2}"],
