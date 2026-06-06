@@ -669,15 +669,15 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
     <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
       <div className="flex items-center justify-between gap-4 py-4">
         <AccordionPrimitive.Header className="min-w-0 flex-1">
-          <AccordionPrimitive.Trigger className="flex w-full items-center justify-between text-left text-sm font-medium transition-all hover:no-underline [&[data-state=open]>svg]:rotate-180">
-            <div className="text-left">
+          <AccordionPrimitive.Trigger className="flex w-full items-center text-left text-sm font-medium transition-all hover:no-underline">
+            <div className="min-w-0 text-left">
               <p className="font-bold">{details.cycle.name}</p>
               <p className="text-sm text-muted-foreground">Closed: {format(new Date(details.cycle.finalizedAt || details.cycle.closedAt || details.cycle.startedAt), 'PPP')} • {details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals</p>
             </div>
-            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
           </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>
         <div className="flex shrink-0 items-center gap-2">
+          <Badge variant="secondary">Closed</Badge>
           {isExpanded ? (
             <>
               <AlertDialog>
@@ -733,7 +733,14 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
               </AlertDialog>
             </>
           ) : null}
-          <Badge variant="secondary">Closed</Badge>
+          <AccordionPrimitive.Header className="flex">
+            <AccordionPrimitive.Trigger
+              className="group flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary"
+              aria-label={isExpanded ? 'Collapse closed cycle' : 'Expand closed cycle'}
+            >
+              <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </AccordionPrimitive.Trigger>
+          </AccordionPrimitive.Header>
         </div>
       </div>
       <AccordionContent className="space-y-4 pb-6">

@@ -54,3 +54,10 @@ fix: separate main and shared PWA install scopes
 - Route authenticated main app pages through /app paths
 - Redirect old main app routes to their new /app equivalents
 - Keep shared routes outside the main PWA scope so shared install remains available
+
+fix: improve closed cycle accordion trigger
+
+- Move the closed cycle status badge inside the accordion trigger
+- Place the chevron on the right side beside the closed badge
+- Make the right side of closed cycle rows clickable for expansion
+- Keep the closed status and delete action grouped together
