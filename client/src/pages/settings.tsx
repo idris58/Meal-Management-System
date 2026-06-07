@@ -178,7 +178,7 @@ function ShareSettingsCard() {
   const mealCode = config?.token ?? '';
 
   const upsertConfig = async (nextConfig: ShareLinkConfig) => {
-    if (!user?.id) {
+    if (!user?.id || working) {
       return null;
     }
 
@@ -527,7 +527,7 @@ function NoticeSettingsCard() {
 
   const handleSubmitNotice = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!user?.id) return;
+    if (!user?.id || working) return;
 
     const trimTitle = title.trim();
     const trimContent = content.trim();
@@ -625,7 +625,7 @@ function NoticeSettingsCard() {
   };
 
   const handleDelete = async () => {
-    if (!activeNotice || !user?.id) return;
+    if (!activeNotice || !user?.id || working) return;
     setWorking(true);
     setError(null);
     setMessage(null);

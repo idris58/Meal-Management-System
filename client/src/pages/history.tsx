@@ -47,13 +47,22 @@ function SettlementForm({
   const { addDeposit } = useMeal();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isSubmitting) return;
+
     const parsed = parseFloat(amount);
     if (isNaN(parsed) || parsed === 0) return;
-    await addDeposit(memberId, parsed, cycleId, note || undefined);
-    onClose();
+    setIsSubmitting(true);
+
+    try {
+      await addDeposit(memberId, parsed, cycleId, note || undefined);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -63,13 +72,15 @@ function SettlementForm({
       </p>
       <div className="space-y-2">
         <label className="text-sm font-medium">Amount</label>
-        <Input type="number" placeholder="e.g. 300 or -300" value={amount} onChange={(event) => setAmount(event.target.value)} autoFocus />
+        <Input type="number" placeholder="e.g. 300 or -300" value={amount} onChange={(event) => setAmount(event.target.value)} autoFocus disabled={isSubmitting} />
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Note</label>
-        <Input placeholder={`Settlement for ${memberName}`} value={note} onChange={(event) => setNote(event.target.value)} />
+        <Input placeholder={`Settlement for ${memberName}`} value={note} onChange={(event) => setNote(event.target.value)} disabled={isSubmitting} />
       </div>
-      <Button type="submit" className="w-full">Save Settlement</Button>
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : 'Save Settlement'}
+      </Button>
     </form>
   );
 }
@@ -89,6 +100,8 @@ function PendingExpenseEditor({
   const [type, setType] = useState<'meal' | 'fixed'>(expense?.type ?? 'meal');
   const [paidBy, setPaidBy] = useState(expense?.paidBy ?? '');
   const [date, setDate] = useState<Date>(expense ? new Date(expense.date) : new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setDescription(expense?.description ?? '');
@@ -100,28 +113,41 @@ function PendingExpenseEditor({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isSubmitting) return;
+
     const parsedAmount = parseFloat(amount);
     if (!description.trim() || !paidBy.trim() || isNaN(parsedAmount) || parsedAmount === 0) return;
+    setIsSubmitting(true);
 
-    if (expense) {
-      await updateExpense(expense.id, {
-        description: description.trim(),
-        amount: parsedAmount,
-        type,
-        paidBy: paidBy.trim(),
-        date: format(date, 'yyyy-MM-dd'),
-      });
-    } else {
-      await addExpense(parsedAmount, description.trim(), type, paidBy.trim(), cycleId, format(date, 'yyyy-MM-dd'));
+    try {
+      if (expense) {
+        await updateExpense(expense.id, {
+          description: description.trim(),
+          amount: parsedAmount,
+          type,
+          paidBy: paidBy.trim(),
+          date: format(date, 'yyyy-MM-dd'),
+        });
+      } else {
+        await addExpense(parsedAmount, description.trim(), type, paidBy.trim(), cycleId, format(date, 'yyyy-MM-dd'));
+      }
+
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-
-    onClose();
   };
 
   const handleDelete = async () => {
-    if (!expense) return;
-    await deleteExpense(expense.id);
-    onClose();
+    if (!expense || isDeleting) return;
+    setIsDeleting(true);
+
+    try {
+      await deleteExpense(expense.id);
+      onClose();
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -176,7 +202,7 @@ function PendingExpenseEditor({
         <div className="flex gap-3">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button type="button" variant="destructive" className="flex-1">Delete</Button>
+              <Button type="button" variant="destructive" className="flex-1" disabled={isSubmitting || isDeleting}>Delete</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -187,14 +213,20 @@ function PendingExpenseEditor({
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <Button type="submit" className="flex-1">Save Changes</Button>
+          <Button type="submit" className="flex-1" disabled={isSubmitting || isDeleting}>
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          </Button>
         </div>
       ) : (
-        <Button type="submit" className="w-full">Add Expense</Button>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Adding...' : 'Add Expense'}
+        </Button>
       )}
     </form>
   );
@@ -213,6 +245,7 @@ function PendingMealEditor({
 }) {
   const { saveMealLogs } = useMeal();
   const [date, setDate] = useState<Date>(initialDate ?? new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
     Object.fromEntries(details.members.map((member) => [member.id, '0'])),
   );
@@ -241,16 +274,23 @@ function PendingMealEditor({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     const dateStr = format(date, 'yyyy-MM-dd');
-    await saveMealLogs(
-      Object.entries(mealCounts).map(([memberId, count]) => ({
-        memberId,
-        count: parseFloat(count),
-      })),
-      dateStr,
-      cycleId,
-    );
-    onClose();
+    try {
+      await saveMealLogs(
+        Object.entries(mealCounts).map(([memberId, count]) => ({
+          memberId,
+          count: parseFloat(count),
+        })),
+        dateStr,
+        cycleId,
+      );
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -283,7 +323,9 @@ function PendingMealEditor({
         ))}
       </div>
 
-      <Button type="submit" className="w-full">Save Meal Log</Button>
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : 'Save Meal Log'}
+      </Button>
     </form>
   );
 }
@@ -295,6 +337,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [mealDate, setMealDate] = useState<Date | undefined>(undefined);
+  const [isMarkingClosed, setIsMarkingClosed] = useState(false);
   const remainingBalance =
     details.stats.totalDeposits -
     details.stats.totalMealExpenses -
@@ -339,6 +382,17 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
     return eachDayOfInterval({ start: min(logDates), end: max(logDates) }).reverse();
   }, [details]);
 
+  const handleMarkClosed = async () => {
+    if (isMarkingClosed) return;
+    setIsMarkingClosed(true);
+
+    try {
+      await markCycleClosed(details.cycle.id);
+    } finally {
+      setIsMarkingClosed(false);
+    }
+  };
+
   return (
     <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
       <AccordionTrigger className="hover:no-underline py-4">
@@ -376,7 +430,9 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive">Mark Cycle Closed</Button>
+              <Button variant="destructive" disabled={isMarkingClosed}>
+                {isMarkingClosed ? 'Closing...' : 'Mark Cycle Closed'}
+              </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -387,7 +443,9 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => markCycleClosed(details.cycle.id)}>Yes, Mark Closed</AlertDialogAction>
+                <AlertDialogAction onClick={handleMarkClosed} disabled={isMarkingClosed}>
+                  {isMarkingClosed ? 'Closing...' : 'Yes, Mark Closed'}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -664,6 +722,18 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
 
 function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExpanded: boolean }) {
   const { deleteCycle } = useMeal();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteCycle = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+
+    try {
+      await deleteCycle(details.cycle.id);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
@@ -686,6 +756,7 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700 sm:hidden"
+                    disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -699,8 +770,8 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteCycle(details.cycle.id)}>
-                      Yes, Delete Cycle
+                    <AlertDialogAction onClick={handleDeleteCycle} disabled={isDeleting}>
+                      {isDeleting ? 'Deleting...' : 'Yes, Delete Cycle'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -711,6 +782,7 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
                     variant="ghost"
                     size="sm"
                     className="hidden gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 sm:inline-flex"
+                    disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete Cycle
@@ -725,8 +797,8 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteCycle(details.cycle.id)}>
-                      Yes, Delete Cycle
+                    <AlertDialogAction onClick={handleDeleteCycle} disabled={isDeleting}>
+                      {isDeleting ? 'Deleting...' : 'Yes, Delete Cycle'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

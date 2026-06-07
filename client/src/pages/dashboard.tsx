@@ -39,14 +39,22 @@ function formatCurrency(amount: number) {
 function QuickAddExpense({ onClose }: { onClose: () => void }) {
   const { addExpense } = useMeal();
   const [date, setDate] = useState<Date>(new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: { amount: undefined, description: '', type: 'meal', paidBy: '' },
   });
 
-  const onSubmit = (data: z.infer<typeof expenseSchema>) => {
-    addExpense(data.amount, data.description, data.type, data.paidBy, undefined, format(date, 'yyyy-MM-dd'));
-    onClose();
+  const onSubmit = async (data: z.infer<typeof expenseSchema>) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      await addExpense(data.amount, data.description, data.type, data.paidBy, undefined, format(date, 'yyyy-MM-dd'));
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -135,7 +143,9 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">Add Expense</Button>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Adding...' : 'Add Expense'}
+        </Button>
       </form>
     </Form>
   );
@@ -144,6 +154,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
 function QuickLogMeal({ onClose }: { onClose: () => void }) {
   const { saveMealLogs, members, mealLogs } = useMeal();
   const [date, setDate] = useState<Date>(new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
     Object.fromEntries(members.map(m => [m.id, '0']))
   );
@@ -175,15 +186,22 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     const dateStr = format(date, 'yyyy-MM-dd');
-    await saveMealLogs(
-      Object.entries(mealCounts).map(([memberId, countStr]) => ({
-        memberId,
-        count: parseFloat(countStr),
-      })),
-      dateStr,
-    );
-    onClose();
+    try {
+      await saveMealLogs(
+        Object.entries(mealCounts).map(([memberId, countStr]) => ({
+          memberId,
+          count: parseFloat(countStr),
+        })),
+        dateStr,
+      );
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -238,7 +256,9 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
           </div>
         ))}
       </div>
-      <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">Save Daily Log</Button>
+      <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : 'Save Daily Log'}
+      </Button>
     </form>
   );
 }
@@ -247,9 +267,22 @@ function CycleManagementCard({
   onCloseCycle,
   hasPendingCycle,
 }: {
-  onCloseCycle: () => void;
+  onCloseCycle: () => Promise<void>;
   hasPendingCycle: boolean;
 }) {
+  const [isClosingCycle, setIsClosingCycle] = useState(false);
+
+  const handleCloseCycle = async () => {
+    if (isClosingCycle) return;
+    setIsClosingCycle(true);
+
+    try {
+      await onCloseCycle();
+    } finally {
+      setIsClosingCycle(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -278,9 +311,9 @@ function CycleManagementCard({
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full gap-2" disabled={hasPendingCycle}>
+            <Button variant="destructive" className="w-full gap-2" disabled={hasPendingCycle || isClosingCycle}>
               <RefreshCcw className="h-4 w-4" />
-              Close Cycle
+              {isClosingCycle ? 'Closing...' : 'Close Cycle'}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
@@ -292,7 +325,9 @@ function CycleManagementCard({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={onCloseCycle}>Yes, Close Cycle</AlertDialogAction>
+              <AlertDialogAction onClick={handleCloseCycle} disabled={isClosingCycle}>
+                {isClosingCycle ? 'Closing...' : 'Yes, Close Cycle'}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

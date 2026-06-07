@@ -23,14 +23,22 @@ function formatMealCount(value: number) {
 
 function AddMemberForm({ onClose }: { onClose: () => void }) {
   const { addMember } = useMeal();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<z.infer<typeof memberSchema>>({
     resolver: zodResolver(memberSchema),
     defaultValues: { name: '' },
   });
 
-  const onSubmit = (data: z.infer<typeof memberSchema>) => {
-    addMember(data.name);
-    onClose();
+  const onSubmit = async (data: z.infer<typeof memberSchema>) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      await addMember(data.name);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -49,7 +57,9 @@ function AddMemberForm({ onClose }: { onClose: () => void }) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">Create Member</Button>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating...' : 'Create Member'}
+        </Button>
       </form>
     </Form>
   );
@@ -59,14 +69,22 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
   const { addDeposit } = useMeal();
   const [amount, setAmount] = useState('');
   const [mode, setMode] = useState<'add' | 'deduct'>('add');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     const val = parseFloat(amount);
     if (!isNaN(val) && val !== 0) {
+      setIsSubmitting(true);
       const signedAmount = mode === 'deduct' ? -Math.abs(val) : Math.abs(val);
-      addDeposit(memberId, signedAmount, undefined, mode === 'deduct' ? 'Deduction/Refund' : undefined);
-      onClose();
+      try {
+        await addDeposit(memberId, signedAmount, undefined, mode === 'deduct' ? 'Deduction/Refund' : undefined);
+        onClose();
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -77,6 +95,7 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
           type="button"
           variant={mode === 'add' ? 'default' : 'outline'}
           onClick={() => setMode('add')}
+          disabled={isSubmitting}
         >
           Add
         </Button>
@@ -84,6 +103,7 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
           type="button"
           variant={mode === 'deduct' ? 'destructive' : 'outline'}
           onClick={() => setMode('deduct')}
+          disabled={isSubmitting}
         >
           Deduct
         </Button>
@@ -98,10 +118,11 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           autoFocus
+          disabled={isSubmitting}
         />
       </div>
-      <Button type="submit" className="w-full">
-        {mode === 'deduct' ? 'Deduct Amount' : 'Add Deposit'}
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : mode === 'deduct' ? 'Deduct Amount' : 'Add Deposit'}
       </Button>
     </form>
   );
@@ -111,6 +132,18 @@ export default function Members() {
   const { members, removeMember, getMemberStats } = useMeal();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [depositMemberId, setDepositMemberId] = useState<string | null>(null);
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (deletingMemberId) return;
+    setDeletingMemberId(memberId);
+
+    try {
+      await removeMember(memberId);
+    } finally {
+      setDeletingMemberId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -153,6 +186,7 @@ export default function Members() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                        disabled={deletingMemberId === member.id}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -166,8 +200,11 @@ export default function Members() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => removeMember(member.id)}>
-                          Yes, Delete Member
+                        <AlertDialogAction
+                          onClick={() => handleRemoveMember(member.id)}
+                          disabled={deletingMemberId === member.id}
+                        >
+                          {deletingMemberId === member.id ? 'Deleting...' : 'Yes, Delete Member'}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

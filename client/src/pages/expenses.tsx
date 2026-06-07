@@ -39,6 +39,8 @@ function ExpenseEditor({
 }) {
   const { addExpense, updateExpense, deleteExpense } = useMeal();
   const [date, setDate] = useState<Date>(expense ? new Date(expense.date) : new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
@@ -60,22 +62,35 @@ function ExpenseEditor({
   }, [expense, form]);
 
   const onSubmit = async (data: z.infer<typeof expenseSchema>) => {
-    if (expense) {
-      await updateExpense(expense.id, {
-        ...data,
-        date: format(date, 'yyyy-MM-dd'),
-      });
-    } else {
-      await addExpense(data.amount, data.description, data.type, data.paidBy, undefined, format(date, 'yyyy-MM-dd'));
-    }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    onClose();
+    try {
+      if (expense) {
+        await updateExpense(expense.id, {
+          ...data,
+          date: format(date, 'yyyy-MM-dd'),
+        });
+      } else {
+        await addExpense(data.amount, data.description, data.type, data.paidBy, undefined, format(date, 'yyyy-MM-dd'));
+      }
+
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = async () => {
-    if (!expense) return;
-    await deleteExpense(expense.id);
-    onClose();
+    if (!expense || isDeleting) return;
+    setIsDeleting(true);
+
+    try {
+      await deleteExpense(expense.id);
+      onClose();
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -168,7 +183,7 @@ function ExpenseEditor({
           <div className="flex gap-3">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button type="button" variant="destructive" className="flex-1">
+                  <Button type="button" variant="destructive" className="flex-1" disabled={isSubmitting || isDeleting}>
                   Delete
                 </Button>
               </AlertDialogTrigger>
@@ -181,19 +196,19 @@ function ExpenseEditor({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>
-                    Yes, Delete Expense
+                  <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                    {isDeleting ? 'Deleting...' : 'Yes, Delete Expense'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Button type="submit" className="flex-1">
-              Save Changes
+            <Button type="submit" className="flex-1" disabled={isSubmitting || isDeleting}>
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         ) : (
-          <Button type="submit" className="w-full">
-            Add Expense
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Adding...' : 'Add Expense'}
           </Button>
         )}
       </form>

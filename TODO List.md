@@ -61,3 +61,11 @@ fix: improve closed cycle accordion trigger
 - Place the chevron on the right side beside the closed badge
 - Make the right side of closed cycle rows clickable for expansion
 - Keep the closed status and delete action grouped together
+
+fix: prevent duplicate async submissions
+
+- Disable expense submit buttons while add, update, or delete requests are running
+- Add submission guards for dashboard quick expense and meal log forms
+- Prevent duplicate member creation, deposit updates, and member deletes
+- Guard pending-cycle settlement, correction, close, and delete actions
+- Add early-return guards for share and notice settings actions

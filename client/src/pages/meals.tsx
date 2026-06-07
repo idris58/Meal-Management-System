@@ -24,6 +24,7 @@ function QuickLogMeal({
 }) {
   const { saveMealLogs, members, mealLogs } = useMeal();
   const [date, setDate] = useState<Date>(initialDate ?? new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [mealCounts, setMealCounts] = useState<Record<string, string>>(
     Object.fromEntries(members.map(member => [member.id, '0']))
   );
@@ -59,17 +60,24 @@ function QuickLogMeal({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     const dateStr = format(date, 'yyyy-MM-dd');
 
-    await saveMealLogs(
-      Object.entries(mealCounts).map(([memberId, countStr]) => ({
-        memberId,
-        count: parseFloat(countStr),
-      })),
-      dateStr,
-    );
+    try {
+      await saveMealLogs(
+        Object.entries(mealCounts).map(([memberId, countStr]) => ({
+          memberId,
+          count: parseFloat(countStr),
+        })),
+        dateStr,
+      );
 
-    onClose();
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -124,7 +132,9 @@ function QuickLogMeal({
           </div>
         ))}
       </div>
-      <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">Save Daily Log</Button>
+      <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : 'Save Daily Log'}
+      </Button>
     </form>
   );
 }
