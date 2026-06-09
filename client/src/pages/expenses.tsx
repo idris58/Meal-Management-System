@@ -257,7 +257,7 @@ export default function Expenses() {
                   <div className="text-right">
                     <p className="font-heading font-bold">৳{expense.amount.toFixed(0)}</p>
                     <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
-                      {expense.type === 'meal' ? 'Table A' : 'Table B'}
+                      {expense.type === 'meal' ? 'Meal' : 'Fixed'}
                     </Badge>
                   </div>
                 </div>
@@ -298,8 +298,8 @@ export default function Expenses() {
       <Tabs defaultValue="all" className="flex flex-1 flex-col">
         <TabsList className="mb-4 grid w-full flex-none grid-cols-3">
           <TabsTrigger value="all">All Expenses</TabsTrigger>
-          <TabsTrigger value="meal">Meals (Khoroc)</TabsTrigger>
-          <TabsTrigger value="fixed">Fixed (Other)</TabsTrigger>
+          <TabsTrigger value="meal">Meals</TabsTrigger>
+          <TabsTrigger value="fixed">Fixed</TabsTrigger>
         </TabsList>
 
         <ScrollArea className="flex-1 -mx-4 px-4">
