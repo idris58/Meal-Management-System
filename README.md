@@ -58,6 +58,10 @@ Create a `.env` file in the project root:
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+VAPID_PUBLIC_KEY=your_web_push_vapid_public_key
+VAPID_PRIVATE_KEY=your_web_push_vapid_private_key
+VAPID_SUBJECT=mailto:admin@example.com
+NOTIFICATION_TIMEZONE=Asia/Dhaka
 PORT=5000
 ```
 
@@ -65,6 +69,8 @@ Notes:
 
 - `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are used by the client.
 - `SUPABASE_SERVICE_ROLE_KEY` is required by the Express server for public share-link reads.
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` are required for Web Push notifications.
+- `NOTIFICATION_TIMEZONE` controls the daily meal reminder schedule and defaults to `Asia/Dhaka`.
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` in client code.
 
 ## Supabase Setup

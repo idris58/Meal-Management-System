@@ -1,14 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Copy, ExternalLink, Megaphone, Pencil, RefreshCcw, Save, Share2, Trash2 } from 'lucide-react';
+import { BellRing, Copy, ExternalLink, Megaphone, Pencil, RefreshCcw, Save, Share2, Trash2 } from 'lucide-react';
 import { addHours, format, formatDistanceToNow, isPast, parseISO } from 'date-fns';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/lib/auth-context';
 import { useMeal } from '@/lib/meal-context';
+import { usePushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
 
 type ShareLinkConfig = {
@@ -394,6 +396,76 @@ function ShareSettingsCard() {
   );
 }
 
+function NotificationSettingsCard() {
+  const {
+    supported,
+    status,
+    hasSubscription,
+    working,
+    error,
+    message,
+    subscribe,
+    unsubscribe,
+  } = usePushNotifications({ mode: 'main' });
+
+  const handleToggle = (checked: boolean) => {
+    if (checked) {
+      void subscribe();
+      return;
+    }
+
+    void unsubscribe();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <BellRing className="h-5 w-5 text-emerald-500" />
+          Push Notifications
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-start justify-between gap-4 rounded-xl border bg-secondary/30 p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Meal log reminders</p>
+            <p className="text-sm text-muted-foreground">
+              Get a browser notification at 10:00 PM if today&apos;s active-cycle meal log has not been saved.
+            </p>
+            {!supported ? (
+              <p className="text-xs text-muted-foreground">
+                This browser does not support Web Push notifications.
+              </p>
+            ) : status === 'denied' ? (
+              <p className="text-xs text-red-600">
+                Notifications are blocked. Allow them from your browser settings to enable reminders.
+              </p>
+            ) : null}
+          </div>
+          <Switch
+            checked={hasSubscription}
+            disabled={!supported || working || status === 'denied'}
+            onCheckedChange={handleToggle}
+            aria-label="Toggle meal log reminder notifications"
+          />
+        </div>
+
+        {message ? (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            {message}
+          </p>
+        ) : null}
+
+        {error ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 type ActiveNotice = {
   id: string;
   title: string;
@@ -438,7 +510,7 @@ function NoticeSettingsCard() {
     }
 
     try {
-      const response = await fetch('/api/share/broadcast', {
+      const response = await fetch('/api/notices/broadcast', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -849,6 +921,7 @@ export default function SettingsPage() {
       </header>
 
       <CurrentCycleSettingsCard />
+      <NotificationSettingsCard />
       <ShareSettingsCard />
       <NoticeSettingsCard />
     </div>

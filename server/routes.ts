@@ -2,6 +2,14 @@ import type { Express, Response } from "express";
 import { type Server } from "http";
 
 import { assertSupabaseAdmin } from "./supabase-admin";
+import {
+  getVapidPublicKey,
+  isPushConfigured,
+  parsePushSubscription,
+  removePushSubscription,
+  sendNoticePushToSharedSubscribers,
+  upsertPushSubscription,
+} from "./push";
 
 type MemberRow = {
   id: string;
@@ -357,6 +365,183 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.get("/api/push/vapid-public-key", (_req, res) => {
+    const publicKey = getVapidPublicKey();
+
+    if (!publicKey) {
+      return res.status(503).json({
+        configured: false,
+        message: "Push notifications are not configured on this server.",
+      });
+    }
+
+    return res.json({ configured: true, publicKey });
+  });
+
+  app.post("/api/push/subscribe", async (req, res) => {
+    const userId = await getAuthenticatedUserId(req.get("authorization"));
+
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid authorization token." });
+    }
+
+    if (!isPushConfigured()) {
+      return res.status(503).json({ message: "Push notifications are not configured." });
+    }
+
+    const subscription = parsePushSubscription(req.body);
+    if (!subscription) {
+      return res.status(400).json({ message: "Invalid push subscription." });
+    }
+
+    await upsertPushSubscription({
+      userId,
+      audience: "main",
+      subscription,
+      userAgent: req.get("user-agent") ?? undefined,
+    });
+
+    return res.json({ ok: true });
+  });
+
+  app.post("/api/push/status", async (req, res) => {
+    const userId = await getAuthenticatedUserId(req.get("authorization"));
+
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid authorization token." });
+    }
+
+    const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+    if (!endpoint) {
+      return res.json({ subscribed: false });
+    }
+
+    const supabaseAdmin = assertSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("audience", "main")
+      .eq("endpoint", endpoint)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return res.json({ subscribed: Boolean(data) });
+  });
+
+  app.post("/api/push/unsubscribe", async (req, res) => {
+    const userId = await getAuthenticatedUserId(req.get("authorization"));
+
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid authorization token." });
+    }
+
+    const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+    if (!endpoint) {
+      return res.status(400).json({ message: "Missing subscription endpoint." });
+    }
+
+    await removePushSubscription(endpoint);
+
+    return res.json({ ok: true });
+  });
+
+  app.post("/api/push/shared/:token/subscribe", async (req, res) => {
+    const token = String(req.params.token || "").trim();
+
+    if (!token) {
+      return res.status(400).json({ message: "Missing share token." });
+    }
+
+    if (!isPushConfigured()) {
+      return res.status(503).json({ message: "Push notifications are not configured." });
+    }
+
+    const subscription = parsePushSubscription(req.body);
+    if (!subscription) {
+      return res.status(400).json({ message: "Invalid push subscription." });
+    }
+
+    const supabaseAdmin = assertSupabaseAdmin();
+    const { data: shareLink, error } = await supabaseAdmin
+      .from("share_links")
+      .select("user_id, is_enabled")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!shareLink || !shareLink.is_enabled) {
+      return res.status(404).json({ message: "This Meal Code is not available for notifications." });
+    }
+
+    await upsertPushSubscription({
+      userId: shareLink.user_id,
+      audience: "shared",
+      shareToken: token,
+      subscription,
+      userAgent: req.get("user-agent") ?? undefined,
+    });
+
+    return res.json({ ok: true });
+  });
+
+  app.post("/api/push/shared/:token/status", async (req, res) => {
+    const token = String(req.params.token || "").trim();
+    const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+
+    if (!token || !endpoint) {
+      return res.json({ subscribed: false });
+    }
+
+    const supabaseAdmin = assertSupabaseAdmin();
+    const { data: shareLink, error: shareLinkError } = await supabaseAdmin
+      .from("share_links")
+      .select("user_id, is_enabled")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (shareLinkError) {
+      throw shareLinkError;
+    }
+
+    if (!shareLink || !shareLink.is_enabled) {
+      return res.json({ subscribed: false });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id")
+      .eq("user_id", shareLink.user_id)
+      .eq("audience", "shared")
+      .eq("share_token", token)
+      .eq("endpoint", endpoint)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return res.json({ subscribed: Boolean(data) });
+  });
+
+  app.post("/api/push/shared/:token/unsubscribe", async (req, res) => {
+    const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+
+    if (!endpoint) {
+      return res.status(400).json({ message: "Missing subscription endpoint." });
+    }
+
+    await removePushSubscription(endpoint);
+
+    return res.json({ ok: true });
+  });
+
   app.get("/api/share/:token/events", async (req, res) => {
     const token = String(req.params.token || "").trim();
 
@@ -410,6 +595,7 @@ export async function registerRoutes(
 
     const activeNotice = await getActiveNoticeForUser(userId);
     broadcastNoticeUpdate(userId, activeNotice);
+    void sendNoticePushToSharedSubscribers(userId, activeNotice);
 
     return res.json({ activeNotice });
   });

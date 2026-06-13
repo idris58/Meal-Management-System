@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowLeftRight,
+  BellRing,
   ChefHat,
   KeyRound,
   Loader2,
@@ -23,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePushNotifications } from "@/lib/push-notifications";
 import { cn } from "@/lib/utils";
 
 const LAST_SHARED_MEAL_CODE_KEY = "mealtrack:last-shared-meal-code";
@@ -161,6 +163,47 @@ function NoticeTicker({ notice }: { notice: NonNullable<SharedPayload["activeNot
         </div>
       </div>
     </div>
+  );
+}
+
+function SharedNoticeNotificationButton({ token }: { token: string }) {
+  const {
+    supported,
+    status,
+    hasSubscription,
+    working,
+    subscribe,
+    unsubscribe,
+  } = usePushNotifications({ mode: "shared", shareToken: token });
+
+  if (!supported || status === "denied") {
+    return null;
+  }
+
+  const handleClick = () => {
+    if (hasSubscription) {
+      void unsubscribe();
+      return;
+    }
+
+    void subscribe();
+  };
+
+  return (
+    <Button
+      type="button"
+      variant={hasSubscription ? "secondary" : "outline"}
+      size="sm"
+      className="gap-2"
+      onClick={handleClick}
+      disabled={working}
+      title={hasSubscription ? "Disable notice notifications" : "Enable notice notifications"}
+    >
+      <BellRing className="h-4 w-4" />
+      <span className="hidden sm:inline">
+        {hasSubscription ? "Notices On" : "Notify Me"}
+      </span>
+    </Button>
   );
 }
 
@@ -606,6 +649,7 @@ export default function SharedPage({ token }: { token: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
+            <SharedNoticeNotificationButton token={token} />
             <PwaInstallButton
               appId="shared"
               appName="MealTrack Shared"
