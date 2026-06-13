@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeftRight,
+  BellRing,
   ChefHat,
   KeyRound,
   Loader2,
@@ -169,7 +170,9 @@ function SharedNoticeNotificationSubscriber({ token }: { token: string }) {
   const {
     supported,
     status,
+    permission,
     hasSubscription,
+    working,
     subscribe,
   } = usePushNotifications({ mode: "shared", shareToken: token });
   const attemptedSubscribe = useRef(false);
@@ -180,6 +183,7 @@ function SharedNoticeNotificationSubscriber({ token }: { token: string }) {
       !supported ||
       status === "denied" ||
       status === "working" ||
+      permission !== "granted" ||
       hasSubscription
     ) {
       return;
@@ -187,9 +191,28 @@ function SharedNoticeNotificationSubscriber({ token }: { token: string }) {
 
     attemptedSubscribe.current = true;
     void subscribe();
-  }, [hasSubscription, status, subscribe, supported]);
+  }, [hasSubscription, permission, status, subscribe, supported]);
 
-  return null;
+  if (!supported || status === "denied" || hasSubscription) {
+    return null;
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="gap-2"
+      onClick={() => void subscribe()}
+      disabled={working}
+      title="Enable notice notifications"
+    >
+      <BellRing className="h-4 w-4" />
+      <span className="hidden sm:inline">
+        {working ? "Enabling..." : "Enable Alerts"}
+      </span>
+    </Button>
+  );
 }
 
 function getExpenseEmptyState(tab: "all" | "meal" | "fixed") {
@@ -613,7 +636,6 @@ export default function SharedPage({ token }: { token: string }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <SharedNoticeNotificationSubscriber token={token} />
       <div className="border-b bg-card/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
           <div className="flex items-center gap-3">
@@ -635,6 +657,7 @@ export default function SharedPage({ token }: { token: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
+            <SharedNoticeNotificationSubscriber token={token} />
             <PwaInstallButton
               appId="shared"
               appName="MealTrack Shared"
