@@ -24,3 +24,5 @@ fix: preserve push subscriptions across app contexts
 - scope push unsubscribe requests to the current notification audience
 - keep browser PushManager subscriptions active when disabling one notification context
 - add migration for scoped push subscription uniqueness
+
+fix: update Open Graph and Twitter meta tags for accurate branding
