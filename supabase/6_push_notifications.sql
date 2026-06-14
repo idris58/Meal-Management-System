@@ -3,7 +3,7 @@ create table if not exists public.push_subscriptions (
   user_id uuid not null references auth.users(id) on delete cascade,
   audience text not null check (audience in ('main', 'shared')),
   share_token text,
-  endpoint text not null unique,
+  endpoint text not null,
   p256dh text not null,
   auth text not null,
   user_agent text,
@@ -17,6 +17,14 @@ create index if not exists push_subscriptions_user_audience_idx
 
 create index if not exists push_subscriptions_shared_token_idx
   on public.push_subscriptions(share_token)
+  where audience = 'shared';
+
+create unique index if not exists push_subscriptions_main_unique_idx
+  on public.push_subscriptions(user_id, endpoint)
+  where audience = 'main' and share_token is null;
+
+create unique index if not exists push_subscriptions_shared_unique_idx
+  on public.push_subscriptions(user_id, share_token, endpoint)
   where audience = 'shared';
 
 create table if not exists public.notification_deliveries (

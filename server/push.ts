@@ -157,30 +157,91 @@ export async function upsertPushSubscription({
   userAgent?: string;
 }) {
   const supabase = assertSupabaseAdmin();
+  const normalizedShareToken = shareToken ?? null;
+  let existingQuery = supabase
+    .from("push_subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("audience", audience)
+    .eq("endpoint", subscription.endpoint);
 
-  const { error } = await supabase.from("push_subscriptions").upsert(
-    {
+  existingQuery =
+    normalizedShareToken === null
+      ? existingQuery.is("share_token", null)
+      : existingQuery.eq("share_token", normalizedShareToken);
+
+  const { data: existingSubscription, error: existingError } =
+    await existingQuery.maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existingSubscription?.id) {
+    const { error } = await supabase
+      .from("push_subscriptions")
+      .update({
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+        user_agent: userAgent ?? null,
+        updated_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+      })
+      .eq("id", existingSubscription.id);
+
+    if (error) {
+      throw error;
+    }
+
+    return;
+  }
+
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .insert({
       user_id: userId,
       audience,
-      share_token: shareToken ?? null,
+      share_token: normalizedShareToken,
       endpoint: subscription.endpoint,
       p256dh: subscription.p256dh,
       auth: subscription.auth,
       user_agent: userAgent ?? null,
       updated_at: new Date().toISOString(),
       last_seen_at: new Date().toISOString(),
-    },
-    { onConflict: "endpoint" },
-  );
+    });
 
   if (error) {
     throw error;
   }
 }
 
-export async function removePushSubscription(endpoint: string) {
+export async function removePushSubscription({
+  endpoint,
+  userId,
+  audience,
+  shareToken,
+}: {
+  endpoint: string;
+  userId?: string;
+  audience?: PushAudience;
+  shareToken?: string | null;
+}) {
   const supabase = assertSupabaseAdmin();
-  const { error } = await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+  let query = supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  if (audience) {
+    query = query.eq("audience", audience);
+  }
+
+  if (shareToken !== undefined) {
+    query = shareToken === null ? query.is("share_token", null) : query.eq("share_token", shareToken);
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw error;
@@ -239,6 +300,16 @@ export async function sendNoticePushToSharedSubscribers(
     return;
   }
 
+  const deliveryRecorded = await recordDelivery(
+    userId,
+    "notice_posted",
+    `${notice.id}:${notice.expiresAt}`,
+  );
+
+  if (!deliveryRecorded) {
+    return;
+  }
+
   const supabase = assertSupabaseAdmin();
   const { data, error } = await supabase
     .from("push_subscriptions")
@@ -252,22 +323,7 @@ export async function sendNoticePushToSharedSubscribers(
     return;
   }
 
-  const rows = (data || []) as PushSubscriptionRow[];
-  if (rows.length === 0) {
-    return;
-  }
-
-  const deliveryRecorded = await recordDelivery(
-    userId,
-    "notice_posted",
-    `${notice.id}:${notice.expiresAt}`,
-  );
-
-  if (!deliveryRecorded) {
-    return;
-  }
-
-  await sendPushToRows(rows, {
+  await sendPushToRows((data || []) as PushSubscriptionRow[], {
     title: "New MealTrack Notice",
     body: truncateNotificationBody(`${notice.title}: ${notice.content}`),
     url: `/shared/${shareToken}`,

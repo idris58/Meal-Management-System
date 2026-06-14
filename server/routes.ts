@@ -444,7 +444,12 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Missing subscription endpoint." });
     }
 
-    await removePushSubscription(endpoint);
+    await removePushSubscription({
+      endpoint,
+      userId,
+      audience: "main",
+      shareToken: null,
+    });
 
     return res.json({ ok: true });
   });
@@ -531,13 +536,32 @@ export async function registerRoutes(
   });
 
   app.post("/api/push/shared/:token/unsubscribe", async (req, res) => {
+    const token = String(req.params.token || "").trim();
     const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
 
-    if (!endpoint) {
+    if (!token || !endpoint) {
       return res.status(400).json({ message: "Missing subscription endpoint." });
     }
 
-    await removePushSubscription(endpoint);
+    const supabaseAdmin = assertSupabaseAdmin();
+    const { data: shareLink, error } = await supabaseAdmin
+      .from("share_links")
+      .select("user_id")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (shareLink) {
+      await removePushSubscription({
+        endpoint,
+        userId: shareLink.user_id,
+        audience: "shared",
+        shareToken: token,
+      });
+    }
 
     return res.json({ ok: true });
   });

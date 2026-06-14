@@ -199,7 +199,7 @@ function SharedNoticeNotificationButton({ token }: { token: string }) {
       disabled={working}
       title={hasSubscription ? "Disable notice notifications" : "Enable notice notifications"}
     >
-      <BellRing className="h-4 w-4" />
+      <BellRing className={cn("h-4 w-4", hasSubscription && "text-primary")} />
       <span className="hidden sm:inline">
         {hasSubscription ? "Notices On" : "Notify Me"}
       </span>

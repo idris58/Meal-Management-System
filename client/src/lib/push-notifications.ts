@@ -259,7 +259,6 @@ export function usePushNotifications({
         });
       }
 
-      await subscription?.unsubscribe();
       setHasSubscription(false);
       setMessage("Notifications disabled on this browser.");
     } catch (caughtError) {
