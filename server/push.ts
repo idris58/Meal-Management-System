@@ -239,16 +239,6 @@ export async function sendNoticePushToSharedSubscribers(
     return;
   }
 
-  const deliveryRecorded = await recordDelivery(
-    userId,
-    "notice_posted",
-    `${notice.id}:${notice.expiresAt}`,
-  );
-
-  if (!deliveryRecorded) {
-    return;
-  }
-
   const supabase = assertSupabaseAdmin();
   const { data, error } = await supabase
     .from("push_subscriptions")
@@ -262,7 +252,22 @@ export async function sendNoticePushToSharedSubscribers(
     return;
   }
 
-  await sendPushToRows((data || []) as PushSubscriptionRow[], {
+  const rows = (data || []) as PushSubscriptionRow[];
+  if (rows.length === 0) {
+    return;
+  }
+
+  const deliveryRecorded = await recordDelivery(
+    userId,
+    "notice_posted",
+    `${notice.id}:${notice.expiresAt}`,
+  );
+
+  if (!deliveryRecorded) {
+    return;
+  }
+
+  await sendPushToRows(rows, {
     title: "New MealTrack Notice",
     body: truncateNotificationBody(`${notice.title}: ${notice.content}`),
     url: `/shared/${shareToken}`,

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowLeftRight,
   BellRing,
@@ -166,50 +166,42 @@ function NoticeTicker({ notice }: { notice: NonNullable<SharedPayload["activeNot
   );
 }
 
-function SharedNoticeNotificationSubscriber({ token }: { token: string }) {
+function SharedNoticeNotificationButton({ token }: { token: string }) {
   const {
     supported,
     status,
-    permission,
     hasSubscription,
     working,
     subscribe,
+    unsubscribe,
   } = usePushNotifications({ mode: "shared", shareToken: token });
-  const attemptedSubscribe = useRef(false);
 
-  useEffect(() => {
-    if (
-      attemptedSubscribe.current ||
-      !supported ||
-      status === "denied" ||
-      status === "working" ||
-      permission !== "granted" ||
-      hasSubscription
-    ) {
+  if (!supported || status === "denied") {
+    return null;
+  }
+
+  const handleClick = () => {
+    if (hasSubscription) {
+      void unsubscribe();
       return;
     }
 
-    attemptedSubscribe.current = true;
     void subscribe();
-  }, [hasSubscription, permission, status, subscribe, supported]);
-
-  if (!supported || status === "denied" || hasSubscription) {
-    return null;
-  }
+  };
 
   return (
     <Button
       type="button"
-      variant="outline"
+      variant={hasSubscription ? "secondary" : "outline"}
       size="sm"
       className="gap-2"
-      onClick={() => void subscribe()}
+      onClick={handleClick}
       disabled={working}
-      title="Enable notice notifications"
+      title={hasSubscription ? "Disable notice notifications" : "Enable notice notifications"}
     >
       <BellRing className="h-4 w-4" />
       <span className="hidden sm:inline">
-        {working ? "Enabling..." : "Enable Alerts"}
+        {hasSubscription ? "Notices On" : "Notify Me"}
       </span>
     </Button>
   );
@@ -657,7 +649,7 @@ export default function SharedPage({ token }: { token: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <SharedNoticeNotificationSubscriber token={token} />
+            <SharedNoticeNotificationButton token={token} />
             <PwaInstallButton
               appId="shared"
               appName="MealTrack Shared"
