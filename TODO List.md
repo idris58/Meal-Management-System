@@ -26,3 +26,10 @@ fix: preserve push subscriptions across app contexts
 - add migration for scoped push subscription uniqueness
 
 fix: update Open Graph and Twitter meta tags for accurate branding
+
+chore: update settlement balance labels
+
+- replace main app Manager Pabe label with Receivable
+- replace main app Manager Dibe label with Payable
+- replace shared view Manager Pabe label with Due
+- replace shared view Manager Dibe label with Refund

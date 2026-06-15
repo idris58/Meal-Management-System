@@ -897,7 +897,7 @@ export default function SharedPage({ token }: { token: string }) {
                     </div>
                     <div className="rounded-lg bg-secondary/30 px-3 py-2">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {member.balance < 0 ? "Manager Pabe" : "Manager Dibe"}
+                        {member.balance < 0 ? "Due" : "Refund"}
                       </p>
                       <p
                         className={cn(
