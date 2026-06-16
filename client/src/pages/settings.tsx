@@ -18,8 +18,16 @@ type ShareLinkConfig = {
   is_enabled: boolean;
 };
 
+const SHARE_TOKEN_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+const SHARE_TOKEN_LENGTH = 6;
+
 function createShareToken() {
-  return crypto.randomUUID().replace(/-/g, '');
+  const randomValues = new Uint8Array(SHARE_TOKEN_LENGTH);
+  crypto.getRandomValues(randomValues);
+
+  return Array.from(randomValues, (value) => (
+    SHARE_TOKEN_ALPHABET[value % SHARE_TOKEN_ALPHABET.length]
+  )).join('');
 }
 
 function CurrentCycleSettingsCard() {
