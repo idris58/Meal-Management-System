@@ -287,23 +287,46 @@ function OfflineBanner() {
 
 function PwaUpdateNotifier() {
   const hasShownUpdateToast = useRef(false);
+  const waitingRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) {
       return;
     }
 
-    const showUpdateToast = () => {
+    const activateWaitingServiceWorker = () => {
+      const waitingWorker = waitingRegistrationRef.current?.waiting;
+
+      if (!waitingWorker) {
+        window.location.reload();
+        return;
+      }
+
+      let reloading = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloading) {
+          return;
+        }
+
+        reloading = true;
+        window.location.reload();
+      });
+
+      waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    };
+
+    const showUpdateToast = (registration: ServiceWorkerRegistration) => {
       if (hasShownUpdateToast.current) {
         return;
       }
 
+      waitingRegistrationRef.current = registration;
       hasShownUpdateToast.current = true;
       toast({
         title: "New version available",
         description: "Refresh to load the latest app changes.",
         action: (
-          <ToastAction altText="Refresh app" onClick={() => window.location.reload()}>
+          <ToastAction altText="Refresh app" onClick={activateWaitingServiceWorker}>
             Refresh
           </ToastAction>
         ),
@@ -318,7 +341,7 @@ function PwaUpdateNotifier() {
       }
 
       if (registration.waiting && navigator.serviceWorker.controller) {
-        showUpdateToast();
+        showUpdateToast(registration);
       }
 
       registration.addEventListener("updatefound", () => {
@@ -332,7 +355,7 @@ function PwaUpdateNotifier() {
             installingWorker.state === "installed" &&
             navigator.serviceWorker.controller
           ) {
-            showUpdateToast();
+            showUpdateToast(registration);
           }
         });
       });

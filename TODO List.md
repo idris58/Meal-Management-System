@@ -1,3 +1,21 @@
+feat: shorten generated meal codes
+
+- replace UUID share token generation with 6-character meal codes
+- use a readable uppercase alphabet for generated codes
+- keep existing share links valid until regenerated
+
+fix: activate waiting service worker on app refresh
+
+- add SKIP_WAITING message handling to the custom service worker
+- claim clients after service worker activation
+- update the new-version toast refresh action to activate the waiting worker
+- reload only after the new service worker takes control
+
+
+
+
+
+
 # MealTrack — Improvement & Feature Suggestions
 
 ## 🔴 High Impact — Quick Wins

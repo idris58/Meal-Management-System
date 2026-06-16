@@ -3,6 +3,7 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import { createHandlerBoundToURL } from "workbox-precaching";
+import { clientsClaim } from "workbox-core";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -16,6 +17,7 @@ type PushPayload = {
 };
 
 cleanupOutdatedCaches();
+clientsClaim();
 precacheAndRoute(self.__WB_MANIFEST);
 
 registerRoute(
@@ -23,6 +25,12 @@ registerRoute(
     denylist: [/^\/api\//],
   }),
 );
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    void self.skipWaiting();
+  }
+});
 
 self.addEventListener("push", (event) => {
   const payload = event.data?.json() as PushPayload | undefined;
