@@ -16,7 +16,12 @@ chore: update settlement balance labels for more clearity
 - replace main app Receivable label with Due
 - replace main app Payable label with Refund
 
+feat: auto-clean old notification deliveries
 
+- add cleanup job for notification_deliveries older than 24 hours
+- run notification delivery cleanup once on server startup
+- schedule hourly cleanup for expired notification delivery rows
+- wire cleanup scheduler into Express server startup
 
 
 

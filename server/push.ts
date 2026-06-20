@@ -28,6 +28,7 @@ type ActiveCycleRow = {
 };
 
 const DEFAULT_TIMEZONE = "Asia/Dhaka";
+const NOTIFICATION_DELIVERY_RETENTION_MS = 24 * 60 * 60 * 1000;
 let vapidConfigured = false;
 let hasLoggedMissingVapid = false;
 
@@ -419,6 +420,20 @@ export async function sendMealLogReminders() {
   }
 }
 
+export async function cleanupOldNotificationDeliveries() {
+  const supabase = assertSupabaseAdmin();
+  const cutoff = new Date(Date.now() - NOTIFICATION_DELIVERY_RETENTION_MS).toISOString();
+
+  const { error } = await supabase
+    .from("notification_deliveries")
+    .delete()
+    .lt("sent_at", cutoff);
+
+  if (error) {
+    console.error("Error deleting old notification deliveries:", error);
+  }
+}
+
 export function startMealReminderScheduler() {
   if (!supabaseAdmin) {
     console.warn("Meal reminder scheduler disabled. Missing Supabase service role client.");
@@ -434,3 +449,17 @@ export function startMealReminderScheduler() {
     { timezone: timeZone },
   );
 }
+
+export function startNotificationDeliveryCleanupScheduler() {
+  if (!supabaseAdmin) {
+    console.warn("Notification delivery cleanup disabled. Missing Supabase service role client.");
+    return;
+  }
+
+  void cleanupOldNotificationDeliveries();
+
+  cron.schedule("0 * * * *", () => {
+    void cleanupOldNotificationDeliveries();
+  });
+}
+
