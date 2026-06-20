@@ -11,6 +11,11 @@ fix: activate waiting service worker on app refresh
 - update the new-version toast refresh action to activate the waiting worker
 - reload only after the new service worker takes control
 
+chore: update settlement balance labels for more clearity
+
+- replace main app Receivable label with Due
+- replace main app Payable label with Refund
+
 
 
 

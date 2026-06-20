@@ -445,8 +445,8 @@ export default function Dashboard() {
         <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
           <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 border-b bg-secondary/20 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
             <div>Member</div>
-            <div className="text-right">Receivable</div>
-            <div className="text-right">Payable</div>
+            <div className="text-right">Due</div>
+            <div className="text-right">Refund</div>
           </div>
           <div className="divide-y">
             {memberSettlementRows.map((member) => (
