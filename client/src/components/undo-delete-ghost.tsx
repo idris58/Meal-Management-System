@@ -42,12 +42,12 @@ export function UndoDeleteGhost({
 
   return (
     <div className={cn('relative overflow-hidden rounded-lg', className)}>
-      <div className="pointer-events-none select-none opacity-25 blur-[1px] grayscale-[25%]">
+      <div className="pointer-events-none select-none opacity-55 grayscale-[10%]">
         {children}
       </div>
       <div
         className={cn(
-          'absolute inset-0 z-10 flex items-center justify-center border border-dashed border-amber-500/80 bg-amber-100/80 px-4 py-3 text-center shadow-[inset_0_-3px_0_rgba(180,83,9,0.35)] backdrop-blur-[1px]',
+          'absolute inset-0 z-10 flex items-center justify-center border border-dashed border-amber-500/70 bg-amber-50/55 px-4 py-3 text-center shadow-[inset_0_-2px_0_rgba(180,83,9,0.22)]',
           overlayClassName,
         )}
       >
@@ -56,9 +56,9 @@ export function UndoDeleteGhost({
             <p className="truncate text-sm font-semibold text-foreground sm:text-base">
               {message} ({remainingSeconds}s)
             </p>
-            <div className="mx-auto h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-white/80 shadow-inner">
+            <div className="mx-auto h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-white/70 shadow-inner">
               <div
-                className="h-full rounded-full bg-amber-600 transition-[width] duration-200 ease-linear"
+                className="h-full rounded-full bg-amber-500 transition-[width] duration-200 ease-linear"
                 style={{ width: `${progress}%` }}
               />
             </div>

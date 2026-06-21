@@ -18,6 +18,13 @@ feat: replace delete toast undo with inline ghost rows
 - add inline undo rows for closed-cycle deletes
 - remove toast-based undo actions from delete flows
 
+style: soften inline delete ghost rows
+
+- make deleted items more visible during undo grace period
+- remove blur from ghost row content
+- reduce amber overlay intensity
+- lighten countdown progress styling
+
 # MealTrack — Improvement & Feature Suggestions
 
 ## 🔴 High Impact — Quick Wins
