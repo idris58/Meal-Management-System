@@ -25,6 +25,9 @@ style: soften inline delete ghost rows
 - reduce amber overlay intensity
 - lighten countdown progress styling
 
+refactor: update delete confirmation messages for expenses and members
+
+
 # MealTrack — Improvement & Feature Suggestions
 
 ## 🔴 High Impact — Quick Wins
