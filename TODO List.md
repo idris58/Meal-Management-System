@@ -10,6 +10,8 @@ feat: add undoable soft deletes
 - permanently clean expired soft deletes from the server scheduler
 
 
+
+
 # MealTrack — Improvement & Feature Suggestions
 
 ## 🔴 High Impact — Quick Wins
