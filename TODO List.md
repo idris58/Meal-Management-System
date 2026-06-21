@@ -1,29 +1,13 @@
-feat: shorten generated meal codes
+## Changes Made
 
-- replace UUID share token generation with 6-character meal codes
-- use a readable uppercase alphabet for generated codes
-- keep existing share links valid until regenerated
+feat: add undoable soft deletes
 
-fix: activate waiting service worker on app refresh
-
-- add SKIP_WAITING message handling to the custom service worker
-- claim clients after service worker activation
-- update the new-version toast refresh action to activate the waiting worker
-- reload only after the new service worker takes control
-
-chore: update settlement balance labels for more clearity
-
-- replace main app Receivable label with Due
-- replace main app Payable label with Refund
-
-feat: auto-clean old notification deliveries
-
-- add cleanup job for notification_deliveries older than 24 hours
-- run notification delivery cleanup once on server startup
-- schedule hourly cleanup for expired notification delivery rows
-- wire cleanup scheduler into Express server startup
-
-
+- add soft-delete columns and cleanup indexes for expenses, members, and cycles
+- replace hard deletes with 10-second soft-delete grace period
+- add toast Undo actions for expense, member, and closed-cycle deletes
+- add restore methods to meal context
+- hide soft-deleted records from app and shared views
+- permanently clean expired soft deletes from the server scheduler
 
 
 # MealTrack — Improvement & Feature Suggestions
@@ -85,7 +69,7 @@ The app loads ALL expenses, meal logs, deposits, and changelog entries at once:
 - Critical for long-running groups with many cycles
 
 > [!WARNING]
-> As users accumulate more cycles and data, the current "load everything" approach in [meal-context.tsx](file:///c:/Users/SM%20IDRIS/Downloads/Compressed/Meal-Management-System/client/src/lib/meal-context.tsx) will become a performance bottleneck. Consider lazy-loading per cycle.
+> As users accumulate more cycles and data, the current "load everything" approach in [meal-context.tsx] will become a performance bottleneck. Consider lazy-loading per cycle.
 
 ---
 

@@ -274,6 +274,7 @@ async function getSharedPayloadForUser(userId: string): Promise<SharedPayload | 
     .from("cycles")
     .select("id, name, status, started_at, closed_at, members_snapshot")
     .eq("user_id", userId)
+    .is("deleted_at", null)
     .in("status", ["pending", "active"])
     .order("closed_at", { ascending: false, nullsFirst: false })
     .order("started_at", { ascending: false })
@@ -294,6 +295,7 @@ async function getSharedPayloadForUser(userId: string): Promise<SharedPayload | 
         .from("members")
         .select("id, name, avatar")
         .eq("user_id", userId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("cycle_deposits")
@@ -306,6 +308,7 @@ async function getSharedPayloadForUser(userId: string): Promise<SharedPayload | 
         .select("id, cycle_id, amount, description, type, date, paid_by")
         .eq("user_id", userId)
         .eq("cycle_id", cycle.id)
+        .is("deleted_at", null)
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("meal_logs")

@@ -19,6 +19,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { ToastAction } from '@/components/ui/toast';
+import { toast } from '@/hooks/use-toast';
 
 const expenseSchema = z.object({
   amount: z.preprocess(
@@ -37,7 +39,7 @@ function ExpenseEditor({
   expense?: Expense | null;
   onClose: () => void;
 }) {
-  const { addExpense, updateExpense, deleteExpense } = useMeal();
+  const { addExpense, updateExpense, deleteExpense, restoreExpense } = useMeal();
   const [date, setDate] = useState<Date>(expense ? new Date(expense.date) : new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -87,6 +89,15 @@ function ExpenseEditor({
 
     try {
       await deleteExpense(expense.id);
+      toast({
+        title: 'Deleted',
+        description: 'Expense removed. It will be permanently deleted in 10 seconds.',
+        action: (
+          <ToastAction altText="Undo expense delete" onClick={() => void restoreExpense(expense.id)}>
+            Undo
+          </ToastAction>
+        ),
+      });
       onClose();
     } finally {
       setIsDeleting(false);
@@ -191,7 +202,7 @@ function ExpenseEditor({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently remove the expense from the current cycle totals and expense list.
+                    This will remove the expense from the current cycle totals and expense list.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

@@ -462,4 +462,51 @@ export function startNotificationDeliveryCleanupScheduler() {
     void cleanupOldNotificationDeliveries();
   });
 }
+export async function cleanupExpiredSoftDeletes() {
+  const supabase = assertSupabaseAdmin();
+  const now = new Date().toISOString();
 
+  const { error: expenseError } = await supabase
+    .from("expenses")
+    .delete()
+    .not("deleted_at", "is", null)
+    .lte("delete_expires_at", now);
+
+  if (expenseError) {
+    console.error("Error deleting expired soft-deleted expenses:", expenseError);
+  }
+
+  const { error: memberError } = await supabase
+    .from("members")
+    .delete()
+    .not("deleted_at", "is", null)
+    .lte("delete_expires_at", now);
+
+  if (memberError) {
+    console.error("Error deleting expired soft-deleted members:", memberError);
+  }
+
+  const { error: cycleError } = await supabase
+    .from("cycles")
+    .delete()
+    .eq("status", "closed")
+    .not("deleted_at", "is", null)
+    .lte("delete_expires_at", now);
+
+  if (cycleError) {
+    console.error("Error deleting expired soft-deleted closed cycles:", cycleError);
+  }
+}
+
+export function startSoftDeleteCleanupScheduler() {
+  if (!supabaseAdmin) {
+    console.warn("Soft-delete cleanup disabled. Missing Supabase service role client.");
+    return;
+  }
+
+  void cleanupExpiredSoftDeletes();
+
+  cron.schedule("* * * * *", () => {
+    void cleanupExpiredSoftDeletes();
+  });
+}

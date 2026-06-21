@@ -11,6 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Plus, Trash2, Wallet } from 'lucide-react';
 import { useState } from 'react';
+import { ToastAction } from '@/components/ui/toast';
+import { toast } from '@/hooks/use-toast';
 
 const memberSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -129,7 +131,7 @@ function DepositForm({ memberId, onClose }: { memberId: string; onClose: () => v
 }
 
 export default function Members() {
-  const { members, removeMember, getMemberStats } = useMeal();
+  const { members, removeMember, restoreMember, getMemberStats } = useMeal();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [depositMemberId, setDepositMemberId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
@@ -139,7 +141,17 @@ export default function Members() {
     setDeletingMemberId(memberId);
 
     try {
+      const member = members.find((entry) => entry.id === memberId);
       await removeMember(memberId);
+      toast({
+        title: 'Deleted',
+        description: `${member?.name ?? 'Member'} removed. It will be permanently deleted in 10 seconds.`,
+        action: (
+          <ToastAction altText="Undo member delete" onClick={() => void restoreMember(memberId)}>
+            Undo
+          </ToastAction>
+        ),
+      });
     } finally {
       setDeletingMemberId(null);
     }

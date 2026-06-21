@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
 import { Archive, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Wallet, Zap } from 'lucide-react';
@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { ToastAction } from '@/components/ui/toast';
+import { toast } from '@/hooks/use-toast';
 
 function formatCurrency(amount: number) {
   return `৳${amount.toFixed(2)}`;
@@ -94,7 +96,7 @@ function PendingExpenseEditor({
   expense?: Expense | null;
   onClose: () => void;
 }) {
-  const { addExpense, updateExpense, deleteExpense } = useMeal();
+  const { addExpense, updateExpense, deleteExpense, restoreExpense } = useMeal();
   const [description, setDescription] = useState(expense?.description ?? '');
   const [amount, setAmount] = useState(expense ? String(expense.amount) : '');
   const [type, setType] = useState<'meal' | 'fixed'>(expense?.type ?? 'meal');
@@ -144,6 +146,15 @@ function PendingExpenseEditor({
 
     try {
       await deleteExpense(expense.id);
+      toast({
+        title: 'Deleted',
+        description: 'Expense correction removed. It will be permanently deleted in 10 seconds.',
+        action: (
+          <ToastAction altText="Undo expense delete" onClick={() => void restoreExpense(expense.id)}>
+            Undo
+          </ToastAction>
+        ),
+      });
       onClose();
     } finally {
       setIsDeleting(false);
@@ -208,7 +219,7 @@ function PendingExpenseEditor({
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently remove the expense from this pending cycle.
+                  This will remove the expense from this pending cycle.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -721,7 +732,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
 }
 
 function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExpanded: boolean }) {
-  const { deleteCycle } = useMeal();
+  const { deleteCycle, restoreCycle } = useMeal();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteCycle = async () => {
@@ -730,6 +741,15 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
 
     try {
       await deleteCycle(details.cycle.id);
+      toast({
+        title: 'Deleted',
+        description: `${details.cycle.name} removed. It will be permanently deleted in 10 seconds.`,
+        action: (
+          <ToastAction altText="Undo closed cycle delete" onClick={() => void restoreCycle(details.cycle.id)}>
+            Undo
+          </ToastAction>
+        ),
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -765,7 +785,7 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete this closed cycle?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will permanently remove the closed cycle and all of its linked expenses, meal logs, deposits, and changelog records.
+                      This will remove the closed cycle from history.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -792,7 +812,7 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete this closed cycle?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will permanently remove the closed cycle and all of its linked expenses, meal logs, deposits, and changelog records.
+                      This will remove the closed cycle from history.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -964,4 +984,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-

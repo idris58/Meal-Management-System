@@ -108,6 +108,7 @@ interface MealContextType {
   addMember: (name: string) => Promise<void>;
   updateMember: (id: string, updates: Partial<Member>) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
+  restoreMember: (id: string) => Promise<void>;
   addExpense: (amount: number, description: string, type: 'meal' | 'fixed', paidBy: string, cycleId?: string, expenseDate?: string) => Promise<void>;
   updateExpense: (id: string, updates: {
     amount: number;
@@ -117,6 +118,7 @@ interface MealContextType {
     date?: string;
   }) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  restoreExpense: (id: string) => Promise<void>;
   addDeposit: (memberId: string, amount: number, cycleId?: string, note?: string) => Promise<void>;
   saveMealLogs: (entries: Array<{ memberId: string; count: number }>, date: string, cycleId?: string) => Promise<void>;
   logMeal: (memberId: string, count: number, date: string, cycleId?: string) => Promise<void>;
@@ -124,6 +126,7 @@ interface MealContextType {
   closeActiveCycle: () => Promise<void>;
   markCycleClosed: (cycleId: string) => Promise<void>;
   deleteCycle: (cycleId: string) => Promise<void>;
+  restoreCycle: (cycleId: string) => Promise<void>;
   stats: CycleDetails['stats'];
   getMemberStats: (memberId: string, cycleId?: string) => {
     mealCost: number;
@@ -137,10 +140,13 @@ interface MealContextType {
 
 const MealContext = createContext<MealContextType | undefined>(undefined);
 
+const SOFT_DELETE_GRACE_MS = 10 * 1000;
+
 type MemberRow = {
   id: string;
   name: string;
   avatar: string | null;
+  deleted_at?: string | null;
 };
 
 type CycleRow = {
@@ -152,6 +158,7 @@ type CycleRow = {
   finalized_at: string | null;
   members_snapshot: SnapshotMember[] | null;
   created_at: string;
+  deleted_at?: string | null;
 };
 
 type ExpenseRow = {
@@ -162,6 +169,7 @@ type ExpenseRow = {
   type: 'meal' | 'fixed';
   date: string;
   paid_by: string;
+  deleted_at?: string | null;
 };
 
 type MealLogRow = {
@@ -415,9 +423,10 @@ export function MealProvider({ children }: { children: ReactNode }) {
     }
 
     const cycleMembers = getCycleMembers(cycleId);
+    const cycleMemberIds = new Set(cycleMembers.map((member) => member.id));
     const cycleExpenses = allExpenses.filter((expense) => expense.cycleId === cycleId);
-    const cycleMealLogs = allMealLogs.filter((log) => log.cycleId === cycleId);
-    const cycleDeposits = allDeposits.filter((deposit) => deposit.cycleId === cycleId);
+    const cycleMealLogs = allMealLogs.filter((log) => log.cycleId === cycleId && cycleMemberIds.has(log.memberId));
+    const cycleDeposits = allDeposits.filter((deposit) => deposit.cycleId === cycleId && cycleMemberIds.has(deposit.memberId));
 
     const depositByMember = new Map<string, number>();
     for (const deposit of cycleDeposits) {
@@ -499,11 +508,13 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .from('members')
           .select('*')
           .eq('user_id', userId)
+          .is('deleted_at', null)
           .order('created_at', { ascending: true }),
         supabase
           .from('cycles')
           .select('*')
           .eq('user_id', userId)
+          .is('deleted_at', null)
           .order('started_at', { ascending: false }),
         supabase
           .from('cycle_deposits')
@@ -514,6 +525,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .from('expenses')
           .select('*')
           .eq('user_id', userId)
+          .is('deleted_at', null)
           .order('date', { ascending: false }),
         supabase
           .from('meal_logs')
@@ -534,7 +546,9 @@ export function MealProvider({ children }: { children: ReactNode }) {
       if (mealLogsResult.error) throw mealLogsResult.error;
       if (changelogResult.error) throw changelogResult.error;
 
-      const nextMembers = ((membersResult.data || []) as MemberRow[]).map((member) => ({
+      const nextMembers = ((membersResult.data || []) as MemberRow[])
+        .filter((member) => !member.deleted_at)
+        .map((member) => ({
         id: member.id,
         name: member.name,
         deposit: 0,
@@ -542,7 +556,9 @@ export function MealProvider({ children }: { children: ReactNode }) {
         avatar: toAvatar(member.name, member.avatar),
       }));
 
-      const nextCycles = ((cyclesResult.data || []) as CycleRow[]).map((cycle) => ({
+      const nextCycles = ((cyclesResult.data || []) as CycleRow[])
+        .filter((cycle) => !cycle.deleted_at)
+        .map((cycle) => ({
         id: cycle.id,
         name: cycle.name || getDefaultCycleBaseName(cycle.started_at),
         status: cycle.status,
@@ -713,11 +729,16 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const targetCycleId = activeCycle?.id ?? null;
     if (!existingMember) return;
 
+    const now = new Date();
     const { error } = await supabase
       .from('members')
-      .delete()
+      .update({
+        deleted_at: now.toISOString(),
+        delete_expires_at: new Date(now.getTime() + SOFT_DELETE_GRACE_MS).toISOString(),
+      })
       .eq('id', id)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .is('deleted_at', null);
 
     if (error) {
       console.error('Error removing member:', error);
@@ -725,8 +746,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
     }
 
     setMemberRoster((prev) => prev.filter((member) => member.id !== id));
-    setAllMealLogs((prev) => prev.filter((log) => log.memberId !== id));
-    setAllDeposits((prev) => prev.filter((deposit) => deposit.memberId !== id));
 
     await recordChangelog({
       cycleId: targetCycleId,
@@ -738,6 +757,46 @@ export function MealProvider({ children }: { children: ReactNode }) {
         buildSnapshotChange('name', 'Name', existingMember.name),
       ],
     });
+    void broadcastSharedUpdate();
+  };
+
+  const restoreMember = async (id: string) => {
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('members')
+      .update({ deleted_at: null, delete_expires_at: null })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .not('deleted_at', 'is', null)
+      .select('id, name, avatar')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error restoring member:', error);
+      return;
+    }
+
+    if (data) {
+      setMemberRoster((prev) => {
+        if (prev.some((member) => member.id === data.id)) {
+          return prev;
+        }
+
+        return [
+          ...prev,
+          {
+            id: data.id,
+            name: data.name,
+            deposit: 0,
+            mealsEaten: 0,
+            avatar: toAvatar(data.name, data.avatar),
+          },
+        ];
+      });
+    }
+
+    void loadData();
     void broadcastSharedUpdate();
   };
 
@@ -879,11 +938,16 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const existingExpense = allExpenses.find((expense) => expense.id === id);
     if (!existingExpense) return;
 
+    const now = new Date();
     const { error } = await supabase
       .from('expenses')
-      .delete()
+      .update({
+        deleted_at: now.toISOString(),
+        delete_expires_at: new Date(now.getTime() + SOFT_DELETE_GRACE_MS).toISOString(),
+      })
       .eq('id', id)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .is('deleted_at', null);
 
     if (error) {
       console.error('Error deleting expense:', error);
@@ -906,6 +970,44 @@ export function MealProvider({ children }: { children: ReactNode }) {
         buildSnapshotChange('date', 'Date', existingExpense.date),
       ],
     });
+    void broadcastSharedUpdate();
+  };
+
+  const restoreExpense = async (id: string) => {
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('expenses')
+      .update({ deleted_at: null, delete_expires_at: null })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .not('deleted_at', 'is', null)
+      .select('id, cycle_id, amount, description, type, date, paid_by')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error restoring expense:', error);
+      return;
+    }
+
+    if (data?.cycle_id) {
+      setAllExpenses((prev) => {
+        if (prev.some((expense) => expense.id === data.id)) {
+          return prev;
+        }
+
+        return [{
+          id: data.id,
+          cycleId: data.cycle_id,
+          amount: Number(data.amount),
+          description: data.description,
+          type: data.type,
+          date: data.date,
+          paidBy: data.paid_by,
+        }, ...prev];
+      });
+    }
+
     void broadcastSharedUpdate();
   };
 
@@ -1244,12 +1346,17 @@ export function MealProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const now = new Date();
     const { error } = await supabase
       .from('cycles')
-      .delete()
+      .update({
+        deleted_at: now.toISOString(),
+        delete_expires_at: new Date(now.getTime() + SOFT_DELETE_GRACE_MS).toISOString(),
+      })
       .eq('id', cycleId)
       .eq('user_id', userId)
-      .eq('status', 'closed');
+      .eq('status', 'closed')
+      .is('deleted_at', null);
 
     if (error) {
       console.error('Error deleting closed cycle:', error);
@@ -1257,10 +1364,45 @@ export function MealProvider({ children }: { children: ReactNode }) {
     }
 
     setCycles((prev) => prev.filter((cycle) => cycle.id !== cycleId));
-    setAllExpenses((prev) => prev.filter((expense) => expense.cycleId !== cycleId));
-    setAllMealLogs((prev) => prev.filter((log) => log.cycleId !== cycleId));
-    setAllDeposits((prev) => prev.filter((deposit) => deposit.cycleId !== cycleId));
-    setAllChangelogEntries((prev) => prev.filter((entry) => entry.cycleId !== cycleId));
+  };
+
+  const restoreCycle = async (cycleId: string) => {
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('cycles')
+      .update({ deleted_at: null, delete_expires_at: null })
+      .eq('id', cycleId)
+      .eq('user_id', userId)
+      .eq('status', 'closed')
+      .not('deleted_at', 'is', null)
+      .select('id, name, status, started_at, closed_at, finalized_at, members_snapshot')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error restoring closed cycle:', error);
+      return;
+    }
+
+    if (data) {
+      setCycles((prev) => {
+        if (prev.some((cycle) => cycle.id === data.id)) {
+          return prev;
+        }
+
+        return [{
+          id: data.id,
+          name: data.name || getDefaultCycleBaseName(data.started_at),
+          status: data.status as CycleStatus,
+          startedAt: data.started_at,
+          closedAt: data.closed_at,
+          finalizedAt: data.finalized_at,
+          membersSnapshot: data.members_snapshot,
+        }, ...prev];
+      });
+    }
+
+    void loadData();
   };
 
   const activeDetails = activeCycle ? getCycleDetails(activeCycle.id) : null;
@@ -1315,9 +1457,11 @@ export function MealProvider({ children }: { children: ReactNode }) {
         addMember,
         updateMember,
         removeMember,
+        restoreMember,
         addExpense,
         updateExpense,
         deleteExpense,
+        restoreExpense,
         addDeposit,
         saveMealLogs,
         logMeal,
@@ -1325,6 +1469,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         closeActiveCycle,
         markCycleClosed,
         deleteCycle,
+        restoreCycle,
         stats,
         getMemberStats,
         getCycleDetails,
