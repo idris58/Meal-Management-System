@@ -9,8 +9,14 @@ feat: add undoable soft deletes
 - hide soft-deleted records from app and shared views
 - permanently clean expired soft deletes from the server scheduler
 
+feat: replace delete toast undo with inline ghost rows
 
-
+- add reusable inline undo ghost component with countdown progress
+- show deleted member cards in-place during the undo grace period
+- show deleted expense rows in-place across expense tabs
+- add inline undo rows for pending-cycle expense corrections
+- add inline undo rows for closed-cycle deletes
+- remove toast-based undo actions from delete flows
 
 # MealTrack — Improvement & Feature Suggestions
 

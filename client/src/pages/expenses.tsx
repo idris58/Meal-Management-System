@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMeal, Expense } from '@/lib/meal-context';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +19,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { ToastAction } from '@/components/ui/toast';
-import { toast } from '@/hooks/use-toast';
+import { UndoDeleteGhost } from '@/components/undo-delete-ghost';
+
+const DELETE_GRACE_MS = 10 * 1000;
 
 const expenseSchema = z.object({
   amount: z.preprocess(
@@ -32,14 +33,61 @@ const expenseSchema = z.object({
   paidBy: z.string().min(2, 'Shopper name is required'),
 });
 
+type DeletedExpenseGhost = {
+  expense: Expense;
+  allIndex: number;
+  typeIndex: number;
+  expiresAt: number;
+};
+
+function ExpenseRow({ expense, onEdit }: { expense: Expense; onEdit?: () => void }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border bg-card p-4 transition-shadow hover:shadow-sm">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className={`rounded-full p-2 ${expense.type === 'meal' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
+          {expense.type === 'meal' ? <ShoppingBag className="h-5 w-5" /> : <Zap className="h-5 w-5" />}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-medium">{expense.description}</p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{format(new Date(expense.date), 'MMM d, yyyy')}</span>
+            <span>•</span>
+            <span>Paid by {expense.paidBy}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        {onEdit ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onEdit}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ) : null}
+        <div className="text-right">
+          <p className="font-heading font-bold">৳{expense.amount.toFixed(0)}</p>
+          <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
+            {expense.type === 'meal' ? 'Meal' : 'Fixed'}
+          </Badge>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExpenseEditor({
   expense,
   onClose,
+  onDeleted,
 }: {
   expense?: Expense | null;
   onClose: () => void;
+  onDeleted?: (expense: Expense) => void;
 }) {
-  const { addExpense, updateExpense, deleteExpense, restoreExpense } = useMeal();
+  const { addExpense, updateExpense, deleteExpense } = useMeal();
   const [date, setDate] = useState<Date>(expense ? new Date(expense.date) : new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -89,15 +137,7 @@ function ExpenseEditor({
 
     try {
       await deleteExpense(expense.id);
-      toast({
-        title: 'Deleted',
-        description: 'Expense removed. It will be permanently deleted in 10 seconds.',
-        action: (
-          <ToastAction altText="Undo expense delete" onClick={() => void restoreExpense(expense.id)}>
-            Undo
-          </ToastAction>
-        ),
-      });
+      onDeleted?.(expense);
       onClose();
     } finally {
       setIsDeleting(false);
@@ -194,7 +234,7 @@ function ExpenseEditor({
           <div className="flex gap-3">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                  <Button type="button" variant="destructive" className="flex-1" disabled={isSubmitting || isDeleting}>
+                <Button type="button" variant="destructive" className="flex-1" disabled={isSubmitting || isDeleting}>
                   Delete
                 </Button>
               </AlertDialogTrigger>
@@ -202,7 +242,7 @@ function ExpenseEditor({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will remove the expense from the current cycle totals and expense list.
+                    This will remove the expense from the current cycle totals and expense list. You can undo it for 10 seconds.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -228,52 +268,76 @@ function ExpenseEditor({
 }
 
 export default function Expenses() {
-  const { expenses } = useMeal();
+  const { expenses, restoreExpense } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [deletedExpenses, setDeletedExpenses] = useState<DeletedExpenseGhost[]>([]);
 
-  const renderExpenseList = (filteredExpenses: Expense[]) => {
+  const handleExpenseDeleted = (expense: Expense) => {
+    const allExpenses = [...expenses].reverse();
+    const typedExpenses = expenses.filter((entry) => entry.type === expense.type).reverse();
+
+    setDeletedExpenses((prev) => [
+      ...prev.filter((entry) => entry.expense.id !== expense.id),
+      {
+        expense,
+        allIndex: Math.max(0, allExpenses.findIndex((entry) => entry.id === expense.id)),
+        typeIndex: Math.max(0, typedExpenses.findIndex((entry) => entry.id === expense.id)),
+        expiresAt: Date.now() + DELETE_GRACE_MS,
+      },
+    ]);
+  };
+
+  const handleUndoExpense = async (id: string) => {
+    setDeletedExpenses((prev) => prev.filter((entry) => entry.expense.id !== id));
+    await restoreExpense(id);
+  };
+
+  const renderExpenseList = (filteredExpenses: Expense[], scope: 'all' | 'meal' | 'fixed') => {
     const total = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const ghosts = deletedExpenses
+      .filter((entry) => scope === 'all' || entry.expense.type === scope)
+      .sort((a, b) => (scope === 'all' ? a.allIndex - b.allIndex : a.typeIndex - b.typeIndex));
+
+    const rows: Array<
+      | { type: 'expense'; expense: Expense }
+      | { type: 'deleted'; ghost: DeletedExpenseGhost }
+    > = filteredExpenses.map((expense) => ({ type: 'expense', expense }));
+
+    for (const ghost of ghosts) {
+      rows.splice(Math.min(scope === 'all' ? ghost.allIndex : ghost.typeIndex, rows.length), 0, { type: 'deleted', ghost });
+    }
 
     return (
       <div className="space-y-3 pb-4">
-        {filteredExpenses.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="py-8 text-center text-muted-foreground">No expenses found.</p>
         ) : (
           <>
-            {filteredExpenses.map((expense) => (
-              <div key={expense.id} className="flex items-center justify-between rounded-lg border bg-card p-4 transition-shadow hover:shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className={`rounded-full p-2 ${expense.type === 'meal' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
-                    {expense.type === 'meal' ? <ShoppingBag className="h-5 w-5" /> : <Zap className="h-5 w-5" />}
-                  </div>
-                  <div>
-                    <p className="font-medium">{expense.description}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(new Date(expense.date), 'MMM d, yyyy')}</span>
-                      <span>•</span>
-                      <span>Paid by {expense.paidBy}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setEditingExpense(expense)}
+            {rows.map((row) => {
+              if (row.type === 'deleted') {
+                const { ghost } = row;
+                return (
+                  <UndoDeleteGhost
+                    key={`deleted-${ghost.expense.id}`}
+                    message={`Expense '${ghost.expense.description}' deleted.`}
+                    expiresAt={ghost.expiresAt}
+                    onUndo={() => void handleUndoExpense(ghost.expense.id)}
+                    onExpired={() => setDeletedExpenses((prev) => prev.filter((entry) => entry.expense.id !== ghost.expense.id))}
                   >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <div className="text-right">
-                    <p className="font-heading font-bold">৳{expense.amount.toFixed(0)}</p>
-                    <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
-                      {expense.type === 'meal' ? 'Meal' : 'Fixed'}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            ))}
+                    <ExpenseRow expense={ghost.expense} />
+                  </UndoDeleteGhost>
+                );
+              }
+
+              return (
+                <ExpenseRow
+                  key={row.expense.id}
+                  expense={row.expense}
+                  onEdit={() => setEditingExpense(row.expense)}
+                />
+              );
+            })}
             <Card className="border-dashed">
               <CardContent className="flex items-center justify-between py-4">
                 <span className="text-sm font-medium text-muted-foreground">Total</span>
@@ -285,6 +349,10 @@ export default function Expenses() {
       </div>
     );
   };
+
+  const allExpenses = useMemo(() => [...expenses].reverse(), [expenses]);
+  const mealExpenses = useMemo(() => expenses.filter((expense) => expense.type === 'meal').reverse(), [expenses]);
+  const fixedExpenses = useMemo(() => expenses.filter((expense) => expense.type === 'fixed').reverse(), [expenses]);
 
   return (
     <div className="flex h-full flex-col space-y-6">
@@ -315,13 +383,13 @@ export default function Expenses() {
 
         <ScrollArea className="flex-1 -mx-4 px-4">
           <TabsContent value="all" className="m-0">
-            {renderExpenseList([...expenses].reverse())}
+            {renderExpenseList(allExpenses, 'all')}
           </TabsContent>
           <TabsContent value="meal" className="m-0">
-            {renderExpenseList(expenses.filter((expense) => expense.type === 'meal').reverse())}
+            {renderExpenseList(mealExpenses, 'meal')}
           </TabsContent>
           <TabsContent value="fixed" className="m-0">
-            {renderExpenseList(expenses.filter((expense) => expense.type === 'fixed').reverse())}
+            {renderExpenseList(fixedExpenses, 'fixed')}
           </TabsContent>
         </ScrollArea>
       </Tabs>
@@ -334,6 +402,7 @@ export default function Expenses() {
           {editingExpense ? (
             <ExpenseEditor
               expense={editingExpense}
+              onDeleted={handleExpenseDeleted}
               onClose={() => setEditingExpense(null)}
             />
           ) : null}

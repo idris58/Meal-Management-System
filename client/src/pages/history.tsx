@@ -19,8 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { ToastAction } from '@/components/ui/toast';
-import { toast } from '@/hooks/use-toast';
+import { UndoDeleteGhost } from '@/components/undo-delete-ghost';
 
 function formatCurrency(amount: number) {
   return `৳${amount.toFixed(2)}`;
@@ -35,6 +34,20 @@ function formatMealCount(value: number) {
   return rounded.toString();
 }
 
+const DELETE_GRACE_MS = 10 * 1000;
+
+type DeletedExpenseGhost = {
+  expense: Expense;
+  allIndex: number;
+  typeIndex: number;
+  expiresAt: number;
+};
+
+type DeletedCycleGhost = {
+  details: CycleDetails;
+  index: number;
+  expiresAt: number;
+};
 function SettlementForm({
   cycleId,
   memberId,
@@ -91,12 +104,14 @@ function PendingExpenseEditor({
   cycleId,
   expense,
   onClose,
+  onDeleted,
 }: {
   cycleId: string;
   expense?: Expense | null;
   onClose: () => void;
+  onDeleted?: (expense: Expense) => void;
 }) {
-  const { addExpense, updateExpense, deleteExpense, restoreExpense } = useMeal();
+  const { addExpense, updateExpense, deleteExpense } = useMeal();
   const [description, setDescription] = useState(expense?.description ?? '');
   const [amount, setAmount] = useState(expense ? String(expense.amount) : '');
   const [type, setType] = useState<'meal' | 'fixed'>(expense?.type ?? 'meal');
@@ -146,15 +161,7 @@ function PendingExpenseEditor({
 
     try {
       await deleteExpense(expense.id);
-      toast({
-        title: 'Deleted',
-        description: 'Expense correction removed. It will be permanently deleted in 10 seconds.',
-        action: (
-          <ToastAction altText="Undo expense delete" onClick={() => void restoreExpense(expense.id)}>
-            Undo
-          </ToastAction>
-        ),
-      });
+      onDeleted?.(expense);
       onClose();
     } finally {
       setIsDeleting(false);
@@ -342,13 +349,14 @@ function PendingMealEditor({
 }
 
 function PendingCycleCard({ details }: { details: CycleDetails }) {
-  const { markCycleClosed } = useMeal();
+  const { markCycleClosed, restoreExpense } = useMeal();
   const [depositMember, setDepositMember] = useState<{ id: string; name: string } | null>(null);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [mealDate, setMealDate] = useState<Date | undefined>(undefined);
   const [isMarkingClosed, setIsMarkingClosed] = useState(false);
+  const [deletedExpenses, setDeletedExpenses] = useState<DeletedExpenseGhost[]>([]);
   const remainingBalance =
     details.stats.totalDeposits -
     details.stats.totalMealExpenses -
@@ -404,6 +412,65 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
     }
   };
 
+  const handleExpenseDeleted = (expense: Expense) => {
+    const allExpenses = [...details.expenses];
+    const typedExpenses = details.expenses.filter((entry) => entry.type === expense.type);
+
+    setDeletedExpenses((prev) => [
+      ...prev.filter((entry) => entry.expense.id !== expense.id),
+      {
+        expense,
+        allIndex: Math.max(0, allExpenses.findIndex((entry) => entry.id === expense.id)),
+        typeIndex: Math.max(0, typedExpenses.findIndex((entry) => entry.id === expense.id)),
+        expiresAt: Date.now() + DELETE_GRACE_MS,
+      },
+    ]);
+  };
+
+  const handleUndoExpense = async (id: string) => {
+    setDeletedExpenses((prev) => prev.filter((entry) => entry.expense.id !== id));
+    await restoreExpense(id);
+  };
+
+  const renderPendingExpenseRow = (expense: Expense, onEdit?: () => void) => (
+    <div className="flex items-center justify-between rounded-lg border bg-card p-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <div
+          className={cn(
+            'rounded-full p-2',
+            expense.type === 'meal'
+              ? 'bg-emerald-100 text-emerald-600'
+              : 'bg-slate-100 text-slate-600',
+          )}
+        >
+          {expense.type === 'meal' ? (
+            <ShoppingBag className="h-5 w-5" />
+          ) : (
+            <Zap className="h-5 w-5" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-medium">{expense.description}</p>
+          <p className="text-xs text-muted-foreground">
+            {format(new Date(expense.date), 'MMM d, yyyy')} • Paid by {expense.paidBy}
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        <div className="text-right">
+          <p className="font-bold">{formatCurrency(expense.amount)}</p>
+          <Badge variant="secondary" className="text-[10px] uppercase">
+            {expense.type}
+          </Badge>
+        </div>
+        {onEdit ? (
+          <Button variant="outline" size="icon" onClick={onEdit}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
   return (
     <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
       <AccordionTrigger className="hover:no-underline py-4">
@@ -571,65 +638,60 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
                 tab === 'all'
                   ? [...details.expenses]
                   : details.expenses.filter((expense) => expense.type === tab);
-              const useScrollableExpenseList = expenses.length > 8;
+              const ghosts = deletedExpenses
+                .filter((entry) => tab === 'all' || entry.expense.type === tab)
+                .sort((a, b) => (tab === 'all' ? a.allIndex - b.allIndex : a.typeIndex - b.typeIndex));
+              const rows: Array<
+                | { type: 'expense'; expense: Expense }
+                | { type: 'deleted'; ghost: DeletedExpenseGhost }
+              > = expenses.map((expense) => ({ type: 'expense', expense }));
+
+              for (const ghost of ghosts) {
+                rows.splice(Math.min(tab === 'all' ? ghost.allIndex : ghost.typeIndex, rows.length), 0, { type: 'deleted', ghost });
+              }
+
+              const useScrollableExpenseList = rows.length > 8;
 
               return (
                 <TabsContent key={tab} value={tab} className="m-0">
                   <div className="space-y-3">
-                    {expenses.length === 0 ? (
+                    {rows.length === 0 ? (
                       <Card>
                         <CardContent className="py-8 text-center text-sm text-muted-foreground">
                           No expenses found.
                         </CardContent>
                       </Card>
                     ) : (
-                      <>
-                        <div
-                          className={cn(
-                            'space-y-3',
-                            useScrollableExpenseList &&
-                              'max-h-[420px] overflow-y-auto rounded-lg border border-dashed bg-muted/10 p-2 sm:max-h-[460px] md:max-h-[540px]',
-                          )}
-                        >
-                          {expenses.map((expense) => (
-                            <div key={expense.id} className="flex items-center justify-between rounded-lg border bg-card p-4">
-                              <div className="flex items-center gap-4">
-                                <div
-                                  className={cn(
-                                    'rounded-full p-2',
-                                    expense.type === 'meal'
-                                      ? 'bg-emerald-100 text-emerald-600'
-                                      : 'bg-slate-100 text-slate-600',
-                                  )}
-                                >
-                                  {expense.type === 'meal' ? (
-                                    <ShoppingBag className="h-5 w-5" />
-                                  ) : (
-                                    <Zap className="h-5 w-5" />
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="font-medium">{expense.description}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {format(new Date(expense.date), 'MMM d, yyyy')} • Paid by {expense.paidBy}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <div className="text-right">
-                                  <p className="font-bold">{formatCurrency(expense.amount)}</p>
-                                  <Badge variant="secondary" className="text-[10px] uppercase">
-                                    {expense.type}
-                                  </Badge>
-                                </div>
-                                <Button variant="outline" size="icon" onClick={() => { setEditingExpense(expense); setExpenseDialogOpen(true); }}>
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </div>
+                      <div
+                        className={cn(
+                          'space-y-3',
+                          useScrollableExpenseList &&
+                            'max-h-[420px] overflow-y-auto rounded-lg border border-dashed bg-muted/10 p-2 sm:max-h-[460px] md:max-h-[540px]',
+                        )}
+                      >
+                        {rows.map((row) => {
+                          if (row.type === 'deleted') {
+                            const { ghost } = row;
+                            return (
+                              <UndoDeleteGhost
+                                key={`deleted-${ghost.expense.id}`}
+                                message={`Expense '${ghost.expense.description}' deleted.`}
+                                expiresAt={ghost.expiresAt}
+                                onUndo={() => void handleUndoExpense(ghost.expense.id)}
+                                onExpired={() => setDeletedExpenses((prev) => prev.filter((entry) => entry.expense.id !== ghost.expense.id))}
+                              >
+                                {renderPendingExpenseRow(ghost.expense)}
+                              </UndoDeleteGhost>
+                            );
+                          }
+
+                          return (
+                            <div key={row.expense.id}>
+                              {renderPendingExpenseRow(row.expense, () => { setEditingExpense(row.expense); setExpenseDialogOpen(true); })}
                             </div>
-                          ))}
-                        </div>
-                      </>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 </TabsContent>
@@ -704,6 +766,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
             <PendingExpenseEditor
               cycleId={details.cycle.id}
               expense={editingExpense}
+              onDeleted={handleExpenseDeleted}
               onClose={() => {
                 setExpenseDialogOpen(false);
                 setEditingExpense(null);
@@ -731,8 +794,16 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
   );
 }
 
-function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExpanded: boolean }) {
-  const { deleteCycle, restoreCycle } = useMeal();
+function ClosedCycleCard({
+  details,
+  isExpanded,
+  onDeleted,
+}: {
+  details: CycleDetails;
+  isExpanded: boolean;
+  onDeleted: (details: CycleDetails) => void;
+}) {
+  const { deleteCycle } = useMeal();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteCycle = async () => {
@@ -741,15 +812,7 @@ function ClosedCycleCard({ details, isExpanded }: { details: CycleDetails; isExp
 
     try {
       await deleteCycle(details.cycle.id);
-      toast({
-        title: 'Deleted',
-        description: `${details.cycle.name} removed. It will be permanently deleted in 10 seconds.`,
-        action: (
-          <ToastAction altText="Undo closed cycle delete" onClick={() => void restoreCycle(details.cycle.id)}>
-            Undo
-          </ToastAction>
-        ),
-      });
+      onDeleted(details);
     } finally {
       setIsDeleting(false);
     }
@@ -910,8 +973,9 @@ function StatCard({
 }
 
 export default function HistoryPage() {
-  const { cycles, getCycleDetails } = useMeal();
+  const { cycles, getCycleDetails, restoreCycle } = useMeal();
   const [openClosedCycleId, setOpenClosedCycleId] = useState('');
+  const [deletedClosedCycles, setDeletedClosedCycles] = useState<DeletedCycleGhost[]>([]);
 
   const pendingCycles = cycles
     .filter((cycle) => cycle.status === 'pending')
@@ -923,6 +987,31 @@ export default function HistoryPage() {
     .map((cycle) => getCycleDetails(cycle.id))
     .filter((cycle): cycle is CycleDetails => Boolean(cycle));
 
+  const handleClosedCycleDeleted = (details: CycleDetails) => {
+    setDeletedClosedCycles((prev) => [
+      ...prev.filter((entry) => entry.details.cycle.id !== details.cycle.id),
+      {
+        details,
+        index: Math.max(0, closedCycles.findIndex((entry) => entry.cycle.id === details.cycle.id)),
+        expiresAt: Date.now() + DELETE_GRACE_MS,
+      },
+    ]);
+    setOpenClosedCycleId('');
+  };
+
+  const handleUndoClosedCycle = async (cycleId: string) => {
+    setDeletedClosedCycles((prev) => prev.filter((entry) => entry.details.cycle.id !== cycleId));
+    await restoreCycle(cycleId);
+  };
+
+  const closedCycleRows: Array<
+    | { type: 'cycle'; details: CycleDetails }
+    | { type: 'deleted'; ghost: DeletedCycleGhost }
+  > = closedCycles.map((details) => ({ type: 'cycle', details }));
+
+  for (const ghost of [...deletedClosedCycles].sort((a, b) => a.index - b.index)) {
+    closedCycleRows.splice(Math.min(ghost.index, closedCycleRows.length), 0, { type: 'deleted', ghost });
+  }
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -939,7 +1028,7 @@ export default function HistoryPage() {
         </Button>
       </div>
 
-      {pendingCycles.length === 0 && closedCycles.length === 0 ? (
+      {pendingCycles.length === 0 && closedCycleRows.length === 0 ? (
         <div className="py-20 text-center text-muted-foreground">
           <h2 className="mb-2 text-2xl font-bold font-heading">No Past Cycles</h2>
           <p>Close your first cycle to see settlement history here.</p>
@@ -958,7 +1047,7 @@ export default function HistoryPage() {
         </section>
       ) : null}
 
-      {closedCycles.length > 0 ? (
+      {closedCycleRows.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <Archive className="h-5 w-5 text-emerald-500" />
@@ -971,13 +1060,41 @@ export default function HistoryPage() {
             value={openClosedCycleId}
             onValueChange={setOpenClosedCycleId}
           >
-            {closedCycles.map((cycle) => (
-              <ClosedCycleCard
-                key={cycle.cycle.id}
-                details={cycle}
-                isExpanded={openClosedCycleId === cycle.cycle.id}
-              />
-            ))}
+            {closedCycleRows.map((row) => {
+              if (row.type === 'deleted') {
+                const { ghost } = row;
+                return (
+                  <UndoDeleteGhost
+                    key={`deleted-${ghost.details.cycle.id}`}
+                    message={`Cycle '${ghost.details.cycle.name}' deleted.`}
+                    expiresAt={ghost.expiresAt}
+                    onUndo={() => void handleUndoClosedCycle(ghost.details.cycle.id)}
+                    onExpired={() => setDeletedClosedCycles((prev) => prev.filter((entry) => entry.details.cycle.id !== ghost.details.cycle.id))}
+                  >
+                    <div className="rounded-lg border bg-card px-4">
+                      <div className="flex items-center justify-between gap-4 py-4">
+                        <div className="min-w-0 text-left">
+                          <p className="font-bold">{ghost.details.cycle.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Closed: {format(new Date(ghost.details.cycle.finalizedAt || ghost.details.cycle.closedAt || ghost.details.cycle.startedAt), 'PPP')} • {ghost.details.members.length} Members • {formatMealCount(ghost.details.stats.totalMealsConsumed)} Meals
+                          </p>
+                        </div>
+                        <Badge variant="secondary">Closed</Badge>
+                      </div>
+                    </div>
+                  </UndoDeleteGhost>
+                );
+              }
+
+              return (
+                <ClosedCycleCard
+                  key={row.details.cycle.id}
+                  details={row.details}
+                  isExpanded={openClosedCycleId === row.details.cycle.id}
+                  onDeleted={handleClosedCycleDeleted}
+                />
+              );
+            })}
           </Accordion>
         </section>
       ) : null}
