@@ -187,7 +187,7 @@ function MemberCard({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this member?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will remove {member.name} from the current data set. You can undo it for 10 seconds.
+                    This will remove {member.name} and also delete their meal logs and deposits.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

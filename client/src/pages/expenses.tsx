@@ -242,7 +242,7 @@ function ExpenseEditor({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will remove the expense from the current cycle totals and expense list. You can undo it for 10 seconds.
+                    This will remove the expense from the current cycle totals and expense list.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
