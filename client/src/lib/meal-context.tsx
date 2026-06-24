@@ -102,6 +102,9 @@ interface MealContextType {
   cycles: Cycle[];
   activeCycleChangelogEntries: ChangelogEntry[];
   pendingCycleChangelogEntries: ChangelogEntry[];
+  changelogEntries: ChangelogEntry[];
+  hasMoreChangelogEntries: boolean;
+  changelogLoading: boolean;
   activeCycle: Cycle | null;
   pendingCycle: Cycle | null;
   loading: boolean;
@@ -136,6 +139,10 @@ interface MealContextType {
     mealsEaten: number;
   };
   getCycleDetails: (cycleId: string) => CycleDetails | null;
+  loadCycleDetails: (cycleId: string, options?: { force?: boolean }) => Promise<void>;
+  isCycleDetailsLoading: (cycleId: string) => boolean;
+  getCycleDetailsError: (cycleId: string) => string | null;
+  loadMoreChangelogEntries: () => Promise<void>;
 }
 
 const MealContext = createContext<MealContextType | undefined>(undefined);
@@ -199,6 +206,58 @@ type ChangelogRow = {
   changes: ChangelogChange[] | null;
   created_at: string;
 };
+
+const CHANGELOG_PAGE_SIZE = 50;
+
+function mapExpenseRows(rows: ExpenseRow[]): Expense[] {
+  return rows
+    .filter((expense) => Boolean(expense.cycle_id))
+    .map((expense) => ({
+      id: expense.id,
+      cycleId: expense.cycle_id,
+      amount: Number(expense.amount),
+      description: expense.description,
+      type: expense.type,
+      date: expense.date,
+      paidBy: expense.paid_by,
+    }));
+}
+
+function mapMealLogRows(rows: MealLogRow[]): MealLog[] {
+  return rows
+    .filter((log) => Boolean(log.cycle_id))
+    .map((log) => ({
+      id: log.id,
+      cycleId: log.cycle_id,
+      memberId: log.member_id,
+      date: log.date,
+      count: Number(log.count),
+    }));
+}
+
+function mapDepositRows(rows: CycleDepositRow[]): CycleDeposit[] {
+  return rows.map((deposit) => ({
+    id: deposit.id,
+    cycleId: deposit.cycle_id,
+    memberId: deposit.member_id,
+    amount: Number(deposit.amount),
+    note: deposit.note ?? undefined,
+    createdAt: deposit.created_at,
+  }));
+}
+
+function mapChangelogRows(rows: ChangelogRow[]): ChangelogEntry[] {
+  return rows.map((entry) => ({
+    id: entry.id,
+    cycleId: entry.cycle_id,
+    entityType: entry.entity_type,
+    entityId: entry.entity_id,
+    action: entry.action,
+    title: entry.title,
+    changes: entry.changes ?? [],
+    createdAt: entry.created_at,
+  }));
+}
 
 function toAvatar(name: string, fallback?: string | null) {
   return fallback || name.substring(0, 2).toUpperCase();
@@ -297,7 +356,13 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const [allMealLogs, setAllMealLogs] = useState<MealLog[]>([]);
   const [allDeposits, setAllDeposits] = useState<CycleDeposit[]>([]);
   const [allChangelogEntries, setAllChangelogEntries] = useState<ChangelogEntry[]>([]);
+  const [hasMoreChangelogEntries, setHasMoreChangelogEntries] = useState(false);
+  const [changelogLoading, setChangelogLoading] = useState(false);
   const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [loadedCycleIds, setLoadedCycleIds] = useState<Set<string>>(new Set());
+  const [cycleDetailsById, setCycleDetailsById] = useState<Record<string, CycleDetails>>({});
+  const [cycleDetailsLoadingById, setCycleDetailsLoadingById] = useState<Record<string, boolean>>({});
+  const [cycleDetailsErrorById, setCycleDetailsErrorById] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -416,7 +481,53 @@ export function MealProvider({ children }: { children: ReactNode }) {
     }, ...prev]);
   };
 
-  const getCycleDetails = (cycleId: string): CycleDetails | null => {
+
+  const fetchCycleRows = async (cycleId: string) => {
+    if (!userId) {
+      return null;
+    }
+
+    const [depositsResult, expensesResult, mealLogsResult] = await Promise.all([
+      supabase
+        .from('cycle_deposits')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('cycle_id', cycleId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('cycle_id', cycleId)
+        .is('deleted_at', null)
+        .order('date', { ascending: false }),
+      supabase
+        .from('meal_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('cycle_id', cycleId)
+        .order('date', { ascending: false }),
+    ]);
+
+    if (depositsResult.error) throw depositsResult.error;
+    if (expensesResult.error) throw expensesResult.error;
+    if (mealLogsResult.error) throw mealLogsResult.error;
+
+    return {
+      deposits: mapDepositRows((depositsResult.data || []) as CycleDepositRow[]),
+      expenses: mapExpenseRows((expensesResult.data || []) as ExpenseRow[]),
+      mealLogs: mapMealLogRows((mealLogsResult.data || []) as MealLogRow[]),
+    };
+  };
+
+  const buildCycleDetails = (
+    cycleId: string,
+    source: {
+      deposits?: CycleDeposit[];
+      expenses?: Expense[];
+      mealLogs?: MealLog[];
+    } = {},
+  ): CycleDetails | null => {
     const cycle = cycles.find((entry) => entry.id === cycleId);
     if (!cycle) {
       return null;
@@ -424,9 +535,12 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     const cycleMembers = getCycleMembers(cycleId);
     const cycleMemberIds = new Set(cycleMembers.map((member) => member.id));
-    const cycleExpenses = allExpenses.filter((expense) => expense.cycleId === cycleId);
-    const cycleMealLogs = allMealLogs.filter((log) => log.cycleId === cycleId && cycleMemberIds.has(log.memberId));
-    const cycleDeposits = allDeposits.filter((deposit) => deposit.cycleId === cycleId && cycleMemberIds.has(deposit.memberId));
+    const sourceExpenses = source.expenses ?? allExpenses;
+    const sourceMealLogs = source.mealLogs ?? allMealLogs;
+    const sourceDeposits = source.deposits ?? allDeposits;
+    const cycleExpenses = sourceExpenses.filter((expense) => expense.cycleId === cycleId);
+    const cycleMealLogs = sourceMealLogs.filter((log) => log.cycleId === cycleId && cycleMemberIds.has(log.memberId));
+    const cycleDeposits = sourceDeposits.filter((deposit) => deposit.cycleId === cycleId && cycleMemberIds.has(deposit.memberId));
 
     const depositByMember = new Map<string, number>();
     for (const deposit of cycleDeposits) {
@@ -490,20 +604,71 @@ export function MealProvider({ children }: { children: ReactNode }) {
     };
   };
 
+  const getCycleDetails = (cycleId: string): CycleDetails | null => {
+    return cycleDetailsById[cycleId] ?? null;
+  };
+
+  const isCycleDetailsLoading = (cycleId: string) => Boolean(cycleDetailsLoadingById[cycleId]);
+
+  const getCycleDetailsError = (cycleId: string) => cycleDetailsErrorById[cycleId] ?? null;
+
+  const loadCycleDetails = async (cycleId: string, options: { force?: boolean } = {}) => {
+    if (!userId) return;
+    if (!options.force && cycleDetailsById[cycleId]) return;
+    if (cycleDetailsLoadingById[cycleId]) return;
+
+    setCycleDetailsLoadingById((prev) => ({ ...prev, [cycleId]: true }));
+    setCycleDetailsErrorById((prev) => ({ ...prev, [cycleId]: null }));
+
+    try {
+      const rows = await fetchCycleRows(cycleId);
+      if (!rows) return;
+
+      setAllDeposits((prev) => [...prev.filter((deposit) => deposit.cycleId !== cycleId), ...rows.deposits]);
+      setAllExpenses((prev) => [...prev.filter((expense) => expense.cycleId !== cycleId), ...rows.expenses]);
+      setAllMealLogs((prev) => [...prev.filter((log) => log.cycleId !== cycleId), ...rows.mealLogs]);
+      setLoadedCycleIds((prev) => new Set(prev).add(cycleId));
+
+      const details = buildCycleDetails(cycleId, rows);
+      if (details) {
+        setCycleDetailsById((prev) => ({ ...prev, [cycleId]: details }));
+      }
+    } catch (error) {
+      console.error('Error loading cycle details:', error);
+      setCycleDetailsErrorById((prev) => ({
+        ...prev,
+        [cycleId]: error instanceof Error ? error.message : 'Unable to load cycle details.',
+      }));
+    } finally {
+      setCycleDetailsLoadingById((prev) => ({ ...prev, [cycleId]: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (loadedCycleIds.size === 0) {
+      setCycleDetailsById({});
+      return;
+    }
+
+    const nextDetails: Record<string, CycleDetails> = {};
+    for (const cycleId of Array.from(loadedCycleIds)) {
+      const details = buildCycleDetails(cycleId);
+      if (details) {
+        nextDetails[cycleId] = details;
+      }
+    }
+    setCycleDetailsById(nextDetails);
+  }, [loadedCycleIds, cycles, memberRoster, allExpenses, allMealLogs, allDeposits]);
+
+
+
   const loadData = async () => {
     if (!userId) return;
 
     try {
       setLoading(true);
 
-      const [
-        membersResult,
-        cyclesResult,
-        depositsResult,
-        expensesResult,
-        mealLogsResult,
-        changelogResult,
-      ] = await Promise.all([
+      const [membersResult, cyclesResult, changelogResult] = await Promise.all([
         supabase
           .from('members')
           .select('*')
@@ -517,111 +682,91 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .is('deleted_at', null)
           .order('started_at', { ascending: false }),
         supabase
-          .from('cycle_deposits')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('expenses')
-          .select('*')
-          .eq('user_id', userId)
-          .is('deleted_at', null)
-          .order('date', { ascending: false }),
-        supabase
-          .from('meal_logs')
-          .select('*')
-          .eq('user_id', userId)
-          .order('date', { ascending: false }),
-        supabase
           .from('changelog_entries')
           .select('*')
           .eq('user_id', userId)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .range(0, CHANGELOG_PAGE_SIZE - 1),
       ]);
 
       if (membersResult.error) throw membersResult.error;
       if (cyclesResult.error) throw cyclesResult.error;
-      if (depositsResult.error) throw depositsResult.error;
-      if (expensesResult.error) throw expensesResult.error;
-      if (mealLogsResult.error) throw mealLogsResult.error;
       if (changelogResult.error) throw changelogResult.error;
 
       const nextMembers = ((membersResult.data || []) as MemberRow[])
         .filter((member) => !member.deleted_at)
         .map((member) => ({
-        id: member.id,
-        name: member.name,
-        deposit: 0,
-        mealsEaten: 0,
-        avatar: toAvatar(member.name, member.avatar),
-      }));
+          id: member.id,
+          name: member.name,
+          deposit: 0,
+          mealsEaten: 0,
+          avatar: toAvatar(member.name, member.avatar),
+        }));
 
       const nextCycles = ((cyclesResult.data || []) as CycleRow[])
         .filter((cycle) => !cycle.deleted_at)
         .map((cycle) => ({
-        id: cycle.id,
-        name: cycle.name || getDefaultCycleBaseName(cycle.started_at),
-        status: cycle.status,
-        startedAt: cycle.started_at,
-        closedAt: cycle.closed_at,
-        finalizedAt: cycle.finalized_at,
-        membersSnapshot: cycle.members_snapshot,
-      }));
-
-      const nextDeposits = ((depositsResult.data || []) as CycleDepositRow[]).map((deposit) => ({
-        id: deposit.id,
-        cycleId: deposit.cycle_id,
-        memberId: deposit.member_id,
-        amount: Number(deposit.amount),
-        note: deposit.note ?? undefined,
-        createdAt: deposit.created_at,
-      }));
-
-      const nextExpenses = ((expensesResult.data || []) as ExpenseRow[])
-        .filter((expense) => Boolean(expense.cycle_id))
-        .map((expense) => ({
-          id: expense.id,
-          cycleId: expense.cycle_id,
-          amount: Number(expense.amount),
-          description: expense.description,
-          type: expense.type,
-          date: expense.date,
-          paidBy: expense.paid_by,
+          id: cycle.id,
+          name: cycle.name || getDefaultCycleBaseName(cycle.started_at),
+          status: cycle.status,
+          startedAt: cycle.started_at,
+          closedAt: cycle.closed_at,
+          finalizedAt: cycle.finalized_at,
+          membersSnapshot: cycle.members_snapshot,
         }));
 
-      const nextMealLogs = ((mealLogsResult.data || []) as MealLogRow[])
-        .filter((log) => Boolean(log.cycle_id))
-        .map((log) => ({
-          id: log.id,
-          cycleId: log.cycle_id,
-          memberId: log.member_id,
-          date: log.date,
-          count: Number(log.count),
-        }));
-
-      const nextChangelogEntries = ((changelogResult.data || []) as ChangelogRow[]).map((entry) => ({
-        id: entry.id,
-        cycleId: entry.cycle_id,
-        entityType: entry.entity_type,
-        entityId: entry.entity_id,
-        action: entry.action,
-        title: entry.title,
-        changes: entry.changes ?? [],
-        createdAt: entry.created_at,
-      }));
+      const nextChangelogEntries = mapChangelogRows((changelogResult.data || []) as ChangelogRow[]);
+      const initialCycleIds = nextCycles
+        .filter((cycle) => cycle.status === 'active' || cycle.status === 'pending')
+        .map((cycle) => cycle.id);
+      const initialRows = await Promise.all(initialCycleIds.map((cycleId) => fetchCycleRows(cycleId)));
 
       setMemberRoster(nextMembers);
       setCycles(nextCycles);
-      setAllDeposits(nextDeposits);
-      setAllExpenses(nextExpenses);
-      setAllMealLogs(nextMealLogs);
+      setAllDeposits(initialRows.flatMap((rows) => rows?.deposits ?? []));
+      setAllExpenses(initialRows.flatMap((rows) => rows?.expenses ?? []));
+      setAllMealLogs(initialRows.flatMap((rows) => rows?.mealLogs ?? []));
+      setLoadedCycleIds(new Set(initialCycleIds));
+      setCycleDetailsErrorById({});
+      setCycleDetailsLoadingById({});
       setAllChangelogEntries(nextChangelogEntries);
+      setHasMoreChangelogEntries(nextChangelogEntries.length === CHANGELOG_PAGE_SIZE);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadMoreChangelogEntries = async () => {
+    if (!userId || changelogLoading || !hasMoreChangelogEntries) return;
+
+    setChangelogLoading(true);
+    try {
+      const from = allChangelogEntries.length;
+      const to = from + CHANGELOG_PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from('changelog_entries')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      const nextEntries = mapChangelogRows((data || []) as ChangelogRow[]);
+      setAllChangelogEntries((prev) => {
+        const seen = new Set(prev.map((entry) => entry.id));
+        return [...prev, ...nextEntries.filter((entry) => !seen.has(entry.id))];
+      });
+      setHasMoreChangelogEntries(nextEntries.length === CHANGELOG_PAGE_SIZE);
+    } catch (error) {
+      console.error('Error loading changelog entries:', error);
+    } finally {
+      setChangelogLoading(false);
+    }
+  };
+
 
   const getRequiredCycleId = (requestedCycleId?: string) => {
     return requestedCycleId ?? activeCycle?.id ?? null;
@@ -1299,6 +1444,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
           : cycle
       )),
     ]);
+    setLoadedCycleIds((prev) => new Set(prev).add(activeCycle.id).add(nextActive.id));
     void broadcastSharedUpdate();
   };
 
@@ -1364,6 +1510,18 @@ export function MealProvider({ children }: { children: ReactNode }) {
     }
 
     setCycles((prev) => prev.filter((cycle) => cycle.id !== cycleId));
+    setLoadedCycleIds((prev) => {
+      const next = new Set(prev);
+      next.delete(cycleId);
+      return next;
+    });
+    setCycleDetailsById((prev) => {
+      const { [cycleId]: _removed, ...next } = prev;
+      return next;
+    });
+    setAllDeposits((prev) => prev.filter((deposit) => deposit.cycleId !== cycleId));
+    setAllExpenses((prev) => prev.filter((expense) => expense.cycleId !== cycleId));
+    setAllMealLogs((prev) => prev.filter((log) => log.cycleId !== cycleId));
   };
 
   const restoreCycle = async (cycleId: string) => {
@@ -1451,6 +1609,9 @@ export function MealProvider({ children }: { children: ReactNode }) {
         cycles,
         activeCycleChangelogEntries,
         pendingCycleChangelogEntries,
+        changelogEntries: allChangelogEntries,
+        hasMoreChangelogEntries,
+        changelogLoading,
         activeCycle,
         pendingCycle,
         loading,
@@ -1473,6 +1634,10 @@ export function MealProvider({ children }: { children: ReactNode }) {
         stats,
         getMemberStats,
         getCycleDetails,
+        loadCycleDetails,
+        isCycleDetailsLoading,
+        getCycleDetailsError,
+        loadMoreChangelogEntries,
       }}
     >
       {children}

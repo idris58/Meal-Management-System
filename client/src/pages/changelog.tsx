@@ -239,7 +239,15 @@ function ChangelogSection({
 }
 
 export default function ChangelogPage() {
-  const { activeCycle, activeCycleChangelogEntries, pendingCycle, pendingCycleChangelogEntries } = useMeal();
+  const {
+    activeCycle,
+    activeCycleChangelogEntries,
+    pendingCycle,
+    pendingCycleChangelogEntries,
+    hasMoreChangelogEntries,
+    changelogLoading,
+    loadMoreChangelogEntries,
+  } = useMeal();
   const [actionFilter, setActionFilter] = useState<ChangelogAction | 'all'>('all');
   const [entityFilter, setEntityFilter] = useState<ChangelogEntityType | 'all'>('all');
 
@@ -324,6 +332,19 @@ export default function ChangelogPage() {
               description="Settlement and correction activity for the cycle that is still pending."
               entries={filteredPendingEntries}
             />
+          ) : null}
+
+          {hasMoreChangelogEntries ? (
+            <div className="flex justify-center pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void loadMoreChangelogEntries()}
+                disabled={changelogLoading}
+              >
+                {changelogLoading ? 'Loading...' : 'Load More'}
+              </Button>
+            </div>
           ) : null}
         </div>
       )}

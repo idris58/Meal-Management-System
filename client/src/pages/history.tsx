@@ -4,7 +4,7 @@ import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-
 import { Archive, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Wallet, Zap } from 'lucide-react';
 import { Link } from 'wouter';
 
-import { useMeal, type CycleDetails, type Expense } from '@/lib/meal-context';
+import { useMeal, type Cycle, type CycleDetails, type Expense } from '@/lib/meal-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -795,23 +795,40 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
 }
 
 function ClosedCycleCard({
-  details,
+  cycle,
   isExpanded,
   onDeleted,
 }: {
-  details: CycleDetails;
+  cycle: Cycle;
   isExpanded: boolean;
   onDeleted: (details: CycleDetails) => void;
 }) {
-  const { deleteCycle } = useMeal();
+  const {
+    deleteCycle,
+    getCycleDetails,
+    getCycleDetailsError,
+    isCycleDetailsLoading,
+    loadCycleDetails,
+  } = useMeal();
   const [isDeleting, setIsDeleting] = useState(false);
+  const details = getCycleDetails(cycle.id);
+  const isLoading = isCycleDetailsLoading(cycle.id);
+  const loadError = getCycleDetailsError(cycle.id);
+  const memberCount = details?.members.length ?? cycle.membersSnapshot?.length ?? 0;
+  const mealCount = details ? formatMealCount(details.stats.totalMealsConsumed) : null;
+
+  useEffect(() => {
+    if (isExpanded && !details && !isLoading && !loadError) {
+      void loadCycleDetails(cycle.id);
+    }
+  }, [cycle.id, details, isExpanded, isLoading, loadCycleDetails, loadError]);
 
   const handleDeleteCycle = async () => {
-    if (isDeleting) return;
+    if (isDeleting || !details) return;
     setIsDeleting(true);
 
     try {
-      await deleteCycle(details.cycle.id);
+      await deleteCycle(cycle.id);
       onDeleted(details);
     } finally {
       setIsDeleting(false);
@@ -819,13 +836,15 @@ function ClosedCycleCard({
   };
 
   return (
-    <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
+    <AccordionItem value={cycle.id} className="rounded-lg border bg-card px-4">
       <div className="flex items-center justify-between gap-4 py-4">
         <AccordionPrimitive.Header className="min-w-0 flex-1">
           <AccordionPrimitive.Trigger className="flex w-full items-center text-left text-sm font-medium transition-all hover:no-underline">
             <div className="min-w-0 text-left">
-              <p className="font-bold">{details.cycle.name}</p>
-              <p className="text-sm text-muted-foreground">Closed: {format(new Date(details.cycle.finalizedAt || details.cycle.closedAt || details.cycle.startedAt), 'PPP')} • {details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals</p>
+              <p className="font-bold">{cycle.name}</p>
+              <p className="text-sm text-muted-foreground">
+                Closed: {format(new Date(cycle.finalizedAt || cycle.closedAt || cycle.startedAt), 'PPP')} • {memberCount} Members{mealCount ? ` • ${mealCount} Meals` : ''}
+              </p>
             </div>
           </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>
@@ -839,7 +858,7 @@ function ClosedCycleCard({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700 sm:hidden"
-                    disabled={isDeleting}
+                    disabled={isDeleting || !details}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -853,7 +872,7 @@ function ClosedCycleCard({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteCycle} disabled={isDeleting}>
+                    <AlertDialogAction onClick={handleDeleteCycle} disabled={isDeleting || !details}>
                       {isDeleting ? 'Deleting...' : 'Yes, Delete Cycle'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -865,7 +884,7 @@ function ClosedCycleCard({
                     variant="ghost"
                     size="sm"
                     className="hidden gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 sm:inline-flex"
-                    disabled={isDeleting}
+                    disabled={isDeleting || !details}
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete Cycle
@@ -880,7 +899,7 @@ function ClosedCycleCard({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteCycle} disabled={isDeleting}>
+                    <AlertDialogAction onClick={handleDeleteCycle} disabled={isDeleting || !details}>
                       {isDeleting ? 'Deleting...' : 'Yes, Delete Cycle'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -899,41 +918,56 @@ function ClosedCycleCard({
         </div>
       </div>
       <AccordionContent className="space-y-4 pb-6">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
-          <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
-          <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
-          <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
-        </div>
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead className="text-center">Meals</TableHead>
-                <TableHead className="text-center">Deposit</TableHead>
-                <TableHead className="text-right">Final Balance</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {details.members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell className="text-center">{formatMealCount(member.mealsEaten)}</TableCell>
-                  <TableCell className="text-center">{formatCurrency(member.deposit)}</TableCell>
-                  <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                    {formatBalance(member.balance)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        {isLoading ? (
+          <div className="space-y-3 rounded-lg border border-dashed p-4">
+            <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+            <div className="h-20 animate-pulse rounded bg-muted/70" />
+          </div>
+        ) : loadError ? (
+          <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+            <p className="mb-3">Unable to load this cycle.</p>
+            <Button variant="outline" size="sm" onClick={() => void loadCycleDetails(cycle.id, { force: true })}>
+              Retry
+            </Button>
+          </div>
+        ) : details ? (
+          <>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
+              <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
+              <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
+              <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
+            </div>
+            <div className="overflow-hidden rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead className="text-center">Meals</TableHead>
+                    <TableHead className="text-center">Deposit</TableHead>
+                    <TableHead className="text-right">Final Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {details.members.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium">{member.name}</TableCell>
+                      <TableCell className="text-center">{formatMealCount(member.mealsEaten)}</TableCell>
+                      <TableCell className="text-center">{formatCurrency(member.deposit)}</TableCell>
+                      <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                        {formatBalance(member.balance)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        ) : null}
       </AccordionContent>
     </AccordionItem>
   );
 }
-
 function StatCard({
   title,
   value,
@@ -983,16 +1017,14 @@ export default function HistoryPage() {
     .filter((cycle): cycle is CycleDetails => Boolean(cycle));
 
   const closedCycles = cycles
-    .filter((cycle) => cycle.status === 'closed')
-    .map((cycle) => getCycleDetails(cycle.id))
-    .filter((cycle): cycle is CycleDetails => Boolean(cycle));
+    .filter((cycle) => cycle.status === 'closed');
 
   const handleClosedCycleDeleted = (details: CycleDetails) => {
     setDeletedClosedCycles((prev) => [
       ...prev.filter((entry) => entry.details.cycle.id !== details.cycle.id),
       {
         details,
-        index: Math.max(0, closedCycles.findIndex((entry) => entry.cycle.id === details.cycle.id)),
+        index: Math.max(0, closedCycles.findIndex((entry) => entry.id === details.cycle.id)),
         expiresAt: Date.now() + DELETE_GRACE_MS,
       },
     ]);
@@ -1005,9 +1037,9 @@ export default function HistoryPage() {
   };
 
   const closedCycleRows: Array<
-    | { type: 'cycle'; details: CycleDetails }
+    | { type: 'cycle'; cycle: Cycle }
     | { type: 'deleted'; ghost: DeletedCycleGhost }
-  > = closedCycles.map((details) => ({ type: 'cycle', details }));
+  > = closedCycles.map((cycle) => ({ type: 'cycle', cycle }));
 
   for (const ghost of [...deletedClosedCycles].sort((a, b) => a.index - b.index)) {
     closedCycleRows.splice(Math.min(ghost.index, closedCycleRows.length), 0, { type: 'deleted', ghost });
@@ -1088,9 +1120,9 @@ export default function HistoryPage() {
 
               return (
                 <ClosedCycleCard
-                  key={row.details.cycle.id}
-                  details={row.details}
-                  isExpanded={openClosedCycleId === row.details.cycle.id}
+                  key={row.cycle.id}
+                  cycle={row.cycle}
+                  isExpanded={openClosedCycleId === row.cycle.id}
                   onDeleted={handleClosedCycleDeleted}
                 />
               );

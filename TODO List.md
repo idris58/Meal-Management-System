@@ -27,6 +27,15 @@ style: soften inline delete ghost rows
 
 refactor: update delete confirmation messages for expenses and members
 
+perf: lazy load cycle details and paginate changelog
+
+- load only members, cycle metadata, active cycle, and pending cycle data at startup
+- add per-cycle detail cache with loading and error states
+- lazy-load closed cycle details when expanded in history
+- add retry state for failed closed cycle detail loads
+- paginate changelog entries with a Load More control
+- keep loaded cycle caches updated after expense, deposit, meal, and cycle mutations
+
 
 # MealTrack — Improvement & Feature Suggestions
 
@@ -71,13 +80,6 @@ The app has PWA support but could be more mobile-optimized:
 
 ---
 
-### 6. Undo/Redo Support
-- Add toast-based "Undo" action after deleting an expense, member, or meal log
-- Implement soft-delete with a grace period before permanent removal
-- Reduces accidental data loss
-
----
-
 ## 🔧 Technical Improvements
 
 ### 7. Data Pagination
@@ -86,7 +88,6 @@ The app loads ALL expenses, meal logs, deposits, and changelog entries at once:
 - Lazy-load closed cycle details only when expanded
 - Critical for long-running groups with many cycles
 
-> [!WARNING]
 > As users accumulate more cycles and data, the current "load everything" approach in [meal-context.tsx] will become a performance bottleneck. Consider lazy-loading per cycle.
 
 ---
