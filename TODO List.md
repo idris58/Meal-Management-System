@@ -1,40 +1,10 @@
-## Changes Made
 
-feat: add undoable soft deletes
+style: add full-width app header
 
-- add soft-delete columns and cleanup indexes for expenses, members, and cycles
-- replace hard deletes with 10-second soft-delete grace period
-- add toast Undo actions for expense, member, and closed-cycle deletes
-- add restore methods to meal context
-- hide soft-deleted records from app and shared views
-- permanently clean expired soft deletes from the server scheduler
-
-feat: replace delete toast undo with inline ghost rows
-
-- add reusable inline undo ghost component with countdown progress
-- show deleted member cards in-place during the undo grace period
-- show deleted expense rows in-place across expense tabs
-- add inline undo rows for pending-cycle expense corrections
-- add inline undo rows for closed-cycle deletes
-- remove toast-based undo actions from delete flows
-
-style: soften inline delete ghost rows
-
-- make deleted items more visible during undo grace period
-- remove blur from ghost row content
-- reduce amber overlay intensity
-- lighten countdown progress styling
-
-refactor: update delete confirmation messages for expenses and members
-
-perf: lazy load cycle details and paginate changelog
-
-- load only members, cycle metadata, active cycle, and pending cycle data at startup
-- add per-cycle detail cache with loading and error states
-- lazy-load closed cycle details when expanded in history
-- add retry state for failed closed cycle detail loads
-- paginate changelog entries with a Load More control
-- keep loaded cycle caches updated after expense, deposit, meal, and cycle mutations
+- move MealTrack branding into a shared top header
+- place the PWA install button in the header action area
+- keep desktop sidebar navigation below the header
+- improve responsive mobile header spacing and menu behavior
 
 
 # MealTrack — Improvement & Feature Suggestions
@@ -75,22 +45,10 @@ Allow reordering members in the list via drag-and-drop to prioritize the display
 The app has PWA support but could be more mobile-optimized:
 - **Bottom navigation bar** on mobile (instead of just the sidebar)
 - **Swipe gestures** for navigating between pages
-- **Pull-to-refresh** for data reload
-- Haptic feedback on meal count +/- buttons
 
 ---
 
 ## 🔧 Technical Improvements
-
-### 7. Data Pagination
-The app loads ALL expenses, meal logs, deposits, and changelog entries at once:
-- Add pagination or infinite scroll for large datasets
-- Lazy-load closed cycle details only when expanded
-- Critical for long-running groups with many cycles
-
-> As users accumulate more cycles and data, the current "load everything" approach in [meal-context.tsx] will become a performance bottleneck. Consider lazy-loading per cycle.
-
----
 
 ### 8. Automated Tests
 No test files exist in the project:
