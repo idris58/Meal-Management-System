@@ -9,7 +9,6 @@ style: add full-width app header
 feat: improve mobile navigation experience
 - Add fixed mobile bottom navigation with primary app routes
 - Move secondary mobile actions into the More sheet
-- Add swipe gestures between main mobile app pages
 - Add safe-area and bottom spacing so content clears the mobile nav
 
 

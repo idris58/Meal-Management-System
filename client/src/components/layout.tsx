@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   LayoutDashboard,
@@ -35,32 +35,6 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const PRIMARY_MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== '/app/settings');
-const SWIPE_NAV_ROUTES = PRIMARY_MOBILE_NAV_ITEMS.map((item) => item.href);
-const SWIPE_MIN_DISTANCE = 80;
-const SWIPE_DIRECTION_RATIO = 1.5;
-
-function isSwipeIgnoredTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return true;
-  }
-
-  return Boolean(
-    target.closest(
-      [
-        'a',
-        'button',
-        'input',
-        'textarea',
-        'select',
-        '[contenteditable="true"]',
-        '[role="button"]',
-        '[role="dialog"]',
-        '[data-radix-dialog-content]',
-        '[data-swipe-ignore]',
-      ].join(','),
-    ),
-  );
-}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   // Fix: was called twice before - once for location, once for setLocation.
@@ -68,7 +42,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const { user, signOut } = useAuth();
 
   const handleLogout = async () => {
@@ -83,52 +56,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleTouchStart = (event: React.TouchEvent<HTMLElement>) => {
-    if (window.innerWidth >= 768 || !SWIPE_NAV_ROUTES.includes(location)) {
-      touchStartRef.current = null;
-      return;
-    }
-
-    if (isSwipeIgnoredTarget(event.target)) {
-      touchStartRef.current = null;
-      return;
-    }
-
-    const touch = event.touches[0];
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-  };
-
-  const handleTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
-    const start = touchStartRef.current;
-    touchStartRef.current = null;
-
-    if (!start || window.innerWidth >= 768) {
-      return;
-    }
-
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - start.x;
-    const deltaY = touch.clientY - start.y;
-
-    if (
-      Math.abs(deltaX) < SWIPE_MIN_DISTANCE ||
-      Math.abs(deltaX) < Math.abs(deltaY) * SWIPE_DIRECTION_RATIO
-    ) {
-      return;
-    }
-
-    const currentIndex = SWIPE_NAV_ROUTES.indexOf(location);
-    if (currentIndex === -1) {
-      return;
-    }
-
-    const nextIndex =
-      deltaX < 0
-        ? (currentIndex + 1) % SWIPE_NAV_ROUTES.length
-        : (currentIndex - 1 + SWIPE_NAV_ROUTES.length) % SWIPE_NAV_ROUTES.length;
-
-    setLocation(SWIPE_NAV_ROUTES[nextIndex]);
-  };
 
   const brand = (
     <Link href="/app">
@@ -244,14 +171,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main Content */}
-        <main
-          className="min-w-0 flex-1 overflow-y-auto"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={() => {
-            touchStartRef.current = null;
-          }}
-        >
+        <main className="min-w-0 flex-1 overflow-y-auto">
           <div className="container mx-auto max-w-5xl p-4 pb-28 md:p-8">
             {children}
           </div>
@@ -261,7 +181,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <nav
         className="fixed inset-x-0 bottom-0 z-50 border-t bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
         aria-label="Primary mobile navigation"
-        data-swipe-ignore
       >
         <div className="grid h-16 grid-cols-6 items-center gap-1">
           {PRIMARY_MOBILE_NAV_ITEMS.map((item) => (
