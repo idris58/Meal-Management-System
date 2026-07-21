@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Route, Switch, useLocation, useRoute } from "wouter";
 
 import { Layout } from "@/components/layout";
@@ -90,6 +91,7 @@ const legacyMainRouteMap: Record<string, string> = {
 };
 
 function AppShell() {
+  const { t, i18n } = useTranslation();
   const { session, loading, lastAuthEvent } = useAuth();
   const [location, setLocation] = useLocation();
   const [isSharedLandingRoute] = useRoute("/shared");
@@ -186,25 +188,25 @@ function AppShell() {
     }
 
     const pageTitleMap: Record<string, string> = {
-      "/": "Dashboard - MealTrack",
-      "/app": "Dashboard - MealTrack",
-      "/members": "Members - MealTrack",
-      "/app/members": "Members - MealTrack",
-      "/expenses": "Expenses - MealTrack",
-      "/app/expenses": "Expenses - MealTrack",
-      "/meals": "Meals - MealTrack",
-      "/app/meals": "Meals - MealTrack",
-      "/history": "History - MealTrack",
-      "/app/history": "History - MealTrack",
-      "/changelog": "Changelog - MealTrack",
-      "/app/changelog": "Changelog - MealTrack",
-      "/settings": "Settings - MealTrack",
-      "/app/settings": "Settings - MealTrack",
-      "/auth": isRecoveryFlow ? "Reset Password - MealTrack" : "Authentication - MealTrack",
+      "/": `${t("titles.dashboard")} - MealTrack`,
+      "/app": `${t("titles.dashboard")} - MealTrack`,
+      "/members": `${t("titles.members")} - MealTrack`,
+      "/app/members": `${t("titles.members")} - MealTrack`,
+      "/expenses": `${t("titles.expenses")} - MealTrack`,
+      "/app/expenses": `${t("titles.expenses")} - MealTrack`,
+      "/meals": `${t("titles.meals")} - MealTrack`,
+      "/app/meals": `${t("titles.meals")} - MealTrack`,
+      "/history": `${t("titles.history")} - MealTrack`,
+      "/app/history": `${t("titles.history")} - MealTrack`,
+      "/changelog": `${t("titles.changelog")} - MealTrack`,
+      "/app/changelog": `${t("titles.changelog")} - MealTrack`,
+      "/settings": `${t("titles.settings")} - MealTrack`,
+      "/app/settings": `${t("titles.settings")} - MealTrack`,
+      "/auth": `${isRecoveryFlow ? t("titles.resetPassword") : t("titles.authentication")} - MealTrack`,
     };
 
     document.title = pageTitleMap[location] ?? "MealTrack";
-  }, [isRecoveryFlow, isSharedLandingRoute, isSharedRoute, location]);
+  }, [i18n.language, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, location, t]);
 
   useEffect(() => {
     if (isSharedLandingRoute || isSharedRoute) {

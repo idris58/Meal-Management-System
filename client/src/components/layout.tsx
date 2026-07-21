@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'wouter';
 import {
   LayoutDashboard,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PwaInstallButton } from '@/components/pwa-install-button';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -26,12 +28,12 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/app' },
-  { icon: Users, label: 'Members', href: '/app/members' },
-  { icon: UtensilsCrossed, label: 'Meals', href: '/app/meals' },
-  { icon: Receipt, label: 'Expenses', href: '/app/expenses' },
-  { icon: History, label: 'History', href: '/app/history' },
-  { icon: Settings, label: 'Settings', href: '/app/settings' },
+  { icon: LayoutDashboard, label: 'nav.dashboard', href: '/app' },
+  { icon: Users, label: 'nav.members', href: '/app/members' },
+  { icon: UtensilsCrossed, label: 'nav.meals', href: '/app/meals' },
+  { icon: Receipt, label: 'nav.expenses', href: '/app/expenses' },
+  { icon: History, label: 'nav.history', href: '/app/history' },
+  { icon: Settings, label: 'nav.settings', href: '/app/settings' },
 ];
 
 const PRIMARY_MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== '/app/settings');
@@ -43,6 +45,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { user, signOut } = useAuth();
+  const { t } = useTranslation();
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -93,14 +96,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <item.icon className="h-5 w-5" />
-                  {item.label}
+                  {t(item.label)}
                 </div>
               </Link>
             ))}
           </nav>
           <div className="space-y-3 border-t p-4">
             <div className="truncate px-2 text-sm text-muted-foreground">
-              {user?.email ?? 'Signed in'}
+              {user?.email ?? t('auth.signedIn')}
             </div>
             <Button
               variant="outline"
@@ -109,7 +112,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => { setIsMobileMenuOpen(false); void handleLogout(); }}
             >
               {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              {isLoggingOut ? 'Logging out...' : 'Logout'}
+              {isLoggingOut ? t('auth.loggingOut') : t('auth.logout')}
             </Button>
           </div>
         </div>
@@ -126,11 +129,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {brand}
         </div>
 
-        <PwaInstallButton
+        <div className="flex items-center gap-2"><LanguageSwitcher /><PwaInstallButton
           appId="main"
           appName="MealTrack"
           className="h-9 shrink-0 gap-1.5 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm max-[380px]:[&_span]:hidden"
         />
+        </div>
       </header>
 
       <div className="flex">
@@ -148,7 +152,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   )}
                 >
                   <item.icon className="h-5 w-5" />
-                  {item.label}
+                  {t(item.label)}
                 </div>
               </Link>
             ))}
@@ -156,7 +160,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           <div className="space-y-3 border-t p-4">
             <div className="truncate px-2 text-sm text-muted-foreground">
-              {user?.email ?? 'Signed in'}
+              {user?.email ?? t('auth.signedIn')}
             </div>
             <Button
               variant="outline"
@@ -165,7 +169,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => void handleLogout()}
             >
               {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              {isLoggingOut ? 'Logging out...' : 'Logout'}
+              {isLoggingOut ? t('auth.loggingOut') : t('auth.logout')}
             </Button>
           </div>
         </aside>
@@ -194,7 +198,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                <span className="w-full truncate text-center leading-none">{item.label}</span>
+                <span className="w-full truncate text-center leading-none">{t(item.label)}</span>
               </div>
             </Link>
           ))}
@@ -204,7 +208,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu className="h-5 w-5 shrink-0" />
-            <span className="w-full truncate text-center leading-none">More</span>
+            <span className="w-full truncate text-center leading-none">{t('nav.more')}</span>
           </button>
         </div>
       </nav>

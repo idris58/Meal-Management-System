@@ -18,6 +18,13 @@ feat: Improve empty states
 - Add two empty states on Meals page: no-members (link to Members) and no-meals (open log dialog)
 - Disable "Log Meals" button on Meals page when no members exist
 
+feat: add English and Bengali language support
+
+- integrate react-i18next with persistent device-level language preference
+- add premium accessible language switchers across app, auth, and shared headers
+- localize navigation, account actions, mobile menu labels, and browser titles
+- add Bengali typography and document language metadata support
+- include date locale utility and i18n dependencies
 
 
 # MealTrack — Improvement & Feature Suggestions
@@ -51,13 +58,6 @@ Allow exporting cycle data — very useful at settlement time:
 
 ### 4. Drag-and-Drop Member Reordering
 Allow reordering members in the list via drag-and-drop to prioritize the display order.
-
----
-
-### 5. Improved Mobile Experience
-The app has PWA support but could be more mobile-optimized:
-- **Bottom navigation bar** on mobile (instead of just the sidebar)
-- **Swipe gestures** for navigating between pages
 
 ---
 
