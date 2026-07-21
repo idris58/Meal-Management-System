@@ -311,7 +311,28 @@ export default function Expenses() {
     return (
       <div className="space-y-3 pb-4">
         {rows.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground">No expenses found.</p>
+          <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[300px] animate-in fade-in-50 duration-300">
+            <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
+              <ShoppingBag className="h-10 w-10 text-primary animate-pulse" />
+            </div>
+            <h3 className="font-heading text-lg font-bold text-foreground">
+              No {scope === 'all' ? '' : scope === 'meal' ? 'meal ' : 'fixed '}expenses found
+            </h3>
+            <p className="text-muted-foreground text-sm max-w-sm mt-2 mb-6 leading-relaxed">
+              {scope === 'all'
+                ? 'Track your groceries, helper wages, house rent, or utility bills for the current cycle.'
+                : scope === 'meal'
+                ? 'Record food, grocery shopping, market costs, or daily cooking items here.'
+                : 'Log fixed bills like rent, wifi connection, cook wages, and electricity charges.'}
+            </p>
+            <Button
+              className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform bg-primary hover:bg-primary/95 text-primary-foreground font-semibold"
+              onClick={() => setOpenExpense(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add Expense
+            </Button>
+          </Card>
         ) : (
           <>
             {rows.map((row) => {

@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, Wallet } from 'lucide-react';
+import { Plus, Trash2, Wallet, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { UndoDeleteGhost } from '@/components/undo-delete-ghost';
 
@@ -310,37 +310,56 @@ export default function Members() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {memberCards.map((item) => {
-          if (item.type === 'deleted') {
-            const { ghost } = item;
-            return (
-              <UndoDeleteGhost
-                key={`deleted-${ghost.member.id}`}
-                message={`Member '${ghost.member.name}' deleted.`}
-                expiresAt={ghost.expiresAt}
-                onUndo={() => void handleUndoMember(ghost.member.id)}
-                onExpired={() => setDeletedMembers((prev) => prev.filter((entry) => entry.member.id !== ghost.member.id))}
-                className="min-h-full"
-              >
-                <MemberCard member={ghost.member} stats={ghost.stats} />
-              </UndoDeleteGhost>
-            );
-          }
+      {members.length === 0 ? (
+        <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[350px] animate-in fade-in-50 duration-300">
+          <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
+            <Users className="h-10 w-10 text-primary animate-pulse" />
+          </div>
+          <h3 className="font-heading text-lg font-bold text-foreground">No members in this cycle</h3>
+          <p className="text-muted-foreground text-sm max-w-sm mt-2 mb-6 leading-relaxed">
+            Add roommates, family members, or mess colleagues to start tracking their meals, deposits, and shared expenses.
+          </p>
+          <Button 
+            className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform bg-primary hover:bg-primary/95 text-primary-foreground font-semibold"
+            onClick={() => setIsAddOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add Your First Member
+          </Button>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {memberCards.map((item) => {
+            if (item.type === 'deleted') {
+              const { ghost } = item;
+              return (
+                <UndoDeleteGhost
+                  key={`deleted-${ghost.member.id}`}
+                  message={`Member '${ghost.member.name}' deleted.`}
+                  expiresAt={ghost.expiresAt}
+                  onUndo={() => void handleUndoMember(ghost.member.id)}
+                  onExpired={() => setDeletedMembers((prev) => prev.filter((entry) => entry.member.id !== ghost.member.id))}
+                  className="min-h-full"
+                >
+                  <MemberCard member={ghost.member} stats={ghost.stats} />
+                </UndoDeleteGhost>
+              );
+            }
 
-          const stats = getMemberStats(item.member.id);
-          return (
-            <MemberCard
-              key={item.member.id}
-              member={item.member}
-              stats={stats}
-              deletingMemberId={deletingMemberId}
-              onDeposit={() => setDepositMemberId(item.member.id)}
-              onDelete={() => handleRemoveMember(item.member.id)}
-            />
-          );
-        })}
-      </div>
+            const stats = getMemberStats(item.member.id);
+            return (
+              <MemberCard
+                key={item.member.id}
+                member={item.member}
+                stats={stats}
+                deletingMemberId={deletingMemberId}
+                onDeposit={() => setDepositMemberId(item.member.id)}
+                onDelete={() => handleRemoveMember(item.member.id)}
+              />
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={!!depositMemberId} onOpenChange={(open) => !open && setDepositMemberId(null)}>
         <DialogContent>

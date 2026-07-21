@@ -11,6 +11,14 @@ feat: improve mobile navigation experience
 - Move secondary mobile actions into the More sheet
 - Add safe-area and bottom spacing so content clears the mobile nav
 
+feat: Improve empty states
+
+- Add premium empty state card on Members page with "Add Your First Member" CTA
+- Replace plain text empty state on Expenses page with context-aware illustrated cards per tab
+- Add two empty states on Meals page: no-members (link to Members) and no-meals (open log dialog)
+- Disable "Log Meals" button on Meals page when no members exist
+
+
 
 # MealTrack — Improvement & Feature Suggestions
 
@@ -37,7 +45,7 @@ Allow exporting cycle data — very useful at settlement time:
 ### 3. Onboarding / Empty States
 - **First-time user walkthrough** — step-by-step guide on adding members, logging meals, etc.
 - Better **empty states** with illustrations and CTAs when there are no members/expenses/meals
-- Quick-start checklist: "Add members → Log first meal → Add first expense"
+- Quick-start checklist: "Add members → Add Deposit → Log first meal → Add first expense"
 
 ---
 
