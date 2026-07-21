@@ -9,7 +9,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, Wallet, Users } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Wallet, Users } from 'lucide-react';
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useMemo, useState } from 'react';
 import { UndoDeleteGhost } from '@/components/undo-delete-ghost';
 
@@ -152,18 +155,23 @@ function MemberCard({
   deletingMemberId,
   onDeposit,
   onDelete,
+  dragHandleProps,
+  isDragging = false,
 }: {
   member: Member;
   stats: MemberStatsSnapshot;
   deletingMemberId?: string | null;
   onDeposit?: () => void;
   onDelete?: () => void;
+  dragHandleProps?: any;
+  isDragging?: boolean;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden transition-shadow ${isDragging ? "shadow-xl ring-2 ring-primary/30" : ""}`}>
       <CardContent className="p-0">
         <div className="flex items-start justify-between border-b bg-secondary/20 p-4">
           <div className="flex items-center gap-3">
+            {dragHandleProps ? <button type="button" className="-ml-2 touch-none cursor-grab rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:cursor-grabbing" aria-label="Drag to reorder member" {...dragHandleProps}><GripVertical className="h-4 w-4" /></button> : null}
             <Avatar>
               <AvatarFallback className="bg-primary/10 text-primary">{member.avatar}</AvatarFallback>
             </Avatar>
@@ -240,8 +248,18 @@ function MemberCard({
   );
 }
 
+function SortableMemberCard({ member, stats, deletingMemberId, onDeposit, onDelete }: { member: Member; stats: MemberStatsSnapshot; deletingMemberId?: string | null; onDeposit: () => void; onDelete: () => void; }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: member.id });
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 1 : undefined }} className={isDragging ? "opacity-80" : undefined} {...attributes}>
+      <MemberCard member={member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={onDeposit} onDelete={onDelete} isDragging={isDragging} dragHandleProps={{ ref: setActivatorNodeRef, ...listeners }} />
+    </div>
+  );
+}
+
 export default function Members() {
-  const { members, removeMember, restoreMember, getMemberStats } = useMeal();
+  const { members, removeMember, restoreMember, reorderMembers, getMemberStats } = useMeal();
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [depositMemberId, setDepositMemberId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
@@ -275,6 +293,15 @@ export default function Members() {
   const handleUndoMember = async (memberId: string) => {
     setDeletedMembers((prev) => prev.filter((entry) => entry.member.id !== memberId));
     await restoreMember(memberId);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = members.findIndex((member) => member.id === active.id);
+    const newIndex = members.findIndex((member) => member.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    void reorderMembers(arrayMove(members.map((member) => member.id), oldIndex, newIndex)).catch((error) => console.error("Could not reorder members:", error));
   };
 
   const memberCards = useMemo(() => {
@@ -328,37 +355,20 @@ export default function Members() {
           </Button>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {memberCards.map((item) => {
-            if (item.type === 'deleted') {
-              const { ghost } = item;
-              return (
-                <UndoDeleteGhost
-                  key={`deleted-${ghost.member.id}`}
-                  message={`Member '${ghost.member.name}' deleted.`}
-                  expiresAt={ghost.expiresAt}
-                  onUndo={() => void handleUndoMember(ghost.member.id)}
-                  onExpired={() => setDeletedMembers((prev) => prev.filter((entry) => entry.member.id !== ghost.member.id))}
-                  className="min-h-full"
-                >
-                  <MemberCard member={ghost.member} stats={ghost.stats} />
-                </UndoDeleteGhost>
-              );
-            }
-
-            const stats = getMemberStats(item.member.id);
-            return (
-              <MemberCard
-                key={item.member.id}
-                member={item.member}
-                stats={stats}
-                deletingMemberId={deletingMemberId}
-                onDeposit={() => setDepositMemberId(item.member.id)}
-                onDelete={() => handleRemoveMember(item.member.id)}
-              />
-            );
-          })}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={members.map((member) => member.id)} strategy={rectSortingStrategy}>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {memberCards.map((item) => {
+                if (item.type === 'deleted') {
+                  const { ghost } = item;
+                  return <UndoDeleteGhost key={`deleted-${ghost.member.id}`} message={`Member '${ghost.member.name}' deleted.`} expiresAt={ghost.expiresAt} onUndo={() => void handleUndoMember(ghost.member.id)} onExpired={() => setDeletedMembers((prev) => prev.filter((entry) => entry.member.id !== ghost.member.id))} className="min-h-full"><MemberCard member={ghost.member} stats={ghost.stats} /></UndoDeleteGhost>;
+                }
+                const stats = getMemberStats(item.member.id);
+                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={() => setDepositMemberId(item.member.id)} onDelete={() => handleRemoveMember(item.member.id)} />;
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       <Dialog open={!!depositMemberId} onOpenChange={(open) => !open && setDepositMemberId(null)}>

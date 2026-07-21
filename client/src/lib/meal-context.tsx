@@ -112,6 +112,7 @@ interface MealContextType {
   updateMember: (id: string, updates: Partial<Member>) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
   restoreMember: (id: string) => Promise<void>;
+  reorderMembers: (memberIds: string[]) => Promise<void>;
   addExpense: (amount: number, description: string, type: 'meal' | 'fixed', paidBy: string, cycleId?: string, expenseDate?: string) => Promise<void>;
   updateExpense: (id: string, updates: {
     amount: number;
@@ -154,6 +155,7 @@ type MemberRow = {
   name: string;
   avatar: string | null;
   deleted_at?: string | null;
+  sort_order?: number | null;
 };
 
 type CycleRow = {
@@ -674,6 +676,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .select('*')
           .eq('user_id', userId)
           .is('deleted_at', null)
+          .order('sort_order', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true }),
         supabase
           .from('cycles')
@@ -783,7 +786,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const avatar = name.substring(0, 2).toUpperCase();
     const { data, error } = await supabase
       .from('members')
-      .insert([{ name, avatar, user_id: userId }])
+      .insert([{ name, avatar, user_id: userId, sort_order: memberRoster.length }])
       .select()
       .single();
 
@@ -813,6 +816,22 @@ export function MealProvider({ children }: { children: ReactNode }) {
         buildSnapshotChange('name', 'Name', data.name),
       ],
     });
+    void broadcastSharedUpdate();
+  };
+
+  const reorderMembers = async (memberIds: string[]) => {
+    if (!userId || memberIds.length !== memberRoster.length) return;
+    const byId = new Map(memberRoster.map((member) => [member.id, member]));
+    const nextRoster = memberIds.map((id) => byId.get(id)).filter((member): member is Member => Boolean(member));
+    if (nextRoster.length !== memberRoster.length) return;
+    const previousRoster = memberRoster;
+    setMemberRoster(nextRoster);
+    const results = await Promise.all(memberIds.map((id, sortOrder) => supabase.from("members").update({ sort_order: sortOrder }).eq("id", id).eq("user_id", userId)));
+    if (results.some((result) => result.error)) {
+      console.error("Error reordering members:", results.find((result) => result.error)?.error);
+      setMemberRoster(previousRoster);
+      throw new Error("Could not save member order.");
+    }
     void broadcastSharedUpdate();
   };
 
@@ -1619,6 +1638,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         updateMember,
         removeMember,
         restoreMember,
+        reorderMembers,
         addExpense,
         updateExpense,
         deleteExpense,
