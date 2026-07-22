@@ -308,70 +308,70 @@ export default function AuthPage() {
           : "Update Password";
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dff6eb_0%,#f8fafc_40%,#eef3f7_100%)]">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center gap-10 px-4 py-10 lg:flex-row lg:items-center lg:px-8">
         <section className="max-w-xl space-y-6">
-          <div className="inline-flex items-center gap-3 rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-sm text-emerald-700 shadow-sm backdrop-blur">
+          <div className="inline-flex items-center gap-3 rounded-full border border-primary/30 bg-card/80 px-4 py-2 text-sm text-primary shadow-sm backdrop-blur">
             <ChefHat className="h-4 w-4" />
             Shared meal operations, one secure workspace
           </div>
 
           <div className="space-y-4">
-            <h1 className="font-heading text-4xl font-bold tracking-tight text-slate-900 md:text-6xl">
+            <h1 className="font-heading text-4xl font-bold tracking-tight text-foreground md:text-6xl">
               Meal management with account-based access.
             </h1>
-            <p className="max-w-lg text-base leading-7 text-slate-600 md:text-lg">
+            <p className="max-w-lg text-base leading-7 text-muted-foreground md:text-lg">
               Sign in with email and password, create a new account, reset your
               password when needed, or continue with Google.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur">
-              <p className="text-sm font-semibold text-slate-900">Email login</p>
-              <p className="mt-1 text-sm text-slate-600">
+            <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur">
+              <p className="text-sm font-semibold text-foreground">Email login</p>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Standard email and password access.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur">
-              <p className="text-sm font-semibold text-slate-900">Signup page</p>
-              <p className="mt-1 text-sm text-slate-600">
+            <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur">
+              <p className="text-sm font-semibold text-foreground">Signup page</p>
+              <p className="mt-1 text-sm text-muted-foreground">
                 New users can register directly in the app.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur">
-              <p className="text-sm font-semibold text-slate-900">Password reset</p>
-              <p className="mt-1 text-sm text-slate-600">
+            <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur">
+              <p className="text-sm font-semibold text-foreground">Password reset</p>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Recover access with an email reset link.
               </p>
             </div>
           </div>
         </section>
 
-        <Card className="w-full max-w-md border-white/80 bg-white/90 shadow-2xl backdrop-blur">
+        <Card className="w-full max-w-md border-border bg-card/90 shadow-2xl backdrop-blur">
           <CardHeader className="space-y-5 pb-2">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-200">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
                 <ChefHat className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-700">
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">
                   MealTrack
                 </p>
-                <CardTitle className="mt-1 text-2xl text-slate-900">
+                <CardTitle className="mt-1 text-2xl text-foreground">
                   {title}
                 </CardTitle>
               </div>
             </div>
 
             {mode === "login" || mode === "signup" ? (
-              <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+              <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
                 <button
                   type="button"
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                     mode === "login"
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground"
                   }`}
                   onClick={() => switchMode("login")}
                 >
@@ -381,8 +381,8 @@ export default function AuthPage() {
                   type="button"
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                     mode === "signup"
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground"
                   }`}
                   onClick={() => switchMode("signup")}
                 >
@@ -392,7 +392,7 @@ export default function AuthPage() {
             ) : (
               <button
                 type="button"
-                className="inline-flex items-center gap-2 self-start text-sm font-medium text-slate-600 transition hover:text-slate-900"
+                className="inline-flex items-center gap-2 self-start text-sm font-medium text-muted-foreground transition hover:text-foreground"
                 onClick={() => switchMode("login")}
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -424,7 +424,7 @@ export default function AuthPage() {
                     {mode === "login" ? (
                       <button
                         type="button"
-                        className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+                        className="text-sm font-medium text-primary hover:text-primary/80"
                         onClick={() => switchMode("forgot-password")}
                       >
                         Forgot password?
@@ -448,7 +448,7 @@ export default function AuthPage() {
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700"
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
                       onClick={() =>
                         setShowPassword((current) => {
                           const next = !current;
@@ -486,7 +486,7 @@ export default function AuthPage() {
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700"
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
                       onClick={() =>
                         setShowConfirmPassword((current) => !current)
                       }
@@ -507,25 +507,25 @@ export default function AuthPage() {
               ) : null}
 
               {mode === "login" ? (
-                <p className="text-sm leading-6 text-slate-600">
+                <p className="text-sm leading-6 text-muted-foreground">
                   Sign in with your email and password, or continue with Google.
                 </p>
               ) : null}
 
               {mode === "signup" ? (
-                <p className="text-sm leading-6 text-slate-600">
+                <p className="text-sm leading-6 text-muted-foreground">
                   Create your account with email and password. Google sign-in is also available below.
                 </p>
               ) : null}
 
               {mode === "forgot-password" ? (
-                <p className="text-sm leading-6 text-slate-600">
+                <p className="text-sm leading-6 text-muted-foreground">
                   Enter your email address and we will send you a password reset link.
                 </p>
               ) : null}
 
               {mode === "reset-password" ? (
-                <p className="text-sm leading-6 text-slate-600">
+                <p className="text-sm leading-6 text-muted-foreground">
                   Choose a new password for your account, then use it the next time you log in.
                 </p>
               ) : null}
@@ -537,7 +537,7 @@ export default function AuthPage() {
               ) : null}
 
               {message ? (
-                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                <p className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">
                   {message}
                 </p>
               ) : null}
@@ -560,8 +560,8 @@ export default function AuthPage() {
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t" />
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase tracking-[0.2em] text-slate-500">
-                    <span className="bg-white px-2">Or continue with</span>
+                  <div className="relative flex justify-center text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    <span className="bg-card px-2">Or continue with</span>
                   </div>
                 </div>
 
