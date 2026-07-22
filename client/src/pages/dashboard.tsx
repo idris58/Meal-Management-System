@@ -406,7 +406,7 @@ export default function Dashboard() {
       <section className="grid grid-cols-2 gap-4">
         <Dialog open={openExpense} onOpenChange={setOpenExpense}>
           <DialogTrigger asChild>
-            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-emerald-500 bg-white text-emerald-600 shadow-sm transition-all hover:border-emerald-600 hover:bg-emerald-50">
+            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-primary/70 bg-card text-primary shadow-sm transition-all hover:border-primary hover:bg-primary/10">
               <ShoppingBag className="h-6 w-6" />
               <span className="font-semibold">Add Expense</span>
             </Button>
@@ -422,7 +422,7 @@ export default function Dashboard() {
 
         <Dialog open={openMeal} onOpenChange={setOpenMeal}>
           <DialogTrigger asChild>
-            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-slate-300 bg-white text-slate-600 shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50">
+            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-border bg-card text-foreground shadow-sm transition-all hover:border-muted-foreground/50 hover:bg-muted">
               <Utensils className="h-6 w-6" />
               <span className="font-semibold">Log Meals</span>
             </Button>

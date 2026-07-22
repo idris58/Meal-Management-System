@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { PwaInstallButton } from '@/components/pwa-install-button';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -129,7 +130,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {brand}
         </div>
 
-        <div className="flex items-center gap-2"><LanguageSwitcher /><PwaInstallButton
+        <div className="flex items-center gap-2"><ThemeToggle /><LanguageSwitcher /><PwaInstallButton
           appId="main"
           appName="MealTrack"
           className="h-9 shrink-0 gap-1.5 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm max-[380px]:[&_span]:hidden"
