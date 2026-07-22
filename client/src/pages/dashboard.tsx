@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { OnboardingTour } from '@/components/onboarding-tour';
 import { format } from 'date-fns';
 
 const expenseSchema = z.object({
@@ -356,6 +357,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 pb-20">
+      <OnboardingTour />
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="glass-card border-none bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg lg:col-span-2">
           <CardHeader className="pb-2">
