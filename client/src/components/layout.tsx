@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Users,
   Receipt,
+  FileBarChart,
   History,
   Menu,
   Settings,
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Users, label: 'nav.members', href: '/app/members' },
   { icon: UtensilsCrossed, label: 'nav.meals', href: '/app/meals' },
   { icon: Receipt, label: 'nav.expenses', href: '/app/expenses' },
+  { icon: FileBarChart, label: 'nav.reports', href: '/app/reports' },
   { icon: History, label: 'nav.history', href: '/app/history' },
   { icon: Settings, label: 'nav.settings', href: '/app/settings' },
 ];
@@ -187,7 +189,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-50 border-t bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
         aria-label="Primary mobile navigation"
       >
-        <div className="grid h-16 grid-cols-6 items-center gap-1">
+        <div className="grid h-16 grid-cols-7 items-center gap-1">
           {PRIMARY_MOBILE_NAV_ITEMS.map((item) => (
             <Link key={item.href} href={item.href}>
               <div
@@ -216,4 +218,3 @@ export function Layout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

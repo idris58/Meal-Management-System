@@ -1,0 +1,88 @@
+import { useMemo, useRef, useState } from 'react';
+import { format, startOfDay } from 'date-fns';
+import { toPng } from 'html-to-image';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { CalendarIcon, ChefHat, ClipboardCopy, Download, FileImage, FileText, Loader2, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useToast } from '@/hooks/use-toast';
+import { useMeal } from '@/lib/meal-context';
+import { cn } from '@/lib/utils';
+
+type ReportMember = { id: string; name: string; meals: number; deposit: number; bill: number; balance: number };
+const currency = (amount: number) => `à§³${amount.toFixed(0)}`;
+const mealCount = (amount: number) => `${Math.round((amount + Number.EPSILON) * 1000) / 1000}`;
+const pdfCurrency = (amount: number) => `Tk ${amount.toFixed(0)}`;
+const fileDate = (date: Date) => format(date, 'yyyy-MM-dd');
+
+function download(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url; anchor.download = name; document.body.appendChild(anchor); anchor.click(); anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function DatePicker({ label, value, onChange, disabled }: { label: string; value: Date; onChange: (value: Date) => void; disabled?: (date: Date) => boolean }) {
+  return <div className="min-w-0 space-y-1.5">
+    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+    <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start py-2 text-left text-sm font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{format(value, 'PPP')}</Button></PopoverTrigger><PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center"><Calendar mode="single" selected={value} onSelect={(next) => next && onChange(next)} disabled={disabled} initialFocus /></PopoverContent></Popover>
+  </div>;
+}
+
+export default function ReportsPage() {
+  const { activeCycle, getCycleDetails } = useMeal();
+  const { toast } = useToast();
+  const previewRef = useRef<HTMLDivElement>(null);
+  const today = startOfDay(new Date());
+  const [from, setFrom] = useState(() => activeCycle?.startedAt ? startOfDay(new Date(activeCycle.startedAt)) : today);
+  const [to, setTo] = useState(() => today);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const details = activeCycle ? getCycleDetails(activeCycle.id) : null;
+  const fromKey = fileDate(from); const toKey = fileDate(to);
+  const generatedAt = useMemo(() => new Date(), [fromKey, toKey, details]);
+  const report = useMemo(() => {
+    const members = details?.members ?? [];
+    const expenses = (details?.expenses ?? []).filter((item) => item.date >= fromKey && item.date <= toKey);
+    const logs = (details?.mealLogs ?? []).filter((item) => item.date >= fromKey && item.date <= toKey);
+    const deposits = (details?.deposits ?? []).filter((item) => { const date = fileDate(new Date(item.createdAt)); return date >= fromKey && date <= toKey; });
+    const totalMealExpenses = expenses.filter((item) => item.type === 'meal').reduce((sum, item) => sum + item.amount, 0);
+    const totalFixedExpenses = expenses.filter((item) => item.type === 'fixed').reduce((sum, item) => sum + item.amount, 0);
+    const totalExpenses = totalMealExpenses + totalFixedExpenses;
+    const totalMeals = logs.reduce((sum, item) => sum + item.count, 0);
+    const rate = totalMeals > 0 ? totalMealExpenses / totalMeals : 0;
+    const fixedShare = members.length > 0 ? totalFixedExpenses / members.length : 0;
+    const rows: ReportMember[] = members.map((member) => {
+      const meals = logs.filter((item) => item.memberId === member.id).reduce((sum, item) => sum + item.count, 0);
+      const deposit = deposits.filter((item) => item.memberId === member.id).reduce((sum, item) => sum + item.amount, 0);
+      const bill = meals * rate + fixedShare;
+      return { id: member.id, name: member.name, meals, deposit, bill, balance: deposit - bill };
+    });
+    return { rows, totalExpenses, totalMeals, rate };
+  }, [details, fromKey, toKey]);
+  const rangeLabel = `${format(from, 'dd MMM yyyy')} â€“ ${format(to, 'dd MMM yyyy')}`;
+  const baseName = `mealtrack-report-${fromKey}-to-${toKey}`;
+  const makePng = async () => {
+    if (!previewRef.current) throw new Error('The report preview is not available.');
+    const dataUrl = await toPng(previewRef.current, { cacheBust: true, pixelRatio: 2, backgroundColor: '#ffffff' });
+    return { blob: await (await fetch(dataUrl)).blob() };
+  };
+  const makePdf = () => {
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' }); const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFillColor(15, 23, 42); doc.rect(0, 0, pageWidth, 104, 'F'); doc.setFillColor(20, 184, 166); doc.circle(52, 51, 18, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text('M', 46, 57); doc.setFontSize(21); doc.text('MealTrack', 82, 45); doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('Meal Report', 82, 64); doc.text(rangeLabel, 82, 81);
+    doc.setTextColor(71, 85, 105); doc.setFontSize(9); doc.text(`Generated ${format(generatedAt, 'PPP p')}`, 40, 129);
+    [['TOTAL EXPENSES', pdfCurrency(report.totalExpenses)], ['TOTAL MEALS', mealCount(report.totalMeals)], ['MEAL RATE', pdfCurrency(report.rate)]].forEach(([label, value], index) => { const x = 40 + index * 174; doc.setFillColor(240, 253, 250); doc.roundedRect(x, 149, 156, 64, 8, 8, 'F'); doc.setTextColor(13, 148, 136); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text(label, x + 13, 172); doc.setTextColor(15, 23, 42); doc.setFontSize(17); doc.text(value, x + 13, 196); });
+    autoTable(doc, { startY: 238, head: [['Member', 'Meals', 'Deposit', 'Bill', 'Due', 'Refund']], body: report.rows.map((row) => [row.name, mealCount(row.meals), pdfCurrency(row.deposit), pdfCurrency(row.bill), pdfCurrency(row.balance < 0 ? Math.abs(row.balance) : 0), pdfCurrency(row.balance > 0 ? row.balance : 0)]), theme: 'grid', headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [248, 250, 252] }, styles: { fontSize: 9, cellPadding: 8, textColor: [30, 41, 59] }, columnStyles: { 0: { fontStyle: 'bold' }, 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } }, margin: { left: 40, right: 40 }, didDrawPage: () => { const height = doc.internal.pageSize.getHeight(); doc.setTextColor(100, 116, 139); doc.setFontSize(8); doc.text('Generated via MealTrack', 40, height - 24); } });
+    return doc.output('blob');
+  };
+  const run = async (task: () => Promise<void>) => { if (isGenerating) return; setIsGenerating(true); try { await task(); } catch (error) { console.error('Report generation failed:', error); toast({ title: 'Could not create report', description: 'Please try again. If the issue continues, refresh the page.', variant: 'destructive' }); } finally { setIsGenerating(false); } };
+  const share = async (blob: Blob, name: string, type: string) => { const file = new File([blob], name, { type }); if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) { try { await navigator.share({ title: 'MealTrack report', files: [file] }); } catch (error) { if ((error as DOMException).name !== 'AbortError') throw error; } return; } download(blob, name); toast({ title: 'Report downloaded', description: 'Your browser does not support file sharing, so the report was downloaded.' }); };
+  return <div className="space-y-6">
+    <div><h1 className="font-heading text-2xl font-bold">Reports</h1><p className="text-sm text-muted-foreground">Create a professional summary of your active meal cycle.</p></div>
+    <section className="rounded-xl border bg-card p-4 shadow-sm md:p-5"><div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"><div className="grid gap-3 sm:grid-cols-2 xl:w-[500px]"><DatePicker label="From" value={from} onChange={setFrom} disabled={(date) => date > to} /><DatePicker label="To" value={to} onChange={setTo} disabled={(date) => date < from || date > today} /></div><div className="flex flex-wrap gap-2"><DropdownMenu><DropdownMenuTrigger asChild><Button disabled={isGenerating}><Download className="h-4 w-4" /> Export</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Download report</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { download(makePdf(), `${baseName}.pdf`); toast({ title: 'PDF exported', description: 'Your report download has started.' }); })}><FileText /> PDF</DropdownMenuItem><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); download(blob, `${baseName}.png`); toast({ title: 'PNG exported', description: 'Your report image download has started.' }); })}><FileImage /> PNG image</DropdownMenuItem></DropdownMenuContent></DropdownMenu><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" disabled={isGenerating}>{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />} Share</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Share report</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { await share(makePdf(), `${baseName}.pdf`, 'application/pdf'); })}><FileText /> Share PDF</DropdownMenuItem><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); await share(blob, `${baseName}.png`, 'image/png'); })}><FileImage /> Share PNG</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw new Error('Clipboard images are not supported.'); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast({ title: 'Image copied', description: 'The report image is ready to paste.' }); })}><ClipboardCopy /> Copy image</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></div></section>
+    <div className="mx-auto max-w-4xl overflow-x-auto pb-2"><div ref={previewRef} className="min-w-[820px] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-lg"><div className="flex items-start justify-between bg-slate-950 px-7 py-6 text-white"><div className="flex items-center gap-3"><div className="rounded-xl bg-teal-400 p-2"><ChefHat className="h-6 w-6 text-slate-950" /></div><div><p className="text-xl font-bold">MealTrack</p><p className="text-sm text-slate-300">Meal Report</p></div></div><div className="text-right text-xs text-slate-300"><p className="font-semibold text-white">{rangeLabel}</p><p className="mt-1">Generated {format(generatedAt, 'PPP p')}</p></div></div><div className="p-7"><div className="grid grid-cols-3 gap-4">{[['Total Expenses', currency(report.totalExpenses)], ['Total Meals', mealCount(report.totalMeals)], ['Current Meal Rate', currency(report.rate)]].map(([label, value]) => <div key={label} className="rounded-lg border border-teal-100 bg-teal-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-teal-700">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950">{value}</p></div>)}</div><div className="mt-7 overflow-hidden rounded-lg border border-slate-200"><table className="w-full border-collapse text-sm"><thead className="bg-slate-900 text-left text-white"><tr><th className="p-3">Member</th><th className="p-3 text-right">Meals</th><th className="p-3 text-right">Deposit</th><th className="p-3 text-right">Bill</th><th className="p-3 text-right">Due</th><th className="p-3 text-right">Refund</th></tr></thead><tbody>{report.rows.length ? report.rows.map((row, index) => <tr key={row.id} className={index % 2 ? 'bg-slate-50' : 'bg-white'}><td className="p-3 font-semibold">{row.name}</td><td className="p-3 text-right">{mealCount(row.meals)}</td><td className="p-3 text-right">{currency(row.deposit)}</td><td className="p-3 text-right">{currency(row.bill)}</td><td className="p-3 text-right font-bold text-rose-700">{row.balance < 0 ? currency(Math.abs(row.balance)) : '—'}</td><td className="p-3 text-right font-bold text-emerald-700">{row.balance > 0 ? currency(row.balance) : '—'}</td></tr>) : <tr><td colSpan={6} className="p-10 text-center text-slate-500">No active-cycle members to include in this report.</td></tr>}</tbody></table></div></div><div className="border-t border-slate-200 px-7 py-4 text-center text-xs text-slate-500">Generated via MealTrack</div></div></div>
+  </div>;
+}

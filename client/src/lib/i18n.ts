@@ -6,7 +6,7 @@ export const supportedLanguages = ["en", "bn"] as const;
 export type SupportedLanguage = (typeof supportedLanguages)[number];
 
 const resources = {
-  en: { translation: { appName: "MealTrack", language: "Language", languages: { en: "English", bn: "বাংলা" }, nav: { dashboard: "Dashboard", members: "Members", meals: "Meals", expenses: "Expenses", history: "History", settings: "Settings", more: "More" }, auth: { signedIn: "Signed in", logout: "Logout", loggingOut: "Logging out..." }, common: { loading: "Loading...", cancel: "Cancel", save: "Save", delete: "Delete", edit: "Edit", close: "Close", add: "Add", back: "Back", retry: "Try again" }, titles: { dashboard: "Dashboard", members: "Members", meals: "Meals", expenses: "Expenses", history: "History", changelog: "Changelog", settings: "Settings", authentication: "Authentication", resetPassword: "Reset Password", mealCode: "Meal Code", sharedView: "Shared View" }, app: { loadingMealData: "Loading your meal data..." }, switcher: { current: "Current language: {{language}}", choose: "Choose language" } } },
+  en: { translation: { appName: "MealTrack", language: "Language", languages: { en: "English", bn: "বাংলা" }, nav: { dashboard: "Dashboard", members: "Members", meals: "Meals", expenses: "Expenses", reports: "Reports", history: "History", settings: "Settings", more: "More" }, auth: { signedIn: "Signed in", logout: "Logout", loggingOut: "Logging out..." }, common: { loading: "Loading...", cancel: "Cancel", save: "Save", delete: "Delete", edit: "Edit", close: "Close", add: "Add", back: "Back", retry: "Try again" }, titles: { dashboard: "Dashboard", members: "Members", meals: "Meals", expenses: "Expenses", reports: "Reports", history: "History", changelog: "Changelog", settings: "Settings", authentication: "Authentication", resetPassword: "Reset Password", mealCode: "Meal Code", sharedView: "Shared View" }, app: { loadingMealData: "Loading your meal data..." }, switcher: { current: "Current language: {{language}}", choose: "Choose language" } } },
   bn: { 
     translation: { 
       appName: "MealTrack", language: "ভাষা", languages: { en: "English", bn: "বাংলা" 
@@ -17,6 +17,7 @@ const resources = {
         members: "সদস্য", 
         meals: "মিল", 
         expenses: "খরচ", 
+        reports: "\u09b0\u09bf\u09aa\u09cb\u09b0\u09cd\u099f",
         history: "ইতিহাস", 
         settings: "সেটিংস", 
         more: "আরও" 
@@ -41,6 +42,7 @@ const resources = {
         members: "সদস্য", 
         meals: "মিল", 
         expenses: "খরচ", 
+        reports: "\u09b0\u09bf\u09aa\u09cb\u09b0\u09cd\u099f",
         history: "ইতিহাস", 
         changelog: "পরিবর্তনের ইতিহাস", 
         settings: "সেটিংস", 

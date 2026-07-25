@@ -16,6 +16,7 @@ import ChangelogPage from "@/pages/changelog";
 import Dashboard from "@/pages/dashboard";
 import Expenses from "@/pages/expenses";
 import HistoryPage from "@/pages/history";
+import ReportsPage from "@/pages/reports";
 import Meals from "@/pages/meals";
 import Members from "@/pages/members";
 import NotFound from "@/pages/not-found";
@@ -71,6 +72,7 @@ function Router() {
         <Route path="/app/members" component={Members} />
         <Route path="/app/expenses" component={Expenses} />
         <Route path="/app/meals" component={Meals} />
+        <Route path="/app/reports" component={ReportsPage} />
         <Route path="/app/history" component={HistoryPage} />
         <Route path="/app/changelog" component={ChangelogPage} />
         <Route path="/app/settings" component={Settings} />
@@ -85,6 +87,7 @@ const legacyMainRouteMap: Record<string, string> = {
   "/members": "/app/members",
   "/expenses": "/app/expenses",
   "/meals": "/app/meals",
+  "/reports": "/app/reports",
   "/history": "/app/history",
   "/changelog": "/app/changelog",
   "/settings": "/app/settings",
@@ -197,6 +200,8 @@ function AppShell() {
       "/meals": `${t("titles.meals")} - MealTrack`,
       "/app/meals": `${t("titles.meals")} - MealTrack`,
       "/history": `${t("titles.history")} - MealTrack`,
+      "/reports": `${t("titles.reports")} - MealTrack`,
+      "/app/reports": `${t("titles.reports")} - MealTrack`,
       "/app/history": `${t("titles.history")} - MealTrack`,
       "/changelog": `${t("titles.changelog")} - MealTrack`,
       "/app/changelog": `${t("titles.changelog")} - MealTrack`,
