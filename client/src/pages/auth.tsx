@@ -91,6 +91,7 @@ export default function AuthPage() {
   const { t } = useTranslation();
   const { lastAuthEvent } = useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -132,6 +133,7 @@ export default function AuthPage() {
     setMode(next);
     setError(null);
     setMessage(null);
+    setFullName("");
     setPassword("");
     setConfirmPassword("");
     setShowPassword(false);
@@ -139,6 +141,10 @@ export default function AuthPage() {
   };
 
   const validateForm = (currentMode: AuthMode) => {
+    if (currentMode === "signup" && !fullName.trim()) {
+      return "Enter your name.";
+    }
+
     if (currentMode !== "reset-password" && !EMAIL_PATTERN.test(email.trim())) {
       return "Enter a valid email address.";
     }
@@ -233,6 +239,10 @@ export default function AuthPage() {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName.trim(),
+            name: fullName.trim(),
+          },
         },
       });
 
@@ -252,6 +262,7 @@ export default function AuthPage() {
       if (!data.session) {
         setEmail("");
         setPassword("");
+        setFullName("");
         setConfirmPassword("");
         setMessage("Account created. Check your email to confirm your account.");
       } else {
@@ -417,7 +428,23 @@ export default function AuthPage() {
                 </div>
               ) : null}
 
+
+              {mode === "signup" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="auth-full-name">Name</Label>
+                  <Input
+                    id="auth-full-name"
+                    type="text"
+                    placeholder="Enter your name"
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                    required
+                    autoComplete="name"
+                  />
+                </div>
+              ) : null}
               {mode !== "forgot-password" ? (
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="auth-password">Password</Label>
