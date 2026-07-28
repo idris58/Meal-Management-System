@@ -367,12 +367,20 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const [cycleDetailsErrorById, setCycleDetailsErrorById] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [messId, setMessId] = useState<string | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
       if (data.user) {
         setUserId(data.user.id);
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('mess_id')
+          .eq('id', data.user.id)
+          .maybeSingle();
+        if (error) console.error('Error loading current mess:', error);
+        setMessId(profile?.mess_id ?? null);
       }
     };
 
@@ -380,10 +388,10 @@ export function MealProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && messId) {
       void loadData();
     }
-  }, [userId]);
+  }, [userId, messId]);
 
   const activeCycle = useMemo(
     () => cycles.find((cycle) => cycle.status === 'active') ?? null,
@@ -450,12 +458,13 @@ export function MealProvider({ children }: { children: ReactNode }) {
     title: string;
     changes: ChangelogChange[];
   }) => {
-    if (!userId || !cycleId) return;
+    if (!userId || !messId || !cycleId) return;
 
     const { data, error } = await supabase
       .from('changelog_entries')
       .insert([{
         user_id: userId,
+        mess_id: messId,
         cycle_id: cycleId,
         entity_type: entityType,
         entity_id: entityId,
@@ -485,7 +494,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
 
   const fetchCycleRows = async (cycleId: string) => {
-    if (!userId) {
+    if (!userId || !messId) {
       return null;
     }
 
@@ -493,20 +502,20 @@ export function MealProvider({ children }: { children: ReactNode }) {
       supabase
         .from('cycle_deposits')
         .select('*')
-        .eq('user_id', userId)
+        .eq('mess_id', messId)
         .eq('cycle_id', cycleId)
         .order('created_at', { ascending: true }),
       supabase
         .from('expenses')
         .select('*')
-        .eq('user_id', userId)
+        .eq('mess_id', messId)
         .eq('cycle_id', cycleId)
         .is('deleted_at', null)
         .order('date', { ascending: false }),
       supabase
         .from('meal_logs')
         .select('*')
-        .eq('user_id', userId)
+        .eq('mess_id', messId)
         .eq('cycle_id', cycleId)
         .order('date', { ascending: false }),
     ]);
@@ -615,7 +624,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const getCycleDetailsError = (cycleId: string) => cycleDetailsErrorById[cycleId] ?? null;
 
   const loadCycleDetails = async (cycleId: string, options: { force?: boolean } = {}) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
     if (!options.force && cycleDetailsById[cycleId]) return;
     if (cycleDetailsLoadingById[cycleId]) return;
 
@@ -665,7 +674,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
 
   const loadData = async () => {
-    if (!userId) return;
+    if (!userId || !messId) return;
 
     try {
       setLoading(true);
@@ -674,20 +683,20 @@ export function MealProvider({ children }: { children: ReactNode }) {
         supabase
           .from('members')
           .select('*')
-          .eq('user_id', userId)
+          .eq('mess_id', messId)
           .is('deleted_at', null)
           .order('sort_order', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true }),
         supabase
           .from('cycles')
           .select('*')
-          .eq('user_id', userId)
+          .eq('mess_id', messId)
           .is('deleted_at', null)
           .order('started_at', { ascending: false }),
         supabase
           .from('changelog_entries')
           .select('*')
-          .eq('user_id', userId)
+          .eq('mess_id', messId)
           .order('created_at', { ascending: false })
           .range(0, CHANGELOG_PAGE_SIZE - 1),
       ]);
@@ -751,7 +760,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from('changelog_entries')
         .select('*')
-        .eq('user_id', userId)
+        .eq('mess_id', messId)
         .order('created_at', { ascending: false })
         .range(from, to);
 
@@ -780,13 +789,13 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const addMember = async (name: string) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
     const targetCycleId = activeCycle?.id ?? null;
 
     const avatar = name.substring(0, 2).toUpperCase();
     const { data, error } = await supabase
       .from('members')
-      .insert([{ name, avatar, user_id: userId, sort_order: memberRoster.length }])
+      .insert([{ name, avatar, user_id: userId, mess_id: messId, profile_id: null, sort_order: memberRoster.length }])
       .select()
       .single();
 
@@ -826,7 +835,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     if (nextRoster.length !== memberRoster.length) return;
     const previousRoster = memberRoster;
     setMemberRoster(nextRoster);
-    const results = await Promise.all(memberIds.map((id, sortOrder) => supabase.from("members").update({ sort_order: sortOrder }).eq("id", id).eq("user_id", userId)));
+    const results = await Promise.all(memberIds.map((id, sortOrder) => supabase.from("members").update({ sort_order: sortOrder }).eq("id", id).eq("mess_id", messId)));
     if (results.some((result) => result.error)) {
       console.error("Error reordering members:", results.find((result) => result.error)?.error);
       setMemberRoster(previousRoster);
@@ -836,7 +845,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMember = async (id: string, updates: Partial<Member>) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
     const existingMember = memberRoster.find((member) => member.id === id);
     const targetCycleId = activeCycle?.id ?? null;
     if (!existingMember) return;
@@ -858,7 +867,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       .from('members')
       .update(dbUpdates)
       .eq('id', id)
-      .eq('user_id', userId);
+      .eq('mess_id', messId);
 
     if (error) {
       console.error('Error updating member:', error);
@@ -888,7 +897,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const removeMember = async (id: string) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
     const existingMember = memberRoster.find((member) => member.id === id);
     const targetCycleId = activeCycle?.id ?? null;
     if (!existingMember) return;
@@ -901,7 +910,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         delete_expires_at: new Date(now.getTime() + SOFT_DELETE_GRACE_MS).toISOString(),
       })
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq('mess_id', messId)
       .is('deleted_at', null);
 
     if (error) {
@@ -925,13 +934,13 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const restoreMember = async (id: string) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
 
     const { data, error } = await supabase
       .from('members')
       .update({ deleted_at: null, delete_expires_at: null })
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq('mess_id', messId)
       .not('deleted_at', 'is', null)
       .select('id, name, avatar')
       .maybeSingle();
@@ -972,7 +981,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     cycleId?: string,
     expenseDate?: string,
   ) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
 
     const targetCycleId = getRequiredCycleId(cycleId);
     if (!targetCycleId) return;
@@ -990,6 +999,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         paid_by: paidBy,
         date: expenseDate ?? new Date().toISOString(),
         user_id: userId,
+        mess_id: messId,
         cycle_id: targetCycleId,
       }])
       .select()
@@ -1037,7 +1047,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       date?: string;
     },
   ) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
     const existingExpense = allExpenses.find((expense) => expense.id === id);
     if (!existingExpense) return;
     if (updates.amount < 0 && !allowsNegativeExpenseAmount(existingExpense.cycleId)) {
@@ -1066,7 +1076,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         ...(updates.date ? { date: updates.date } : {}),
       })
       .eq('id', id)
-      .eq('user_id', userId);
+      .eq('mess_id', messId);
 
     if (error) {
       console.error('Error updating expense:', error);
@@ -1098,7 +1108,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteExpense = async (id: string) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
     const existingExpense = allExpenses.find((expense) => expense.id === id);
     if (!existingExpense) return;
 
@@ -1110,7 +1120,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         delete_expires_at: new Date(now.getTime() + SOFT_DELETE_GRACE_MS).toISOString(),
       })
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq('mess_id', messId)
       .is('deleted_at', null);
 
     if (error) {
@@ -1138,13 +1148,13 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const restoreExpense = async (id: string) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
 
     const { data, error } = await supabase
       .from('expenses')
       .update({ deleted_at: null, delete_expires_at: null })
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq('mess_id', messId)
       .not('deleted_at', 'is', null)
       .select('id, cycle_id, amount, description, type, date, paid_by')
       .maybeSingle();
@@ -1194,6 +1204,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         amount,
         note: note ?? null,
         user_id: userId,
+        mess_id: messId,
       }])
       .select()
       .single();
@@ -1233,7 +1244,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     dateStr: string,
     cycleId?: string,
   ) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
 
     const targetCycleId = getRequiredCycleId(cycleId);
     if (!targetCycleId) return;
@@ -1257,7 +1268,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
             .from('meal_logs')
             .delete()
             .eq('id', existingLog.id)
-            .eq('user_id', userId);
+            .eq('mess_id', messId);
 
           if (error) {
             console.error('Error deleting meal log:', error);
@@ -1278,7 +1289,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .from('meal_logs')
           .update({ count: normalizedCount })
           .eq('id', existingLog.id)
-          .eq('user_id', userId);
+          .eq('mess_id', messId);
 
         if (error) {
           console.error('Error updating meal log:', error);
@@ -1309,6 +1320,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
           date: dateStr,
           count: normalizedCount,
           user_id: userId,
+        mess_id: messId,
         }])
         .select()
         .single();
@@ -1384,7 +1396,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       .from('cycles')
       .update({ name: trimmedName })
       .eq('id', activeCycle.id)
-      .eq('user_id', userId)
+      .eq('mess_id', messId)
       .eq('status', 'active');
 
     if (error) {
@@ -1424,7 +1436,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         members_snapshot: snapshot,
       })
       .eq('id', activeCycle.id)
-      .eq('user_id', userId);
+      .eq('mess_id', messId);
 
     if (updateError) {
       console.error('Error moving cycle to pending:', updateError);
@@ -1437,6 +1449,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         name: nextCycleName,
         status: 'active',
         user_id: userId,
+        mess_id: messId,
         started_at: now,
       }])
       .select()
@@ -1468,7 +1481,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const markCycleClosed = async (cycleId: string) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
 
     const finalizedAt = new Date().toISOString();
     const { error } = await supabase
@@ -1478,7 +1491,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         finalized_at: finalizedAt,
       })
       .eq('id', cycleId)
-      .eq('user_id', userId);
+      .eq('mess_id', messId);
 
     if (error) {
       console.error('Error closing pending cycle:', error);
@@ -1489,7 +1502,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       .from('changelog_entries')
       .delete()
       .eq('cycle_id', cycleId)
-      .eq('user_id', userId);
+      .eq('mess_id', messId);
 
     if (changelogError) {
       console.error('Error deleting cycle changelog entries:', changelogError);
@@ -1504,7 +1517,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteCycle = async (cycleId: string) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
 
     const targetCycle = cycles.find((cycle) => cycle.id === cycleId);
     if (!targetCycle || targetCycle.status !== 'closed') {
@@ -1519,7 +1532,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         delete_expires_at: new Date(now.getTime() + SOFT_DELETE_GRACE_MS).toISOString(),
       })
       .eq('id', cycleId)
-      .eq('user_id', userId)
+      .eq('mess_id', messId)
       .eq('status', 'closed')
       .is('deleted_at', null);
 
@@ -1544,13 +1557,13 @@ export function MealProvider({ children }: { children: ReactNode }) {
   };
 
   const restoreCycle = async (cycleId: string) => {
-    if (!userId) return;
+    if (!userId || !messId) return;
 
     const { data, error } = await supabase
       .from('cycles')
       .update({ deleted_at: null, delete_expires_at: null })
       .eq('id', cycleId)
-      .eq('user_id', userId)
+      .eq('mess_id', messId)
       .eq('status', 'closed')
       .not('deleted_at', 'is', null)
       .select('id, name, status, started_at, closed_at, finalized_at, members_snapshot')

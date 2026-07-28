@@ -13,8 +13,11 @@ import { GripVertical, Plus, Trash2, Wallet, Users } from 'lucide-react';
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { UndoDeleteGhost } from '@/components/undo-delete-ghost';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
 
 const DELETE_GRACE_MS = 10 * 1000;
 
@@ -264,6 +267,13 @@ export default function Members() {
   const [depositMemberId, setDepositMemberId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [deletedMembers, setDeletedMembers] = useState<DeletedMemberGhost[]>([]);
+  const { user } = useAuth();
+  const [isManager, setIsManager] = useState(false);
+  const [profiles, setProfiles] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [linkMemberId, setLinkMemberId] = useState('');
+  const [linkProfileId, setLinkProfileId] = useState('');
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
 
   const handleRemoveMember = async (memberId: string) => {
     if (deletingMemberId) return;
@@ -304,6 +314,29 @@ export default function Members() {
     void reorderMembers(arrayMove(members.map((member) => member.id), oldIndex, newIndex)).catch((error) => console.error("Could not reorder members:", error));
   };
 
+  useEffect(() => {
+    let active = true;
+    if (!user) return;
+    void Promise.all([
+      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('id, full_name, email').order('full_name'),
+    ]).then(([selfResult, profilesResult]) => {
+      if (!active) return;
+      setIsManager(selfResult.data?.role === 'manager');
+      setProfiles((profilesResult.data ?? []).filter((profile) => profile.id !== user.id));
+    });
+    return () => { active = false; };
+  }, [user?.id]);
+
+  const linkProfile = async () => {
+    if (!linkMemberId || !linkProfileId || linking) return;
+    setLinking(true); setLinkError(null);
+    const { error } = await supabase.rpc('link_member_profile', { member_id_input: linkMemberId, profile_id_input: linkProfileId });
+    if (error) setLinkError(error.message);
+    else { setLinkMemberId(''); setLinkProfileId(''); }
+    setLinking(false);
+  };
+
   const memberCards = useMemo(() => {
     const cards: Array<
       | { type: 'member'; member: Member; index: number }
@@ -335,6 +368,15 @@ export default function Members() {
             <AddMemberForm onClose={() => setIsAddOpen(false)} />
           </DialogContent>
         </Dialog>
+        {isManager ? <Dialog onOpenChange={(open) => { if (!open) { setLinkError(null); setLinkMemberId(''); setLinkProfileId(''); } }}>
+          <DialogTrigger asChild><Button variant="outline">Link member account</Button></DialogTrigger>
+          <DialogContent><DialogHeader><DialogTitle>Link a member account</DialogTitle></DialogHeader>
+            <div className="space-y-3"><Select value={linkMemberId} onValueChange={setLinkMemberId}><SelectTrigger><SelectValue placeholder="Choose an offline member" /></SelectTrigger><SelectContent>{members.map((member) => <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>)}</SelectContent></Select>
+            <Select value={linkProfileId} onValueChange={setLinkProfileId}><SelectTrigger><SelectValue placeholder="Choose the joined user" /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={profile.id} value={profile.id}>{profile.full_name} ({profile.email})</SelectItem>)}</SelectContent></Select>
+            {linkError ? <p className="text-sm text-destructive">{linkError}</p> : null}
+            <Button className="w-full" disabled={!linkMemberId || !linkProfileId || linking} onClick={() => void linkProfile()}>{linking ? 'Linking...' : 'Link account'}</Button></div>
+          </DialogContent>
+        </Dialog> : null}
       </div>
 
       {members.length === 0 ? (

@@ -19,6 +19,7 @@ import HistoryPage from "@/pages/history";
 import ReportsPage from "@/pages/reports";
 import Meals from "@/pages/meals";
 import Members from "@/pages/members";
+import OnboardingPage from "@/pages/onboarding";
 import NotFound from "@/pages/not-found";
 import Settings from "@/pages/settings";
 import SharedPage, { SharedAccessPage } from "@/pages/shared";
@@ -94,6 +95,8 @@ const legacyMainRouteMap: Record<string, string> = {
 };
 
 function AppShell() {
+  const [profile, setProfile] = useState<{ mess_id: string | null } | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const { t, i18n } = useTranslation();
   const { session, loading, lastAuthEvent } = useAuth();
   const [location, setLocation] = useLocation();
@@ -111,6 +114,20 @@ function AppShell() {
     recoveryType === "recovery" ||
     hashParams.has("access_token") ||
     (Boolean(recoveryTokenHash) && recoveryType === "recovery");
+
+  useEffect(() => {
+    let active = true;
+    if (!session?.user) { setProfile(null); setProfileLoading(false); return; }
+    setProfileLoading(true);
+    void supabase.from("profiles").select("mess_id").eq("id", session.user.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) console.error("Could not load profile:", error);
+        setProfile(data ?? { mess_id: null });
+        setProfileLoading(false);
+      });
+    return () => { active = false; };
+  }, [session?.user?.id]);
   const [authLinkResolved, setAuthLinkResolved] = useState(
     !authCode && !(recoveryTokenHash && recoveryType === "recovery"),
   );
@@ -214,42 +231,33 @@ function AppShell() {
   }, [i18n.language, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, location, t]);
 
   useEffect(() => {
-    if (isSharedLandingRoute || isSharedRoute) {
-      return;
-    }
-
-    if (!authLinkResolved) {
-      return;
-    }
+    if (isSharedLandingRoute || isSharedRoute || !authLinkResolved) return;
 
     if (hasRecoveryContext && location !== "/auth") {
-      window.history.replaceState(
-        null,
-        document.title,
-        `/auth${window.location.search}${window.location.hash}`,
-      );
+      window.history.replaceState(null, document.title, `/auth${window.location.search}${window.location.hash}`);
       setLocation("/auth");
       return;
     }
 
-    if (loading) {
-      return;
-    }
-
+    if (loading) return;
     if (!session && location !== "/auth") {
       setLocation("/auth");
       return;
     }
+    if (!session || isRecoveryFlow || profileLoading || !profile) return;
 
-    if (session && location === "/auth" && !isRecoveryFlow) {
+    if (!profile.mess_id && location !== "/onboarding") {
+      setLocation("/onboarding");
+      return;
+    }
+    if (profile.mess_id && (location === "/auth" || location === "/onboarding")) {
       setLocation("/app");
       return;
     }
-
-    if (session && legacyMainRouteMap[location]) {
+    if (profile.mess_id && legacyMainRouteMap[location]) {
       setLocation(legacyMainRouteMap[location]);
     }
-  }, [authLinkResolved, hasRecoveryContext, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, loading, location, session, setLocation]);
+  }, [authLinkResolved, hasRecoveryContext, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, loading, location, profile, profileLoading, session, setLocation]);
 
   if (isSharedLandingRoute) {
     return <SharedAccessPage />;
@@ -259,7 +267,7 @@ function AppShell() {
     return <SharedPage token={sharedParams.token} />;
   }
 
-  if (loading || !authLinkResolved) {
+  if (loading || !authLinkResolved || (session && profileLoading)) {
     return (
       <AppLoadingSkeleton
         message={authLinkResolved ? "Checking your session..." : "Preparing your reset link..."}
@@ -269,6 +277,10 @@ function AppShell() {
 
   if (!session || isRecoveryFlow) {
     return <AuthPage />;
+  }
+
+  if (!profile?.mess_id) {
+    return <OnboardingPage />;
   }
 
   return (
