@@ -242,9 +242,29 @@ function MemberCard({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <Button variant="outline" className="gap-1.5" onClick={onDeposit} disabled={!onDeposit}><Wallet className="h-4 w-4" />Deposit</Button>
-            {onCoordinatorAction && profileRole !== 'manager' ? <Button variant="outline" className="gap-1.5" onClick={onCoordinatorAction}><ShieldCheck className="h-4 w-4" />{profileRole === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</Button> : <Tooltip><TooltipTrigger asChild><span><Button variant="outline" className="w-full gap-1.5" disabled><ShieldCheck className="h-4 w-4" />Unavailable</Button></span></TooltipTrigger><TooltipContent>Action available only for linked accounts</TooltipContent></Tooltip>}
+          <div className="flex items-center gap-2 pt-1">
+            <Button variant="outline" className="shrink-0 gap-1.5 px-2.5 sm:px-3" onClick={onDeposit} disabled={!onDeposit}>
+              <Wallet className="h-4 w-4 shrink-0" />
+              <span>Deposit</span>
+            </Button>
+            {onCoordinatorAction && profileRole !== 'manager' ? (
+              <Button variant="outline" className="min-w-0 flex-1 gap-1.5 px-2.5 sm:px-3 text-xs sm:text-sm" onClick={onCoordinatorAction}>
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <span className="truncate">{profileRole === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</span>
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="min-w-0 flex-1">
+                    <Button variant="outline" className="w-full gap-1.5 px-2.5 sm:px-3 text-xs sm:text-sm" disabled>
+                      <ShieldCheck className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Unavailable</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Action available only for linked accounts</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
       </CardContent>
