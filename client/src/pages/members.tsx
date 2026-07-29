@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const DELETE_GRACE_MS = 10 * 1000;
 
@@ -244,7 +244,7 @@ function MemberCard({
 
           <div className="grid grid-cols-2 gap-2 pt-1">
             <Button variant="outline" className="gap-1.5" onClick={onDeposit} disabled={!onDeposit}><Wallet className="h-4 w-4" />Deposit</Button>
-            {onCoordinatorAction && profileRole !== 'manager' ? <Button variant="outline" className="gap-1.5" onClick={onCoordinatorAction}><ShieldCheck className="h-4 w-4" />{profileRole === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</Button> : <Tooltip><TooltipTrigger asChild><span><Button variant="outline" className="w-full gap-1.5" disabled><ShieldCheck className="h-4 w-4" />Action Unavailable</Button></span></TooltipTrigger><TooltipContent>Action available only for linked accounts</TooltipContent></Tooltip>}
+            {onCoordinatorAction && profileRole !== 'manager' ? <Button variant="outline" className="gap-1.5" onClick={onCoordinatorAction}><ShieldCheck className="h-4 w-4" />{profileRole === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</Button> : <Tooltip><TooltipTrigger asChild><span><Button variant="outline" className="w-full gap-1.5" disabled><ShieldCheck className="h-4 w-4" />Unavailable</Button></span></TooltipTrigger><TooltipContent>Action available only for linked accounts</TooltipContent></Tooltip>}
           </div>
         </div>
       </CardContent>
@@ -363,12 +363,13 @@ export default function Members() {
   }, [deletedMembers, members]);
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="min-w-0 text-2xl font-bold font-heading">Members</h1>
         {canManageMembers ? <DropdownMenu>
           <DropdownMenuTrigger asChild><Button className="shrink-0 gap-1.5 whitespace-nowrap"><Plus className="h-4 w-4" />Add / Link Member<ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-52"><DropdownMenuLabel>Member actions</DropdownMenuLabel><DropdownMenuSeparator />
+          <DropdownMenuContent align="end" className="min-w-52">
             <DropdownMenuItem onSelect={() => setIsAddOpen(true)}><Plus className="h-4 w-4" />Add Offline Member</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setLinkOpen(true)}><Link2 className="h-4 w-4" />Link Account</DropdownMenuItem>
           </DropdownMenuContent>
@@ -428,6 +429,7 @@ export default function Members() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

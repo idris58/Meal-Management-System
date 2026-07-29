@@ -40,7 +40,9 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Settings, label: 'nav.settings', href: '/app/settings' },
 ];
 
-const PRIMARY_MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== '/app/settings');
+const PRIMARY_MOBILE_NAV_ITEMS = NAV_ITEMS.filter(
+  (item) => item.href !== '/app/settings' && item.href !== '/app/history',
+);
 
 export function Layout({ children }: { children: React.ReactNode }) {
   // Fix: was called twice before - once for location, once for setLocation.
