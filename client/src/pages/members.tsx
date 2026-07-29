@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { GripVertical, Plus, Trash2, Wallet, Users } from 'lucide-react';
+import { ChevronDown, GripVertical, Link2, Plus, ShieldCheck, Trash2, Wallet, Users } from 'lucide-react';
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -18,6 +18,8 @@ import { UndoDeleteGhost } from '@/components/undo-delete-ghost';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const DELETE_GRACE_MS = 10 * 1000;
 
@@ -158,6 +160,8 @@ function MemberCard({
   deletingMemberId,
   onDeposit,
   onDelete,
+  profileRole,
+  onCoordinatorAction,
   dragHandleProps,
   isDragging = false,
 }: {
@@ -166,6 +170,8 @@ function MemberCard({
   deletingMemberId?: string | null;
   onDeposit?: () => void;
   onDelete?: () => void;
+  profileRole?: 'manager' | 'coordinator' | 'member';
+  onCoordinatorAction?: () => void;
   dragHandleProps?: any;
   isDragging?: boolean;
 }) {
@@ -236,26 +242,21 @@ function MemberCard({
             </span>
           </div>
 
-          <Button
-            variant="outline"
-            className="mt-2 w-full gap-2"
-            onClick={onDeposit}
-            disabled={!onDeposit}
-          >
-            <Wallet className="h-4 w-4" />
-            Manage Deposit
-          </Button>
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <Button variant="outline" className="gap-1.5" onClick={onDeposit} disabled={!onDeposit}><Wallet className="h-4 w-4" />Deposit</Button>
+            {onCoordinatorAction && profileRole !== 'manager' ? <Button variant="outline" className="gap-1.5" onClick={onCoordinatorAction}><ShieldCheck className="h-4 w-4" />{profileRole === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</Button> : <Tooltip><TooltipTrigger asChild><span><Button variant="outline" className="w-full gap-1.5" disabled><ShieldCheck className="h-4 w-4" />Action Unavailable</Button></span></TooltipTrigger><TooltipContent>Action available only for linked accounts</TooltipContent></Tooltip>}
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function SortableMemberCard({ member, stats, deletingMemberId, onDeposit, onDelete }: { member: Member; stats: MemberStatsSnapshot; deletingMemberId?: string | null; onDeposit: () => void; onDelete: () => void; }) {
+function SortableMemberCard({ member, stats, deletingMemberId, onDeposit, onDelete, profileRole, onCoordinatorAction }: { member: Member; stats: MemberStatsSnapshot; deletingMemberId?: string | null; onDeposit?: () => void; onDelete?: () => void; profileRole?: 'manager' | 'coordinator' | 'member'; onCoordinatorAction?: () => void; }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: member.id });
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 1 : undefined }} className={isDragging ? "opacity-80" : undefined} {...attributes}>
-      <MemberCard member={member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={onDeposit} onDelete={onDelete} isDragging={isDragging} dragHandleProps={{ ref: setActivatorNodeRef, ...listeners }} />
+      <MemberCard member={member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={onDeposit} onDelete={onDelete} profileRole={profileRole} onCoordinatorAction={onCoordinatorAction} isDragging={isDragging} dragHandleProps={{ ref: setActivatorNodeRef, ...listeners }} />
     </div>
   );
 }
@@ -275,6 +276,7 @@ export default function Members() {
   const [linkProfileId, setLinkProfileId] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
 
   const handleRemoveMember = async (memberId: string) => {
     if (deletingMemberId) return;
@@ -362,33 +364,23 @@ export default function Members() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold font-heading">Members</h1>
-        {canManageMembers ? <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Member
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Member</DialogTitle>
-            </DialogHeader>
-            <AddMemberForm onClose={() => setIsAddOpen(false)} />
-          </DialogContent>
-        </Dialog> : null}
-        {isManager ? <Dialog onOpenChange={(open) => { if (!open) { setLinkError(null); setLinkMemberId(''); setLinkProfileId(''); } }}>
-          <DialogTrigger asChild><Button variant="outline">Link member account</Button></DialogTrigger>
-          <DialogContent><DialogHeader><DialogTitle>Link a member account</DialogTitle></DialogHeader>
-            <div className="space-y-3"><Select value={linkMemberId} onValueChange={setLinkMemberId}><SelectTrigger><SelectValue placeholder="Choose an offline member" /></SelectTrigger><SelectContent>{members.map((member) => <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>)}</SelectContent></Select>
-            <Select value={linkProfileId} onValueChange={setLinkProfileId}><SelectTrigger><SelectValue placeholder="Choose the joined user" /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={profile.id} value={profile.id}>{profile.full_name} ({profile.email})</SelectItem>)}</SelectContent></Select>
-            {linkError ? <p className="text-sm text-destructive">{linkError}</p> : null}
-            <Button className="w-full" disabled={!linkMemberId || !linkProfileId || linking} onClick={() => void linkProfile()}>{linking ? 'Linking...' : 'Link account'}</Button></div>
-          </DialogContent>
-        </Dialog> : null}
-        {canManageRoles ? <Dialog><DialogTrigger asChild><Button variant="outline">Manage roles</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Member roles</DialogTitle></DialogHeader><div className="space-y-2">{profiles.map((profile) => <div key={profile.id} className="flex items-center justify-between gap-3 rounded-lg border p-3"><span className="min-w-0 truncate text-sm">{profile.full_name}</span>{profile.role === 'manager' ? <span className="text-xs font-semibold text-muted-foreground">Manager</span> : <Button size="sm" variant="outline" disabled={roleUpdating === profile.id} onClick={() => void toggleCoordinator(profile.id, profile.role === 'coordinator' ? 'member' : 'coordinator')}>{profile.role === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</Button>}</div>)}</div></DialogContent></Dialog> : null}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 text-2xl font-bold font-heading">Members</h1>
+        {canManageMembers ? <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button className="shrink-0 gap-1.5 whitespace-nowrap"><Plus className="h-4 w-4" />Add / Link Member<ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-52"><DropdownMenuLabel>Member actions</DropdownMenuLabel><DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setIsAddOpen(true)}><Plus className="h-4 w-4" />Add Offline Member</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setLinkOpen(true)}><Link2 className="h-4 w-4" />Link Account</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu> : null}
       </div>
+
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}><DialogContent><DialogHeader><DialogTitle>Add New Member</DialogTitle></DialogHeader><AddMemberForm onClose={() => setIsAddOpen(false)} /></DialogContent></Dialog>
+      <Dialog open={linkOpen} onOpenChange={(open) => { setLinkOpen(open); if (!open) { setLinkError(null); setLinkMemberId(''); setLinkProfileId(''); } }}><DialogContent><DialogHeader><DialogTitle>Link a member account</DialogTitle></DialogHeader>
+        <div className="space-y-3"><Select value={linkMemberId} onValueChange={setLinkMemberId}><SelectTrigger><SelectValue placeholder="Choose an offline member" /></SelectTrigger><SelectContent>{members.filter((member) => !member.profileId).map((member) => <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>)}</SelectContent></Select>
+        <Select value={linkProfileId} onValueChange={setLinkProfileId}><SelectTrigger><SelectValue placeholder="Choose the joined user" /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={profile.id} value={profile.id}>{profile.full_name} ({profile.email})</SelectItem>)}</SelectContent></Select>
+        {linkError ? <p className="text-sm text-destructive">{linkError}</p> : null}<Button className="w-full" disabled={!linkMemberId || !linkProfileId || linking} onClick={() => void linkProfile()}>{linking ? 'Linking...' : 'Link account'}</Button></div>
+      </DialogContent></Dialog>
 
       {members.length === 0 ? (
         <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[350px] animate-in fade-in-50 duration-300">
@@ -417,7 +409,9 @@ export default function Members() {
                   return <UndoDeleteGhost key={`deleted-${ghost.member.id}`} message={`Member '${ghost.member.name}' deleted.`} expiresAt={ghost.expiresAt} onUndo={() => void handleUndoMember(ghost.member.id)} onExpired={() => setDeletedMembers((prev) => prev.filter((entry) => entry.member.id !== ghost.member.id))} className="min-h-full"><MemberCard member={ghost.member} stats={ghost.stats} /></UndoDeleteGhost>;
                 }
                 const stats = getMemberStats(item.member.id);
-                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={canManageDeposits ? () => setDepositMemberId(item.member.id) : () => undefined} onDelete={canManageMembers ? () => handleRemoveMember(item.member.id) : () => undefined} />;
+                const linkedProfile = profiles.find((profile) => profile.id === item.member.profileId);
+                const coordinatorAction = canManageRoles && linkedProfile && linkedProfile.role !== 'manager' ? () => void toggleCoordinator(linkedProfile.id, linkedProfile.role === 'coordinator' ? 'member' : 'coordinator') : undefined;
+                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={canManageDeposits ? () => setDepositMemberId(item.member.id) : undefined} onDelete={canManageMembers ? () => handleRemoveMember(item.member.id) : undefined} profileRole={linkedProfile?.role} onCoordinatorAction={coordinatorAction} />;
               })}
             </div>
           </SortableContext>
