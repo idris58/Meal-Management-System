@@ -192,32 +192,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-50 border-t bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
         aria-label="Primary mobile navigation"
       >
-        <div className="grid h-16 grid-cols-7 items-center gap-1">
+        <div className="grid h-16 grid-cols-6 items-center gap-0.5">
           {PRIMARY_MOBILE_NAV_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} className="flex min-w-0 w-full justify-center">
               <div
                 className={cn(
-                  'flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium transition-colors',
+                  'flex h-14 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md px-0.5 text-[10px] sm:text-[11px] font-medium transition-colors',
                   location === item.href
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                <span className="w-full truncate text-center leading-none">{t(item.label)}</span>
+                <span className="w-full truncate text-center leading-tight tracking-tight">{t(item.label)}</span>
               </div>
             </Link>
           ))}
           <button
             type="button"
-            className="flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex h-14 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md px-0.5 text-[10px] sm:text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu className="h-5 w-5 shrink-0" />
-            <span className="w-full truncate text-center leading-none">{t('nav.more')}</span>
+            <span className="w-full truncate text-center leading-tight tracking-tight">{t('nav.more')}</span>
           </button>
         </div>
       </nav>
