@@ -8,6 +8,7 @@ export interface Member {
   deposit: number;
   mealsEaten: number;
   avatar?: string;
+  profileId?: string | null;
 }
 
 export interface Expense {
@@ -156,6 +157,7 @@ type MemberRow = {
   avatar: string | null;
   deleted_at?: string | null;
   sort_order?: number | null;
+  profile_id?: string | null;
 };
 
 type CycleRow = {
@@ -713,6 +715,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
           deposit: 0,
           mealsEaten: 0,
           avatar: toAvatar(member.name, member.avatar),
+          profileId: member.profile_id ?? null,
         }));
 
       const nextCycles = ((cyclesResult.data || []) as CycleRow[])

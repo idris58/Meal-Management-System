@@ -267,9 +267,10 @@ export default function Members() {
   const [depositMemberId, setDepositMemberId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [deletedMembers, setDeletedMembers] = useState<DeletedMemberGhost[]>([]);
-  const { user } = useAuth();
+  const { user, canManageMembers, canManageRoles, canManageDeposits } = useAuth();
   const [isManager, setIsManager] = useState(false);
-  const [profiles, setProfiles] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [profiles, setProfiles] = useState<Array<{ id: string; full_name: string; email: string; role: 'manager' | 'coordinator' | 'member' }>>([]);
+  const [roleUpdating, setRoleUpdating] = useState<string | null>(null);
   const [linkMemberId, setLinkMemberId] = useState('');
   const [linkProfileId, setLinkProfileId] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -319,7 +320,7 @@ export default function Members() {
     if (!user) return;
     void Promise.all([
       supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-      supabase.from('profiles').select('id, full_name, email').order('full_name'),
+      supabase.from('profiles').select('id, full_name, email, role').order('full_name'),
     ]).then(([selfResult, profilesResult]) => {
       if (!active) return;
       setIsManager(selfResult.data?.role === 'manager');
@@ -335,6 +336,15 @@ export default function Members() {
     if (error) setLinkError(error.message);
     else { setLinkMemberId(''); setLinkProfileId(''); }
     setLinking(false);
+  };
+
+  const toggleCoordinator = async (profileId: string, role: 'coordinator' | 'member') => {
+    if (!canManageRoles || roleUpdating) return;
+    setRoleUpdating(profileId);
+    const { error } = await supabase.rpc('set_mess_role', { profile_id_input: profileId, role_input: role });
+    if (error) setLinkError(error.message);
+    else setProfiles((current) => current.map((profile) => profile.id === profileId ? { ...profile, role } : profile));
+    setRoleUpdating(null);
   };
 
   const memberCards = useMemo(() => {
@@ -354,7 +364,7 @@ export default function Members() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-heading">Members</h1>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        {canManageMembers ? <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
@@ -367,7 +377,7 @@ export default function Members() {
             </DialogHeader>
             <AddMemberForm onClose={() => setIsAddOpen(false)} />
           </DialogContent>
-        </Dialog>
+        </Dialog> : null}
         {isManager ? <Dialog onOpenChange={(open) => { if (!open) { setLinkError(null); setLinkMemberId(''); setLinkProfileId(''); } }}>
           <DialogTrigger asChild><Button variant="outline">Link member account</Button></DialogTrigger>
           <DialogContent><DialogHeader><DialogTitle>Link a member account</DialogTitle></DialogHeader>
@@ -377,6 +387,7 @@ export default function Members() {
             <Button className="w-full" disabled={!linkMemberId || !linkProfileId || linking} onClick={() => void linkProfile()}>{linking ? 'Linking...' : 'Link account'}</Button></div>
           </DialogContent>
         </Dialog> : null}
+        {canManageRoles ? <Dialog><DialogTrigger asChild><Button variant="outline">Manage roles</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Member roles</DialogTitle></DialogHeader><div className="space-y-2">{profiles.map((profile) => <div key={profile.id} className="flex items-center justify-between gap-3 rounded-lg border p-3"><span className="min-w-0 truncate text-sm">{profile.full_name}</span>{profile.role === 'manager' ? <span className="text-xs font-semibold text-muted-foreground">Manager</span> : <Button size="sm" variant="outline" disabled={roleUpdating === profile.id} onClick={() => void toggleCoordinator(profile.id, profile.role === 'coordinator' ? 'member' : 'coordinator')}>{profile.role === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</Button>}</div>)}</div></DialogContent></Dialog> : null}
       </div>
 
       {members.length === 0 ? (
@@ -406,7 +417,7 @@ export default function Members() {
                   return <UndoDeleteGhost key={`deleted-${ghost.member.id}`} message={`Member '${ghost.member.name}' deleted.`} expiresAt={ghost.expiresAt} onUndo={() => void handleUndoMember(ghost.member.id)} onExpired={() => setDeletedMembers((prev) => prev.filter((entry) => entry.member.id !== ghost.member.id))} className="min-h-full"><MemberCard member={ghost.member} stats={ghost.stats} /></UndoDeleteGhost>;
                 }
                 const stats = getMemberStats(item.member.id);
-                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={() => setDepositMemberId(item.member.id)} onDelete={() => handleRemoveMember(item.member.id)} />;
+                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={canManageDeposits ? () => setDepositMemberId(item.member.id) : () => undefined} onDelete={canManageMembers ? () => handleRemoveMember(item.member.id) : () => undefined} />;
               })}
             </div>
           </SortableContext>

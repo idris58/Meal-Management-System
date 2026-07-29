@@ -14,6 +14,15 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   lastAuthEvent: AuthChangeEvent | null;
+  profile: { id: string; full_name: string; email: string; role: "manager" | "coordinator" | "member"; mess_id: string | null } | null;
+  profileLoading: boolean;
+  canManageMembers: boolean;
+  canManageRoles: boolean;
+  canOperateMeals: boolean;
+  canManageExpenses: boolean;
+  canManageDeposits: boolean;
+  canManageCycles: boolean;
+  canManageMess: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -25,6 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [lastAuthEvent, setLastAuthEvent] = useState<AuthChangeEvent | null>(
     null,
   );
+  const [profile, setProfile] = useState<AuthContextValue["profile"]>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -64,11 +75,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    if (!session?.user) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+    setProfileLoading(true);
+    void supabase.from("profiles").select("id, full_name, email, role, mess_id").eq("id", session.user.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) console.error("Error loading profile:", error);
+        setProfile(data as AuthContextValue["profile"]);
+        setProfileLoading(false);
+      });
+    return () => { active = false; };
+  }, [session?.user?.id]);
+
+  const isManager = profile?.role === "manager";
+  const canOperate = isManager || profile?.role === "coordinator";
+
   const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
     loading,
     lastAuthEvent,
+    profile,
+    profileLoading,
+    canManageMembers: isManager,
+    canManageRoles: isManager,
+    canOperateMeals: canOperate,
+    canManageExpenses: canOperate,
+    canManageDeposits: isManager,
+    canManageCycles: isManager,
+    canManageMess: isManager,
     signOut: async () => {
       const { error } = await supabase.auth.signOut();
 

@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { OnboardingTour } from '@/components/onboarding-tour';
 import { format } from 'date-fns';
+import { useAuth } from '@/lib/auth-context';
 
 const expenseSchema = z.object({
   amount: z.preprocess(
@@ -341,6 +342,7 @@ export default function Dashboard() {
   const { stats, getMemberStats, members, closeActiveCycle, pendingCycle } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
   const [openMeal, setOpenMeal] = useState(false);
+  const { canManageExpenses, canOperateMeals, canManageCycles } = useAuth();
   const memberSettlementRows = members.map((member) => {
     const memberStats = getMemberStats(member.id);
     const roundedBalance = Math.round(memberStats.balance);
@@ -408,7 +410,7 @@ export default function Dashboard() {
       <section className="grid grid-cols-2 gap-4">
         <Dialog open={openExpense} onOpenChange={setOpenExpense}>
           <DialogTrigger asChild>
-            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-primary/70 bg-card text-primary shadow-sm transition-all hover:border-primary hover:bg-primary/10">
+            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-primary/70 bg-card text-primary shadow-sm transition-all hover:border-primary hover:bg-primary/10" disabled={!canManageExpenses}>
               <ShoppingBag className="h-6 w-6" />
               <span className="font-semibold">Add Expense</span>
             </Button>
@@ -424,7 +426,7 @@ export default function Dashboard() {
 
         <Dialog open={openMeal} onOpenChange={setOpenMeal}>
           <DialogTrigger asChild>
-            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-border bg-card text-foreground shadow-sm transition-all hover:border-muted-foreground/50 hover:bg-muted">
+            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-border bg-card text-foreground shadow-sm transition-all hover:border-muted-foreground/50 hover:bg-muted" disabled={!canOperateMeals}>
               <Utensils className="h-6 w-6" />
               <span className="font-semibold">Log Meals</span>
             </Button>
@@ -490,7 +492,7 @@ export default function Dashboard() {
       </section>
 
       <section className="space-y-4 pt-2">
-        <CycleManagementCard onCloseCycle={closeActiveCycle} hasPendingCycle={!!pendingCycle} />
+        {canManageCycles ? <CycleManagementCard onCloseCycle={closeActiveCycle} hasPendingCycle={!!pendingCycle} /> : null}
       </section>
     </div>
   );

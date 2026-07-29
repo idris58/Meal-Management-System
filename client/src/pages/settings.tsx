@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useMeal } from '@/lib/meal-context';
 import { usePushNotifications } from '@/lib/push-notifications';
 import { supabase } from '@/lib/supabase';
+import { MessSettingsCard } from '@/components/mess-settings-card';
 
 type ShareLinkConfig = {
   token: string;
@@ -928,6 +929,7 @@ export default function SettingsPage() {
         </p>
       </header>
 
+      <MessSettingsCard />
       <CurrentCycleSettingsCard />
       <NotificationSettingsCard />
       <ShareSettingsCard />

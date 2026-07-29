@@ -22,6 +22,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
+import { LocalizedRoleBadge } from '@/components/localized-role-badge';
 
 type NavItem = {
   icon: LucideIcon;
@@ -47,7 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { t } = useTranslation();
 
   const handleLogout = async () => {
@@ -72,6 +73,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </span>
       </div>
     </Link>
+  );
+
+  const userSummary = (
+    <div className="min-w-0 px-2">
+      <div className="flex items-center gap-2"><span className="truncate text-sm font-semibold">{profile?.full_name ?? user?.email ?? t('auth.signedIn')}</span>{profile ? <LocalizedRoleBadge role={profile.role} /> : null}</div>
+      {user?.email ? <p className="truncate text-xs text-muted-foreground">{user.email}</p> : null}
+    </div>
   );
 
   const mobileSheet = (
@@ -105,9 +113,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="space-y-3 border-t p-4">
-            <div className="truncate px-2 text-sm text-muted-foreground">
-              {user?.email ?? t('auth.signedIn')}
-            </div>
+            {userSummary}
             <Button
               variant="outline"
               className="w-full justify-start gap-2"
@@ -162,9 +168,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="space-y-3 border-t p-4">
-            <div className="truncate px-2 text-sm text-muted-foreground">
-              {user?.email ?? t('auth.signedIn')}
-            </div>
+            {userSummary}
             <Button
               variant="outline"
               className="w-full justify-start gap-2"
