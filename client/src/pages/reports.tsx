@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -47,7 +47,10 @@ export default function ReportsPage() {
     const members = details?.members ?? [];
     const expenses = (details?.expenses ?? []).filter((item) => item.date >= fromKey && item.date <= toKey);
     const logs = (details?.mealLogs ?? []).filter((item) => item.date >= fromKey && item.date <= toKey);
-    const deposits = (details?.deposits ?? []).filter((item) => { const date = fileDate(new Date(item.createdAt)); return date >= fromKey && date <= toKey; });
+    const deposits = (details?.deposits ?? []).filter((item) => {
+      const ts = new Date(item.createdAt).getTime();
+      return ts >= from.getTime() && ts <= endOfDay(to).getTime();
+    });
     const totalMealExpenses = expenses.filter((item) => item.type === 'meal').reduce((sum, item) => sum + item.amount, 0);
     const totalFixedExpenses = expenses.filter((item) => item.type === 'fixed').reduce((sum, item) => sum + item.amount, 0);
     const totalExpenses = totalMealExpenses + totalFixedExpenses;

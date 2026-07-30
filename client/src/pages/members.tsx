@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ChevronDown, GripVertical, Link2, Plus, ShieldCheck, Trash2, Wallet, Users } from 'lucide-react';
+import { ChevronDown, GripVertical, Link2, Link2Off, Plus, ShieldCheck, Trash2, Wallet, Users } from 'lucide-react';
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -162,6 +162,7 @@ function MemberCard({
   onDelete,
   profileRole,
   onCoordinatorAction,
+  isLinked = false,
   dragHandleProps,
   isDragging = false,
 }: {
@@ -172,6 +173,7 @@ function MemberCard({
   onDelete?: () => void;
   profileRole?: 'manager' | 'coordinator' | 'member';
   onCoordinatorAction?: () => void;
+  isLinked?: boolean;
   dragHandleProps?: any;
   isDragging?: boolean;
 }) {
@@ -184,8 +186,17 @@ function MemberCard({
             <Avatar>
               <AvatarFallback className="bg-primary/10 text-primary">{member.avatar}</AvatarFallback>
             </Avatar>
-            <div>
+            <div className="flex items-center gap-1.5">
               <p className="font-bold">{member.name}</p>
+              {isLinked ? (
+                <span title="Account Linked" className="inline-flex shrink-0">
+                  <Link2 className="h-3.5 w-3.5 text-emerald-500" />
+                </span>
+              ) : (
+                <span title="Offline Member (Not Linked)" className="inline-flex shrink-0">
+                  <Link2Off className="h-3.5 w-3.5 text-gray-400" />
+                </span>
+              )}
             </div>
           </div>
           {onDelete ? (
@@ -272,11 +283,11 @@ function MemberCard({
   );
 }
 
-function SortableMemberCard({ member, stats, deletingMemberId, onDeposit, onDelete, profileRole, onCoordinatorAction }: { member: Member; stats: MemberStatsSnapshot; deletingMemberId?: string | null; onDeposit?: () => void; onDelete?: () => void; profileRole?: 'manager' | 'coordinator' | 'member'; onCoordinatorAction?: () => void; }) {
+function SortableMemberCard({ member, stats, deletingMemberId, onDeposit, onDelete, profileRole, onCoordinatorAction, isLinked }: { member: Member; stats: MemberStatsSnapshot; deletingMemberId?: string | null; onDeposit?: () => void; onDelete?: () => void; profileRole?: 'manager' | 'coordinator' | 'member'; onCoordinatorAction?: () => void; isLinked?: boolean; }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: member.id });
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 1 : undefined }} className={isDragging ? "opacity-80" : undefined} {...attributes}>
-      <MemberCard member={member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={onDeposit} onDelete={onDelete} profileRole={profileRole} onCoordinatorAction={onCoordinatorAction} isDragging={isDragging} dragHandleProps={{ ref: setActivatorNodeRef, ...listeners }} />
+      <MemberCard member={member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={onDeposit} onDelete={onDelete} profileRole={profileRole} onCoordinatorAction={onCoordinatorAction} isLinked={isLinked} isDragging={isDragging} dragHandleProps={{ ref: setActivatorNodeRef, ...listeners }} />
     </div>
   );
 }
@@ -432,7 +443,7 @@ export default function Members() {
                 const stats = getMemberStats(item.member.id);
                 const linkedProfile = profiles.find((profile) => profile.id === item.member.profileId);
                 const coordinatorAction = canManageRoles && linkedProfile && linkedProfile.role !== 'manager' ? () => void toggleCoordinator(linkedProfile.id, linkedProfile.role === 'coordinator' ? 'member' : 'coordinator') : undefined;
-                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={canManageDeposits ? () => setDepositMemberId(item.member.id) : undefined} onDelete={canManageMembers ? () => handleRemoveMember(item.member.id) : undefined} profileRole={linkedProfile?.role} onCoordinatorAction={coordinatorAction} />;
+                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={canManageDeposits ? () => setDepositMemberId(item.member.id) : undefined} onDelete={canManageMembers ? () => handleRemoveMember(item.member.id) : undefined} profileRole={linkedProfile?.role} onCoordinatorAction={coordinatorAction} isLinked={!!item.member.profileId} />;
               })}
             </div>
           </SortableContext>

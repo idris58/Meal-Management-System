@@ -1,28 +1,55 @@
-import { Check, ChevronDown, Languages } from "lucide-react";
 import { useTranslation } from "react-i18next";
-
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { supportedLanguages, type SupportedLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { type SupportedLanguage } from "@/lib/i18n";
 
 export function LanguageSwitcher({ className }: { className?: string }) {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const language = i18n.language === "bn" ? "bn" : "en";
+  const isBn = language === "bn";
+
+  const toggle = () => {
+    void i18n.changeLanguage((isBn ? "en" : "bn") as SupportedLanguage);
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className={cn("h-9 shrink-0 gap-1.5 rounded-full border-primary/20 bg-primary/[0.04] px-2.5 font-semibold text-primary shadow-sm transition-all hover:border-primary/40 hover:bg-primary/10 hover:shadow-md sm:px-3", className)} aria-label={t("switcher.current", { language: t(`languages.${language}`) })}>
-          <Languages className="h-4 w-4" aria-hidden="true" />
-          <span className="text-xs sm:text-sm">{language === "bn" ? "বাংলা" : "EN"}</span>
-          <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-40 rounded-xl p-1.5 shadow-xl">
-        <DropdownMenuRadioGroup value={language} onValueChange={(next) => void i18n.changeLanguage(next as SupportedLanguage)} aria-label={t("switcher.choose")}>
-          {supportedLanguages.map((code) => <DropdownMenuRadioItem key={code} value={code} className="rounded-lg py-2 pl-8 pr-3 font-medium"><span>{t(`languages.${code}`)}</span>{language === code && <Check className="ml-auto h-4 w-4 text-primary" aria-hidden="true" />}</DropdownMenuRadioItem>)}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={isBn ? "Switch to English" : "বাংলায় পরিবর্তন করুন"}
+      aria-pressed={isBn}
+      className={cn(
+        "relative h-9 w-[4.5rem] rounded-full border border-primary/20 bg-primary/[0.04] p-0 shadow-sm transition-all hover:border-primary/40 hover:bg-primary/10 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+        className,
+      )}
+    >
+      {/* Sliding pill indicator */}
+      <span
+        className={cn(
+          "absolute inset-y-[3px] w-[calc(50%-3px)] rounded-full bg-background shadow-sm transition-transform duration-300",
+          isBn ? "left-[3px] translate-x-full" : "left-[3px] translate-x-0",
+        )}
+        aria-hidden="true"
+      />
+
+      {/* Labels */}
+      <span className="relative flex h-full w-full items-center">
+        <span
+          className={cn(
+            "flex flex-1 items-center justify-center text-xs font-semibold transition-colors duration-300",
+            !isBn ? "text-primary" : "text-muted-foreground",
+          )}
+        >
+          EN
+        </span>
+        <span
+          className={cn(
+            "flex flex-1 items-center justify-center text-xs font-semibold transition-colors duration-300",
+            isBn ? "text-primary" : "text-muted-foreground",
+          )}
+        >
+          BN
+        </span>
+      </span>
+    </button>
   );
 }
