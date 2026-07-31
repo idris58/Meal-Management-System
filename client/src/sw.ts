@@ -7,6 +7,11 @@ import { clientsClaim } from "workbox-core";
 
 declare const self: ServiceWorkerGlobalScope;
 
+interface SyncEvent extends ExtendableEvent {
+  readonly lastChance: boolean;
+  readonly tag: string;
+}
+
 type PushPayload = {
   title?: string;
   body?: string;
@@ -70,3 +75,15 @@ self.addEventListener("notificationclick", (event) => {
     }),
   );
 });
+
+self.addEventListener("sync", ((event: SyncEvent) => {
+  if (event.tag === "mealtrack-sync") {
+    event.waitUntil(
+      self.clients.matchAll({ type: "window" }).then((clients) => {
+        for (const client of clients) {
+          client.postMessage({ type: "TRIGGER_SYNC" });
+        }
+      })
+    );
+  }
+}) as EventListener);

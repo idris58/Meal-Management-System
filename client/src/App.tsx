@@ -7,9 +7,11 @@ import { ToastAction } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/toaster";
 import { useAuth, AuthProvider } from "@/lib/auth-context";
+import { Toaster as SonnerToaster } from "sonner";
 import { toast } from "@/hooks/use-toast";
 import { MealProvider, useMeal } from "@/lib/meal-context";
 import { useNetworkStatus } from "@/lib/pwa";
+import { OfflineToastManager } from "@/components/offline-toast";
 import { supabase } from "@/lib/supabase";
 import AuthPage from "@/pages/auth";
 import ChangelogPage from "@/pages/changelog";
@@ -285,22 +287,9 @@ function AppShell() {
 
   return (
     <MealProvider>
+      <OfflineToastManager />
       <Router />
     </MealProvider>
-  );
-}
-
-function OfflineBanner() {
-  const { isOnline } = useNetworkStatus();
-
-  if (isOnline) {
-    return null;
-  }
-
-  return (
-    <div className="sticky top-0 z-[60] border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-800">
-      You are offline. The app shell is available, but live meal data and edits require an internet connection.
-    </div>
   );
 }
 
@@ -389,10 +378,11 @@ function PwaUpdateNotifier() {
 function App() {
   return (
     <AuthProvider>
-      <OfflineBanner />
       <PwaUpdateNotifier />
       <AppShell />
       <Toaster />
+      <SonnerToaster position="bottom-right" className="hidden md:block" />
+      <SonnerToaster position="bottom-center" className="md:hidden" />
     </AuthProvider>
   );
 }

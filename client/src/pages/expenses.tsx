@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { UndoDeleteGhost } from '@/components/undo-delete-ghost';
+import { SyncBadge } from '@/components/sync-badge';
 
 const DELETE_GRACE_MS = 10 * 1000;
 
@@ -48,7 +49,10 @@ function ExpenseRow({ expense, onEdit }: { expense: Expense; onEdit?: () => void
           {expense.type === 'meal' ? <ShoppingBag className="h-5 w-5" /> : <Zap className="h-5 w-5" />}
         </div>
         <div className="min-w-0">
-          <p className="truncate font-medium">{expense.description}</p>
+          <div className="flex items-center gap-2">
+            <p className="truncate font-medium">{expense.description}</p>
+            <SyncBadge itemId={expense.id} />
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>{format(new Date(expense.date), 'MMM d, yyyy')}</span>
             <span>•</span>

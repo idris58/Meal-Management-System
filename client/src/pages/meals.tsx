@@ -11,6 +11,7 @@ import { Plus, Minus, Utensils, Calendar as CalendarIcon, Users } from 'lucide-r
 import { format, eachDayOfInterval, isSameDay, parseISO, min, max, startOfDay } from 'date-fns';
 import { Link } from 'wouter';
 import { cn } from "@/lib/utils";
+import { SyncBadge } from '@/components/sync-badge';
 
 function formatMealCount(value: number) {
   const rounded = Math.round((value + Number.EPSILON) * 1000) / 1000;
@@ -299,7 +300,10 @@ export default function Meals() {
                         const log = dayLogs.find(l => l.memberId === member.id);
                         return (
                           <td key={member.id} className="border-r p-2.5 text-center font-mono text-xs sm:p-3 sm:text-sm md:p-4">
-                            {log ? formatMealCount(log.count) : '-'}
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <span>{log ? formatMealCount(log.count) : '-'}</span>
+                              {log ? <SyncBadge itemId={log.id} className="[&>span:last-child]:hidden px-1 py-0" /> : null}
+                            </div>
                           </td>
                         );
                       })}

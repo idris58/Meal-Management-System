@@ -1,6 +1,14 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
+import { v4 as uuidv4 } from 'uuid';
 import { supabase } from './supabase';
+import {
+  enqueue,
+  dequeueAll,
+  removeFromQueue,
+  getPendingIds,
+  type OfflineOp,
+} from './offline-queue';
 
 export interface Member {
   id: string;
@@ -145,6 +153,10 @@ interface MealContextType {
   isCycleDetailsLoading: (cycleId: string) => boolean;
   getCycleDetailsError: (cycleId: string) => string | null;
   loadMoreChangelogEntries: () => Promise<void>;
+  /** Set of temporary IDs for items that are queued for sync (offline items). */
+  pendingSyncIds: Set<string>;
+  /** Flush the offline queue against Supabase — called when back online. */
+  triggerSync: () => Promise<void>;
 }
 
 const MealContext = createContext<MealContextType | undefined>(undefined);
@@ -370,6 +382,9 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [messId, setMessId] = useState<string | null>(null);
+  /** IDs of items that are queued for offline sync. */
+  const [pendingSyncIds, setPendingSyncIds] = useState<Set<string>>(new Set());
+  const isSyncingRef = useRef(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -387,6 +402,13 @@ export function MealProvider({ children }: { children: ReactNode }) {
     };
 
     void getUser();
+  }, []);
+
+  // Hydrate pendingSyncIds from IDB on mount so badges survive a page refresh
+  useEffect(() => {
+    getPendingIds().then((ids) => {
+      if (ids.length > 0) setPendingSyncIds(new Set(ids));
+    }).catch(() => { /* non-fatal */ });
   }, []);
 
   useEffect(() => {
@@ -993,6 +1015,31 @@ export function MealProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // ── Offline path ──────────────────────────────────────────────────────────
+    if (!navigator.onLine) {
+      const tempId = `offline-${uuidv4()}`;
+      const dateStr = expenseDate ?? new Date().toISOString();
+      const optimisticExpense: Expense = {
+        id: tempId,
+        cycleId: targetCycleId,
+        amount,
+        description,
+        type,
+        date: dateStr,
+        paidBy,
+      };
+      setAllExpenses((prev) => [optimisticExpense, ...prev]);
+      setPendingSyncIds((prev) => new Set(prev).add(tempId));
+      await enqueue({
+        id: tempId,
+        type: 'ADD_EXPENSE',
+        payload: { amount, description, type, paidBy, date: dateStr, userId, messId, cycleId: targetCycleId },
+        createdAt: Date.now(),
+      });
+      return;
+    }
+
+    // ── Online path ───────────────────────────────────────────────────────────
     const { data, error } = await supabase
       .from('expenses')
       .insert([{
@@ -1199,6 +1246,29 @@ export function MealProvider({ children }: { children: ReactNode }) {
       .reduce((sum, deposit) => sum + deposit.amount, 0);
     const nextDepositBalance = previousDepositBalance + amount;
 
+    // ── Offline path ──────────────────────────────────────────────────────────
+    if (!navigator.onLine) {
+      const tempId = `offline-${uuidv4()}`;
+      const optimisticDeposit: CycleDeposit = {
+        id: tempId,
+        cycleId: targetCycleId,
+        memberId,
+        amount,
+        note: note ?? undefined,
+        createdAt: new Date().toISOString(),
+      };
+      setAllDeposits((prev) => [...prev, optimisticDeposit]);
+      setPendingSyncIds((prev) => new Set(prev).add(tempId));
+      await enqueue({
+        id: tempId,
+        type: 'ADD_DEPOSIT',
+        payload: { memberId, amount, cycleId: targetCycleId, note: note ?? null, userId, messId },
+        createdAt: Date.now(),
+      });
+      return;
+    }
+
+    // ── Online path ───────────────────────────────────────────────────────────
     const { data, error } = await supabase
       .from('cycle_deposits')
       .insert([{
@@ -1251,6 +1321,50 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     const targetCycleId = getRequiredCycleId(cycleId);
     if (!targetCycleId) return;
+
+    // ── Offline path ──────────────────────────────────────────────────────────
+    if (!navigator.onLine) {
+      const tempId = `offline-${uuidv4()}`;
+      // Apply optimistic updates: update/insert local meal log state
+      setAllMealLogs((prev) => {
+        let next = [...prev];
+        for (const entry of entries) {
+          const normalizedCount = Number.isNaN(entry.count) ? 0 : entry.count;
+          const existingIdx = next.findIndex(
+            (log) => log.memberId === entry.memberId && log.date === dateStr && log.cycleId === targetCycleId,
+          );
+          if (existingIdx !== -1) {
+            if (normalizedCount === 0) {
+              next = next.filter((_, i) => i !== existingIdx);
+            } else {
+              next = next.map((log, i) =>
+                i === existingIdx ? { ...log, count: normalizedCount } : log,
+              );
+            }
+          } else if (normalizedCount > 0) {
+            next = [
+              ...next,
+              {
+                id: `offline-meal-${uuidv4()}`,
+                cycleId: targetCycleId,
+                memberId: entry.memberId,
+                date: dateStr,
+                count: normalizedCount,
+              },
+            ];
+          }
+        }
+        return next;
+      });
+      setPendingSyncIds((prev) => new Set(prev).add(tempId));
+      await enqueue({
+        id: tempId,
+        type: 'ADD_MEAL_LOG',
+        payload: { entries, dateStr, cycleId: targetCycleId, userId, messId },
+        createdAt: Date.now(),
+      });
+      return;
+    }
 
     let nextMealLogs = [...allMealLogs];
     const mealLogChanges: ChangelogChange[] = [];
@@ -1372,6 +1486,114 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
   const logMeal = async (memberId: string, count: number, dateStr: string, cycleId?: string) => {
     await saveMealLogs([{ memberId, count }], dateStr, cycleId);
+  };
+
+  /**
+   * Flush the offline queue against Supabase.
+   * Called by OfflineToastManager when connectivity is restored.
+   */
+  const triggerSync = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+
+    try {
+      const ops = await dequeueAll();
+      if (ops.length === 0) return;
+
+      for (const op of ops) {
+        try {
+          await replayOp(op);
+          await removeFromQueue(op.id);
+          setPendingSyncIds((prev) => {
+            const next = new Set(prev);
+            next.delete(op.id);
+            return next;
+          });
+        } catch (err) {
+          console.error(`[offline-sync] Failed to replay op ${op.id}:`, err);
+          // Keep the op in the queue so it retries next time
+        }
+      }
+
+      // Refresh data after sync to get real server IDs
+      void loadData();
+    } finally {
+      isSyncingRef.current = false;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, messId]);
+
+  /**
+   * Replay a single queued operation against Supabase.
+   * The optimistic local item (with its `offline-` prefixed ID) is replaced
+   * by the real server record after a successful write.
+   */
+  const replayOp = async (op: OfflineOp) => {
+    if (!userId || !messId) throw new Error('Not authenticated');
+
+    if (op.type === 'ADD_EXPENSE') {
+      const p = op.payload as {
+        amount: number; description: string; type: 'meal' | 'fixed';
+        paidBy: string; date: string; userId: string; messId: string; cycleId: string;
+      };
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert([{
+          amount: p.amount,
+          description: p.description,
+          type: p.type,
+          paid_by: p.paidBy,
+          date: p.date,
+          user_id: userId,
+          mess_id: messId,
+          cycle_id: p.cycleId,
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      // Replace the optimistic record with the real one
+      setAllExpenses((prev) => [
+        { id: data.id, cycleId: data.cycle_id, amount: Number(data.amount), description: data.description, type: data.type, date: data.date, paidBy: data.paid_by },
+        ...prev.filter((e) => e.id !== op.id),
+      ]);
+      return;
+    }
+
+    if (op.type === 'ADD_DEPOSIT') {
+      const p = op.payload as {
+        memberId: string; amount: number; cycleId: string; note: string | null; userId: string; messId: string;
+      };
+      const { data, error } = await supabase
+        .from('cycle_deposits')
+        .insert([{
+          member_id: p.memberId,
+          cycle_id: p.cycleId,
+          amount: p.amount,
+          note: p.note,
+          user_id: userId,
+          mess_id: messId,
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      setAllDeposits((prev) => [
+        ...prev.filter((d) => d.id !== op.id),
+        { id: data.id, cycleId: data.cycle_id, memberId: data.member_id, amount: Number(data.amount), note: data.note ?? undefined, createdAt: data.created_at },
+      ]);
+      return;
+    }
+
+    if (op.type === 'ADD_MEAL_LOG') {
+      const p = op.payload as {
+        entries: Array<{ memberId: string; count: number }>;
+        dateStr: string; cycleId: string; userId: string; messId: string;
+      };
+      // Delegate to saveMealLogs which now runs online
+      await saveMealLogs(p.entries, p.dateStr, p.cycleId);
+      // Remove optimistic offline-meal-* entries — loadData() will refresh
+      setAllMealLogs((prev) => prev.filter((log) => !log.id.startsWith('offline-')));
+      return;
+    }
   };
 
   const renameActiveCycle = async (name: string) => {
@@ -1674,6 +1896,8 @@ export function MealProvider({ children }: { children: ReactNode }) {
         isCycleDetailsLoading,
         getCycleDetailsError,
         loadMoreChangelogEntries,
+        pendingSyncIds,
+        triggerSync,
       }}
     >
       {children}
