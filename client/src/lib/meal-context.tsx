@@ -17,6 +17,7 @@ export interface Member {
   mealsEaten: number;
   avatar?: string;
   profileId?: string | null;
+  hasPendingDeposit?: boolean;
 }
 
 export interface Expense {
@@ -591,6 +592,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       mealsEaten: cycleMealLogs
         .filter((log) => log.memberId === member.id)
         .reduce((sum, log) => sum + log.count, 0),
+      hasPendingDeposit: cycleDeposits.some((d) => d.memberId === member.id && d.id.startsWith('offline-')),
     }));
 
     const totalDeposits = baseMembers.reduce((sum, member) => sum + member.deposit, 0);

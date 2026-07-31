@@ -120,12 +120,30 @@ function AppShell() {
   useEffect(() => {
     let active = true;
     if (!session?.user) { setProfile(null); setProfileLoading(false); return; }
-    setProfileLoading(true);
+    
+    const cachedProfile = localStorage.getItem(`profile-${session.user.id}`);
+    if (cachedProfile) {
+      try {
+        setProfile(JSON.parse(cachedProfile));
+      } catch { /* ignore */ }
+    } else {
+      setProfileLoading(true);
+    }
+    
     void supabase.from("profiles").select("mess_id").eq("id", session.user.id).maybeSingle()
       .then(({ data, error }) => {
         if (!active) return;
-        if (error) console.error("Could not load profile:", error);
-        setProfile(data ?? { mess_id: null });
+        if (error) {
+          console.error("Could not load profile:", error);
+          if (!cachedProfile) {
+            setProfile({ mess_id: null });
+          }
+        } else {
+          setProfile(data ?? { mess_id: null });
+          if (data) {
+            localStorage.setItem(`profile-${session.user.id}`, JSON.stringify(data));
+          }
+        }
         setProfileLoading(false);
       });
     return () => { active = false; };
@@ -382,7 +400,7 @@ function App() {
       <AppShell />
       <Toaster />
       <SonnerToaster position="bottom-right" className="hidden md:block" />
-      <SonnerToaster position="bottom-center" className="md:hidden" />
+      <SonnerToaster position="bottom-center" className="md:hidden" style={{ marginBottom: "64px" }} />
     </AuthProvider>
   );
 }

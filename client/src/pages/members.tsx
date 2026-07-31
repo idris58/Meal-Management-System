@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SyncBadge } from '@/components/sync-badge';
 
 const DELETE_GRACE_MS = 10 * 1000;
 
@@ -232,7 +233,10 @@ function MemberCard({
         <div className="space-y-3 p-4 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Deposit</span>
-            <span className="font-bold">৳{member.deposit.toFixed(2)}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold">৳{member.deposit.toFixed(2)}</span>
+              <SyncBadge show={member.hasPendingDeposit} className="[&>span:last-child]:hidden px-1.5 py-0" />
+            </div>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Meals Eaten</span>

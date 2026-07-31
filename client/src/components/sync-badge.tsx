@@ -11,14 +11,19 @@ import { useMeal } from '@/lib/meal-context';
 import { cn } from '@/lib/utils';
 
 interface SyncBadgeProps {
-  itemId: string;
+  itemId?: string;
+  show?: boolean;
   className?: string;
 }
 
-export function SyncBadge({ itemId, className }: SyncBadgeProps) {
+export function SyncBadge({ itemId, show, className }: SyncBadgeProps) {
   const { pendingSyncIds } = useMeal();
 
-  if (!pendingSyncIds.has(itemId)) {
+  const isPending =
+    show === true ||
+    (itemId && (pendingSyncIds.has(itemId) || itemId.startsWith('offline-')));
+
+  if (!isPending) {
     return null;
   }
 
