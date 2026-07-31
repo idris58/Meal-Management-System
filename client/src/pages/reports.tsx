@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
@@ -32,6 +32,44 @@ function DatePicker({ label, value, onChange, disabled }: { label: string; value
   </div>;
 }
 
+function parseItemDateKey(dateStr: string): string {
+  if (!dateStr) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    if (dateStr.includes('T')) {
+      try {
+        return format(new Date(dateStr), 'yyyy-MM-dd');
+      } catch {
+        return dateStr.substring(0, 10);
+      }
+    }
+    return dateStr.substring(0, 10);
+  }
+  try {
+    return format(new Date(dateStr), 'yyyy-MM-dd');
+  } catch {
+    return dateStr;
+  }
+}
+
+function isDateInFilterRange(dateStr: string, fromDate: Date, toDate: Date, fromKey: string, toKey: string): boolean {
+  if (!dateStr) return false;
+  const itemKey = parseItemDateKey(dateStr);
+  if (itemKey && itemKey >= fromKey && itemKey <= toKey) {
+    return true;
+  }
+  try {
+    const itemMs = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`).getTime();
+    if (!isNaN(itemMs)) {
+      const startMs = startOfDay(fromDate).getTime();
+      const endMs = endOfDay(toDate).getTime();
+      return itemMs >= startMs && itemMs <= endMs;
+    }
+  } catch {
+    // fallback
+  }
+  return false;
+}
+
 export default function ReportsPage() {
   const { activeCycle, getCycleDetails } = useMeal();
   const { toast } = useToast();
@@ -40,17 +78,21 @@ export default function ReportsPage() {
   const [from, setFrom] = useState(() => activeCycle?.startedAt ? startOfDay(new Date(activeCycle.startedAt)) : today);
   const [to, setTo] = useState(() => today);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    if (activeCycle?.startedAt) {
+      setFrom(startOfDay(new Date(activeCycle.startedAt)));
+    }
+  }, [activeCycle?.startedAt]);
+
   const details = activeCycle ? getCycleDetails(activeCycle.id) : null;
   const fromKey = fileDate(from); const toKey = fileDate(to);
   const generatedAt = useMemo(() => new Date(), [fromKey, toKey, details]);
   const report = useMemo(() => {
     const members = details?.members ?? [];
-    const expenses = (details?.expenses ?? []).filter((item) => item.date >= fromKey && item.date <= toKey);
-    const logs = (details?.mealLogs ?? []).filter((item) => item.date >= fromKey && item.date <= toKey);
-    const deposits = (details?.deposits ?? []).filter((item) => {
-      const ts = new Date(item.createdAt).getTime();
-      return ts >= from.getTime() && ts <= endOfDay(to).getTime();
-    });
+    const expenses = (details?.expenses ?? []).filter((item) => isDateInFilterRange(item.date, from, to, fromKey, toKey));
+    const logs = (details?.mealLogs ?? []).filter((item) => isDateInFilterRange(item.date, from, to, fromKey, toKey));
+    const deposits = (details?.deposits ?? []).filter((item) => isDateInFilterRange(item.createdAt, from, to, fromKey, toKey));
     const totalMealExpenses = expenses.filter((item) => item.type === 'meal').reduce((sum, item) => sum + item.amount, 0);
     const totalFixedExpenses = expenses.filter((item) => item.type === 'fixed').reduce((sum, item) => sum + item.amount, 0);
     const totalExpenses = totalMealExpenses + totalFixedExpenses;
@@ -64,7 +106,7 @@ export default function ReportsPage() {
       return { id: member.id, name: member.name, meals, deposit, bill, balance: deposit - bill };
     });
     return { rows, totalExpenses, totalMeals, rate };
-  }, [details, fromKey, toKey]);
+  }, [details, from, to, fromKey, toKey]);
   const rangeLabel = format(from, 'dd MMM yyyy') + ' - ' + format(to, 'dd MMM yyyy');
   const baseName = `mealtrack-report-${fromKey}-to-${toKey}`;
   const makePng = async () => {
