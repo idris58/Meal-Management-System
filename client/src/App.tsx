@@ -13,6 +13,7 @@ import { MealProvider, useMeal } from "@/lib/meal-context";
 import { useNetworkStatus } from "@/lib/pwa";
 import { OfflineToastManager } from "@/components/offline-toast";
 import { supabase } from "@/lib/supabase";
+import { ErrorBoundary } from "@/components/error-boundary";
 import AuthPage from "@/pages/auth";
 import ChangelogPage from "@/pages/changelog";
 import Dashboard from "@/pages/dashboard";
@@ -63,6 +64,7 @@ function AppLoadingSkeleton({ message }: { message: string }) {
 
 function Router() {
   const { loading } = useMeal();
+  const [location] = useLocation();
 
   if (loading) {
     return <AppLoadingSkeleton message="Loading your meal data..." />;
@@ -70,17 +72,19 @@ function Router() {
 
   return (
     <Layout>
-      <Switch>
-        <Route path="/app" component={Dashboard} />
-        <Route path="/app/members" component={Members} />
-        <Route path="/app/expenses" component={Expenses} />
-        <Route path="/app/meals" component={Meals} />
-        <Route path="/app/reports" component={ReportsPage} />
-        <Route path="/app/history" component={HistoryPage} />
-        <Route path="/app/changelog" component={ChangelogPage} />
-        <Route path="/app/settings" component={Settings} />
-        <Route component={NotFound} />
-      </Switch>
+      <ErrorBoundary key={location}>
+        <Switch>
+          <Route path="/app" component={Dashboard} />
+          <Route path="/app/members" component={Members} />
+          <Route path="/app/expenses" component={Expenses} />
+          <Route path="/app/meals" component={Meals} />
+          <Route path="/app/reports" component={ReportsPage} />
+          <Route path="/app/history" component={HistoryPage} />
+          <Route path="/app/changelog" component={ChangelogPage} />
+          <Route path="/app/settings" component={Settings} />
+          <Route component={NotFound} />
+        </Switch>
+      </ErrorBoundary>
     </Layout>
   );
 }
@@ -395,13 +399,15 @@ function PwaUpdateNotifier() {
 
 function App() {
   return (
-    <AuthProvider>
-      <PwaUpdateNotifier />
-      <AppShell />
-      <Toaster />
-      <SonnerToaster position="bottom-right" className="hidden md:block" />
-      <SonnerToaster position="bottom-center" className="md:hidden" style={{ marginBottom: "64px" }} />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <PwaUpdateNotifier />
+        <AppShell />
+        <Toaster />
+        <SonnerToaster position="bottom-right" className="hidden md:block" />
+        <SonnerToaster position="bottom-center" className="md:hidden" style={{ marginBottom: "64px" }} />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
