@@ -158,6 +158,10 @@ interface MealContextType {
   pendingSyncIds: Set<string>;
   /** Flush the offline queue against Supabase — called when back online. */
   triggerSync: () => Promise<void>;
+  /** Error message when initial data load fails (null = no error). */
+  dataError: string | null;
+  /** Retry the initial data load after a failure. */
+  retryLoadData: () => void;
 }
 
 const MealContext = createContext<MealContextType | undefined>(undefined);
@@ -383,9 +387,9 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [messId, setMessId] = useState<string | null>(null);
-  /** IDs of items that are queued for offline sync. */
   const [pendingSyncIds, setPendingSyncIds] = useState<Set<string>>(new Set());
   const isSyncingRef = useRef(false);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
@@ -447,14 +451,14 @@ export function MealProvider({ children }: { children: ReactNode }) {
     const snapshot = cycle.membersSnapshot;
 
     if (snapshot && cycle.status !== 'active') {
-        return snapshot.map((member) => ({
-          id: member.id,
-          name: member.name,
-          deposit: 0,
-          mealsEaten: 0,
-          avatar: toAvatar(member.name, member.avatar),
-        }));
-      }
+      return snapshot.map((member) => ({
+        id: member.id,
+        name: member.name,
+        deposit: 0,
+        mealsEaten: 0,
+        avatar: toAvatar(member.name, member.avatar),
+      }));
+    }
 
     return memberRoster.map((member) => ({
       ...member,
@@ -770,12 +774,25 @@ export function MealProvider({ children }: { children: ReactNode }) {
       setCycleDetailsLoadingById({});
       setAllChangelogEntries(nextChangelogEntries);
       setHasMoreChangelogEntries(nextChangelogEntries.length === CHANGELOG_PAGE_SIZE);
+      setDataError(null);
     } catch (error) {
       console.error('Error loading data:', error);
+      setDataError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load your meal data. Please check your connection and try again.',
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  const retryLoadData = useCallback(() => {
+    if (userId && messId) {
+      setDataError(null);
+      void loadData();
+    }
+  }, [userId, messId]);
 
   const loadMoreChangelogEntries = async () => {
     if (!userId || changelogLoading || !hasMoreChangelogEntries) return;
@@ -828,7 +845,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error adding member:', error);
-      return;
+      throw new Error('Unable to add member. Please try again.');
     }
 
     setMemberRoster((prev) => [
@@ -898,17 +915,17 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error updating member:', error);
-      return;
+      throw new Error('Unable to update member. Please try again.');
     }
 
     setMemberRoster((prev) => prev.map((member) => (
       member.id === id
         ? {
-            ...member,
-            ...updates,
-            deposit: member.deposit,
-            mealsEaten: member.mealsEaten,
-          }
+          ...member,
+          ...updates,
+          deposit: member.deposit,
+          mealsEaten: member.mealsEaten,
+        }
         : member
     )));
 
@@ -942,7 +959,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error removing member:', error);
-      return;
+      throw new Error('Unable to remove member. Please try again.');
     }
 
     setMemberRoster((prev) => prev.filter((member) => member.id !== id));
@@ -974,7 +991,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error restoring member:', error);
-      return;
+      throw new Error('Unable to restore member. Please try again.');
     }
 
     if (data) {
@@ -1059,7 +1076,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error adding expense:', error);
-      return;
+      throw new Error('Unable to add expense. Please try again.');
     }
 
     setAllExpenses((prev) => [{
@@ -1132,19 +1149,19 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error updating expense:', error);
-      return;
+      throw new Error('Unable to update expense. Please try again.');
     }
 
     setAllExpenses((prev) => prev.map((expense) => (
       expense.id === id
         ? {
-            ...expense,
-            amount: updates.amount,
-            description: updates.description,
-            type: updates.type,
-            paidBy: updates.paidBy,
-            date: updates.date ?? expense.date,
-          }
+          ...expense,
+          amount: updates.amount,
+          description: updates.description,
+          type: updates.type,
+          paidBy: updates.paidBy,
+          date: updates.date ?? expense.date,
+        }
         : expense
     )));
 
@@ -1177,7 +1194,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error deleting expense:', error);
-      return;
+      throw new Error('Unable to delete expense. Please try again.');
     }
 
     setAllExpenses((prev) => prev.filter((expense) => expense.id !== id));
@@ -1213,7 +1230,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error restoring expense:', error);
-      return;
+      throw new Error('Unable to restore expense. Please try again.');
     }
 
     if (data?.cycle_id) {
@@ -1286,7 +1303,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error adding deposit:', error);
-      return;
+      throw new Error('Unable to add deposit. Please try again.');
     }
 
     setAllDeposits((prev) => [...prev, {
@@ -1391,7 +1408,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
           if (error) {
             console.error('Error deleting meal log:', error);
-            return;
+            throw new Error('Unable to save meal log. Please try again.');
           }
 
           nextMealLogs = nextMealLogs.filter((log) => log.id !== existingLog.id);
@@ -1412,7 +1429,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           console.error('Error updating meal log:', error);
-          return;
+          throw new Error('Unable to save meal log. Please try again.');
         }
 
         nextMealLogs = nextMealLogs.map((log) => (
@@ -1439,14 +1456,14 @@ export function MealProvider({ children }: { children: ReactNode }) {
           date: dateStr,
           count: normalizedCount,
           user_id: userId,
-        mess_id: messId,
+          mess_id: messId,
         }])
         .select()
         .single();
 
       if (error) {
         console.error('Error creating meal log:', error);
-        return;
+        throw new Error('Unable to save meal log. Please try again.');
       }
 
       nextMealLogs = [...nextMealLogs, {
@@ -1522,7 +1539,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     } finally {
       isSyncingRef.current = false;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, messId]);
 
   /**
@@ -1667,7 +1684,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (updateError) {
       console.error('Error moving cycle to pending:', updateError);
-      return;
+      throw new Error('Unable to close the cycle. Please try again.');
     }
 
     const { data: nextActive, error: createError } = await supabase
@@ -1684,7 +1701,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (createError) {
       console.error('Error creating new active cycle:', createError);
-      return;
+      throw new Error('Cycle was closed but a new cycle could not be created. Please reload.');
     }
 
     setCycles((prev) => [
@@ -1722,7 +1739,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error closing pending cycle:', error);
-      return;
+      throw new Error('Unable to finalize the cycle. Please try again.');
     }
 
     const { error: changelogError } = await supabase
@@ -1733,7 +1750,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (changelogError) {
       console.error('Error deleting cycle changelog entries:', changelogError);
-      return;
+      // Non-fatal: the cycle is already closed, just log and continue
     }
 
     setCycles((prev) => prev.map((cycle) => (
@@ -1765,7 +1782,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error deleting closed cycle:', error);
-      return;
+      throw new Error('Unable to delete the cycle. Please try again.');
     }
 
     setCycles((prev) => prev.filter((cycle) => cycle.id !== cycleId));
@@ -1798,7 +1815,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error restoring closed cycle:', error);
-      return;
+      throw new Error('Unable to restore the cycle. Please try again.');
     }
 
     if (data) {
@@ -1900,6 +1917,8 @@ export function MealProvider({ children }: { children: ReactNode }) {
         loadMoreChangelogEntries,
         pendingSyncIds,
         triggerSync,
+        dataError,
+        retryLoadData,
       }}
     >
       {children}

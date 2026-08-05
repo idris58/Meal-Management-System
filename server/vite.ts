@@ -22,7 +22,8 @@ export async function setupVite(server: Server, app: Express) {
       ...viteLogger,
       error: (msg, options) => {
         viteLogger.error(msg, options);
-        process.exit(1);
+        // Do NOT call process.exit(1) here — Vite HMR can recover from
+        // most compilation errors. Crashing kills the dev server needlessly.
       },
     },
     server: serverOptions,

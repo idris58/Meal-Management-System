@@ -62,6 +62,22 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // ── Process-level safety nets ────────────────────────────────────────────
+  process.on("uncaughtException", (err) => {
+    log(`Uncaught Exception: ${err.stack || err.message}`, "error");
+    // Let the process stay alive — Express can still serve requests.
+    // If you want a hard restart in orchestrated environments, swap to:
+    //   process.exit(1);
+  });
+
+  process.on("unhandledRejection", (reason) => {
+    const message =
+      reason instanceof Error
+        ? reason.stack || reason.message
+        : String(reason);
+    log(`Unhandled Rejection: ${message}`, "error");
+  });
+
   await registerRoutes(httpServer, app);
   startMealReminderScheduler();
   startNotificationDeliveryCleanupScheduler();
@@ -69,10 +85,13 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    const message = status >= 500 ? "Internal Server Error" : err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    log(`Error ${status}: ${err.message || err}\n${err.stack || ""}`, "error");
+
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
   });
 
   // importantly only setup vite in development and after

@@ -33,7 +33,30 @@ function getAuthRedirectUrl() {
   return isLocalHost ? `${origin}/` : `${origin}/auth`;
 }
 
-function mapAuthError(message: string, mode: AuthMode) {
+function mapAuthError(error: unknown, mode: AuthMode) {
+  if (typeof error === "object" && error !== null) {
+    const authErr = error as any;
+    // Primary strategy: Match on specific Supabase error codes/status
+    if (authErr.status === 400 || authErr.code === "invalid_credentials" || authErr.code === "email_not_confirmed") {
+      return mode === "login"
+        ? "The email or password is incorrect, or your email has not been confirmed yet."
+        : "This account is not ready yet. Check your email for the confirmation link.";
+    }
+    if (authErr.code === "user_already_exists") {
+      return "This email is already registered. Try logging in instead.";
+    }
+    if (authErr.code === "over_email_send_rate_limit" || authErr.status === 429) {
+      return mode === "forgot-password"
+        ? "A reset email was requested recently. Please wait a little and try again."
+        : "Please wait a little before trying again.";
+    }
+    if (authErr.status === 0 || authErr.message?.toLowerCase().includes("network") || authErr.message?.toLowerCase().includes("fetch")) {
+      return "We could not reach the authentication service. Please check your network connection and try again.";
+    }
+  }
+
+  // Secondary strategy: Fallback to substring matching on message for unhandled error codes
+  const message = error instanceof Error ? error.message : String(error);
   const normalized = message.toLowerCase();
 
   if (
@@ -269,11 +292,10 @@ export default function AuthPage() {
         setMessage("Account created. You are now signed in.");
       }
     } catch (caughtError) {
-      const nextError = caughtError instanceof Error ? caughtError.message : "";
       if (mode === "forgot-password") {
-        console.error("Password reset email error:", nextError);
+        console.error("Password reset email error:", caughtError);
       }
-      setError(mapAuthError(nextError, mode));
+      setError(mapAuthError(caughtError, mode));
     } finally {
       setSubmitting(false);
     }
@@ -293,7 +315,7 @@ export default function AuthPage() {
 
     if (oauthError) {
       setGoogleLoading(false);
-      setError(mapAuthError(oauthError.message, "login"));
+      setError(mapAuthError(oauthError, "login"));
       return;
     }
 

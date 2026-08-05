@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Route, Switch, useLocation, useRoute } from "wouter";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 import { Layout } from "@/components/layout";
 import { ToastAction } from "@/components/ui/toast";
@@ -63,11 +64,31 @@ function AppLoadingSkeleton({ message }: { message: string }) {
 }
 
 function Router() {
-  const { loading } = useMeal();
+  const { loading, dataError, retryLoadData } = useMeal();
   const [location] = useLocation();
 
-  if (loading) {
+  if (loading && !dataError) {
     return <AppLoadingSkeleton message="Loading your meal data..." />;
+  }
+
+  if (dataError) {
+    return (
+      <Layout>
+        <div className="flex h-[calc(100vh-4rem)] items-center justify-center p-4">
+          <div className="mx-auto max-w-md text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <h2 className="text-xl font-bold">Failed to load data</h2>
+            <p className="text-sm text-muted-foreground">{dataError}</p>
+            <Button onClick={retryLoadData} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   return (

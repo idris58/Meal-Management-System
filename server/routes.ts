@@ -1,5 +1,33 @@
-import type { Express, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { type Server } from "http";
+import { log } from "./index";
+
+/**
+ * Wrap an async Express handler so that rejected promises are caught,
+ * logged server-side, and returned as a sanitized JSON error.
+ * This prevents raw Supabase / database errors from leaking to the client.
+ */
+function asyncHandler(
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>,
+) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    fn(req, res, next).catch((err: any) => {
+      const status = err.status || err.statusCode || 500;
+      const internalMessage =
+        err instanceof Error ? err.message : String(err);
+      log(`Route error [${req.method} ${req.path}]: ${internalMessage}\n${err.stack || ""}`, "error");
+
+      if (!res.headersSent) {
+        res.status(status).json({
+          message:
+            status >= 500
+              ? "An unexpected error occurred. Please try again."
+              : internalMessage,
+        });
+      }
+    });
+  };
+}
 
 import { assertSupabaseAdmin } from "./supabase-admin";
 import {
@@ -381,7 +409,7 @@ export async function registerRoutes(
     return res.json({ configured: true, publicKey });
   });
 
-  app.post("/api/push/subscribe", async (req, res) => {
+  app.post("/api/push/subscribe", asyncHandler(async (req, res) => {
     const userId = await getAuthenticatedUserId(req.get("authorization"));
 
     if (!userId) {
@@ -405,9 +433,9 @@ export async function registerRoutes(
     });
 
     return res.json({ ok: true });
-  });
+  }));
 
-  app.post("/api/push/status", async (req, res) => {
+  app.post("/api/push/status", asyncHandler(async (req, res) => {
     const userId = await getAuthenticatedUserId(req.get("authorization"));
 
     if (!userId) {
@@ -433,9 +461,9 @@ export async function registerRoutes(
     }
 
     return res.json({ subscribed: Boolean(data) });
-  });
+  }));
 
-  app.post("/api/push/unsubscribe", async (req, res) => {
+  app.post("/api/push/unsubscribe", asyncHandler(async (req, res) => {
     const userId = await getAuthenticatedUserId(req.get("authorization"));
 
     if (!userId) {
@@ -455,9 +483,9 @@ export async function registerRoutes(
     });
 
     return res.json({ ok: true });
-  });
+  }));
 
-  app.post("/api/push/shared/:token/subscribe", async (req, res) => {
+  app.post("/api/push/shared/:token/subscribe", asyncHandler(async (req, res) => {
     const token = String(req.params.token || "").trim();
 
     if (!token) {
@@ -497,9 +525,9 @@ export async function registerRoutes(
     });
 
     return res.json({ ok: true });
-  });
+  }));
 
-  app.post("/api/push/shared/:token/status", async (req, res) => {
+  app.post("/api/push/shared/:token/status", asyncHandler(async (req, res) => {
     const token = String(req.params.token || "").trim();
     const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
 
@@ -536,9 +564,9 @@ export async function registerRoutes(
     }
 
     return res.json({ subscribed: Boolean(data) });
-  });
+  }));
 
-  app.post("/api/push/shared/:token/unsubscribe", async (req, res) => {
+  app.post("/api/push/shared/:token/unsubscribe", asyncHandler(async (req, res) => {
     const token = String(req.params.token || "").trim();
     const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
 
@@ -567,9 +595,9 @@ export async function registerRoutes(
     }
 
     return res.json({ ok: true });
-  });
+  }));
 
-  app.get("/api/share/:token/events", async (req, res) => {
+  app.get("/api/share/:token/events", asyncHandler(async (req, res) => {
     const token = String(req.params.token || "").trim();
 
     if (!token) {
@@ -611,9 +639,9 @@ export async function registerRoutes(
       removeShareEventClient(shareLink.user_id, res);
       res.end();
     });
-  });
+  }));
 
-  app.post("/api/notices/broadcast", async (req, res) => {
+  app.post("/api/notices/broadcast", asyncHandler(async (req, res) => {
     const userId = await getAuthenticatedUserId(req.get("authorization"));
 
     if (!userId) {
@@ -625,9 +653,9 @@ export async function registerRoutes(
     void sendNoticePushToSharedSubscribers(userId, activeNotice);
 
     return res.json({ activeNotice });
-  });
+  }));
 
-  app.post("/api/share/broadcast", async (req, res) => {
+  app.post("/api/share/broadcast", asyncHandler(async (req, res) => {
     const userId = await getAuthenticatedUserId(req.get("authorization"));
 
     if (!userId) {
@@ -638,9 +666,9 @@ export async function registerRoutes(
     broadcastSharedPayload(userId, data);
 
     return res.json({ data });
-  });
+  }));
 
-  app.get("/api/share/:token", async (req, res) => {
+  app.get("/api/share/:token", asyncHandler(async (req, res) => {
     const token = String(req.params.token || "").trim();
 
     if (!token) {
@@ -675,7 +703,7 @@ export async function registerRoutes(
 
     return res.json(data);
 
-  });
+  }));
 
   return httpServer;
 }
