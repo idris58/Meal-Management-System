@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'wouter';
 import {
   LayoutDashboard,
@@ -17,12 +16,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PwaInstallButton } from '@/components/pwa-install-button';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
-import { LocalizedRoleBadge } from '@/components/localized-role-badge';
+import { RoleBadge } from '@/components/role-badge';
 
 type NavItem = {
   icon: LucideIcon;
@@ -31,13 +29,13 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { icon: LayoutDashboard, label: 'nav.dashboard', href: '/app' },
-  { icon: Users, label: 'nav.members', href: '/app/members' },
-  { icon: UtensilsCrossed, label: 'nav.meals', href: '/app/meals' },
-  { icon: Receipt, label: 'nav.expenses', href: '/app/expenses' },
-  { icon: FileBarChart, label: 'nav.reports', href: '/app/reports' },
-  { icon: History, label: 'nav.history', href: '/app/history' },
-  { icon: Settings, label: 'nav.settings', href: '/app/settings' },
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/app' },
+  { icon: Users, label: 'Members', href: '/app/members' },
+  { icon: UtensilsCrossed, label: 'Meals', href: '/app/meals' },
+  { icon: Receipt, label: 'Expenses', href: '/app/expenses' },
+  { icon: FileBarChart, label: 'Reports', href: '/app/reports' },
+  { icon: History, label: 'History', href: '/app/history' },
+  { icon: Settings, label: 'Settings', href: '/app/settings' },
 ];
 
 const PRIMARY_MOBILE_NAV_ITEMS = NAV_ITEMS.filter(
@@ -51,7 +49,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { user, profile, signOut } = useAuth();
-  const { t } = useTranslation();
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -79,7 +76,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const userSummary = (
     <div className="min-w-0 px-2">
-      <div className="flex items-center gap-2"><span className="truncate text-sm font-semibold">{profile?.full_name ?? user?.email ?? t('auth.signedIn')}</span>{profile ? <LocalizedRoleBadge role={profile.role} /> : null}</div>
+      <div className="flex items-center gap-2"><span className="truncate text-sm font-semibold">{profile?.full_name ?? user?.email ?? 'Signed in'}</span>{profile ? <RoleBadge role={profile.role} /> : null}</div>
       {user?.email ? <p className="truncate text-xs text-muted-foreground">{user.email}</p> : null}
     </div>
   );
@@ -109,7 +106,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <item.icon className="h-5 w-5" />
-                  {t(item.label)}
+                  {item.label}
                 </div>
               </Link>
             ))}
@@ -123,7 +120,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => { setIsMobileMenuOpen(false); void handleLogout(); }}
             >
               {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              {isLoggingOut ? t('auth.loggingOut') : t('auth.logout')}
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
             </Button>
           </div>
         </div>
@@ -140,7 +137,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {brand}
         </div>
 
-        <div className="flex items-center gap-2"><ThemeToggle /><LanguageSwitcher /><PwaInstallButton
+        <div className="flex items-center gap-2"><ThemeToggle /><PwaInstallButton
           appId="main"
           appName="MealTrack"
           className="h-9 shrink-0 gap-1.5 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm max-[380px]:[&_span]:hidden"
@@ -163,7 +160,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   )}
                 >
                   <item.icon className="h-5 w-5" />
-                  {t(item.label)}
+                  {item.label}
                 </div>
               </Link>
             ))}
@@ -178,7 +175,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => void handleLogout()}
             >
               {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              {isLoggingOut ? t('auth.loggingOut') : t('auth.logout')}
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
             </Button>
           </div>
         </aside>
@@ -207,7 +204,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                <span className="w-full truncate text-center leading-tight tracking-tight">{t(item.label)}</span>
+                <span className="w-full truncate text-center leading-tight tracking-tight">{item.label}</span>
               </div>
             </Link>
           ))}
@@ -217,7 +214,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu className="h-5 w-5 shrink-0" />
-            <span className="w-full truncate text-center leading-tight tracking-tight">{t('nav.more')}</span>
+            <span className="w-full truncate text-center leading-tight tracking-tight">More</span>
           </button>
         </div>
       </nav>

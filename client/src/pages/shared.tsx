@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
 import {
   ArrowLeftRight,
   BellRing,
@@ -21,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PwaInstallButton } from "@/components/pwa-install-button";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -266,7 +264,6 @@ function SharedDashboardSkeleton() {
 
 export function SharedAccessPage() {
   const [, setLocation] = useLocation();
-  const { t } = useTranslation();
   const [mealCode, setMealCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -403,7 +400,6 @@ export function SharedAccessPage() {
 
 export default function SharedPage({ token }: { token: string }) {
   const [, setLocation] = useLocation();
-  const { t } = useTranslation();
   const [data, setData] = useState<SharedPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -653,7 +649,6 @@ export default function SharedPage({ token }: { token: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <LanguageSwitcher />
             <SharedNoticeNotificationButton token={token} />
             <PwaInstallButton
               appId="shared"

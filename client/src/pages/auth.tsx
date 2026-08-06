@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   ChefHat,
@@ -16,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
-import { LanguageSwitcher } from "@/components/language-switcher";
 
 type AuthMode = "login" | "signup" | "forgot-password" | "reset-password";
 
@@ -111,7 +109,6 @@ function mapAuthError(error: unknown, mode: AuthMode) {
 }
 
 export default function AuthPage() {
-  const { t } = useTranslation();
   const { lastAuthEvent } = useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
   const [fullName, setFullName] = useState("");

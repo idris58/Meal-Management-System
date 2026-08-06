@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Route, Switch, useLocation, useRoute } from "wouter";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 import { Layout } from "@/components/layout";
+import { Button } from "@/components/ui/button";
 import { ToastAction } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/toaster";
@@ -124,7 +124,6 @@ const legacyMainRouteMap: Record<string, string> = {
 function AppShell() {
   const [profile, setProfile] = useState<{ mess_id: string | null } | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
-  const { t, i18n } = useTranslation();
   const { session, loading, lastAuthEvent } = useAuth();
   const [location, setLocation] = useLocation();
   const [isSharedLandingRoute] = useRoute("/shared");
@@ -253,27 +252,27 @@ function AppShell() {
     }
 
     const pageTitleMap: Record<string, string> = {
-      "/": `${t("titles.dashboard")} - MealTrack`,
-      "/app": `${t("titles.dashboard")} - MealTrack`,
-      "/members": `${t("titles.members")} - MealTrack`,
-      "/app/members": `${t("titles.members")} - MealTrack`,
-      "/expenses": `${t("titles.expenses")} - MealTrack`,
-      "/app/expenses": `${t("titles.expenses")} - MealTrack`,
-      "/meals": `${t("titles.meals")} - MealTrack`,
-      "/app/meals": `${t("titles.meals")} - MealTrack`,
-      "/history": `${t("titles.history")} - MealTrack`,
-      "/reports": `${t("titles.reports")} - MealTrack`,
-      "/app/reports": `${t("titles.reports")} - MealTrack`,
-      "/app/history": `${t("titles.history")} - MealTrack`,
-      "/changelog": `${t("titles.changelog")} - MealTrack`,
-      "/app/changelog": `${t("titles.changelog")} - MealTrack`,
-      "/settings": `${t("titles.settings")} - MealTrack`,
-      "/app/settings": `${t("titles.settings")} - MealTrack`,
-      "/auth": `${isRecoveryFlow ? t("titles.resetPassword") : t("titles.authentication")} - MealTrack`,
+      "/": "Dashboard - MealTrack",
+      "/app": "Dashboard - MealTrack",
+      "/members": "Members - MealTrack",
+      "/app/members": "Members - MealTrack",
+      "/expenses": "Expenses - MealTrack",
+      "/app/expenses": "Expenses - MealTrack",
+      "/meals": "Meals - MealTrack",
+      "/app/meals": "Meals - MealTrack",
+      "/history": "History - MealTrack",
+      "/reports": "Reports - MealTrack",
+      "/app/reports": "Reports - MealTrack",
+      "/app/history": "History - MealTrack",
+      "/changelog": "Changelog - MealTrack",
+      "/app/changelog": "Changelog - MealTrack",
+      "/settings": "Settings - MealTrack",
+      "/app/settings": "Settings - MealTrack",
+      "/auth": `${isRecoveryFlow ? "Reset Password" : "Authentication"} - MealTrack`,
     };
 
     document.title = pageTitleMap[location] ?? "MealTrack";
-  }, [i18n.language, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, location, t]);
+  }, [isRecoveryFlow, isSharedLandingRoute, isSharedRoute, location]);
 
   useEffect(() => {
     if (isSharedLandingRoute || isSharedRoute || !authLinkResolved) return;
