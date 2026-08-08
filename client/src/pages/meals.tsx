@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Plus, Minus, Utensils, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { Plus, Minus, Utensils, UtensilsCrossed, Calendar as CalendarIcon, Users } from 'lucide-react';
 import { format, eachDayOfInterval, isSameDay, parseISO, min, max, startOfDay } from 'date-fns';
 import { Link } from 'wouter';
 import { cn } from "@/lib/utils";
@@ -174,6 +174,16 @@ export default function Meals() {
     return totals;
   }, [mealLogs, members]);
 
+  const todayKey = format(today, 'yyyy-MM-dd');
+  const todayTotalMeals = useMemo(
+    () => mealLogs.filter((log) => log.date === todayKey).reduce((sum, log) => sum + log.count, 0),
+    [mealLogs, todayKey],
+  );
+  const cycleTotalMeals = useMemo(
+    () => mealLogs.reduce((sum, log) => sum + log.count, 0),
+    [mealLogs],
+  );
+
   const openEditorForDate = (day: Date) => {
     setSelectedDate(day);
     setOpenMeal(true);
@@ -218,6 +228,32 @@ export default function Meals() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {members.length > 0 && mealLogs.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          {/* Today's Meals */}
+          <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:gap-4 sm:p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 sm:h-12 sm:w-12">
+              <Utensils className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">Today&apos;s Meals</p>
+              <p className="mt-0.5 font-heading text-2xl font-bold leading-none sm:text-3xl">{formatMealCount(todayTotalMeals)}</p>
+            </div>
+          </div>
+
+          {/* Total Meals */}
+          <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:gap-4 sm:p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 sm:h-12 sm:w-12">
+              <UtensilsCrossed className="h-5 w-5 text-teal-600 sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Meals</p>
+              <p className="mt-0.5 font-heading text-2xl font-bold leading-none sm:text-3xl">{formatMealCount(cycleTotalMeals)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {members.length === 0 ? (
         <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[350px] animate-in fade-in-50 duration-300">
