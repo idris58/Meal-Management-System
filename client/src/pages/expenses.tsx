@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ShoppingBag, Zap, Plus, Pencil, DollarSign, Search } from 'lucide-react';
+import { ShoppingBag, Zap, ChartPie, Plus, Pencil, DollarSign, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -355,16 +355,16 @@ export default function Expenses() {
           {/* Card 2: Breakdown */}
           <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:gap-4 sm:p-5">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 sm:h-12 sm:w-12">
-              <Zap className="h-5 w-5 text-indigo-600 sm:h-6 sm:w-6" />
+              <ChartPie className="h-5 w-5 text-indigo-600 sm:h-6 sm:w-6" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <span className="hidden sm:inline">Expenses Breakdown</span>
                 <span className="sm:hidden">Breakdown</span>
               </p>
-              <div className="mt-1 flex flex-col gap-0.5">
-                <span className="text-xs font-semibold text-emerald-600">Meal&nbsp;৳{totalMeal.toFixed(0)}</span>
-                <span className="text-xs font-semibold text-indigo-600">Fixed&nbsp;৳{totalFixed.toFixed(0)}</span>
+              <div className="mt-1 flex flex-col gap-1">
+                <span className="font-heading text-sm font-bold leading-none text-emerald-600 sm:text-base">Meal&nbsp;৳{totalMeal.toFixed(0)}</span>
+                <span className="font-heading text-sm font-bold leading-none text-indigo-600 sm:text-base">Fixed&nbsp;৳{totalFixed.toFixed(0)}</span>
               </div>
             </div>
           </div>
@@ -373,8 +373,8 @@ export default function Expenses() {
 
       {/* ── Controls Row: Search + Tab Filter ── */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        {/* Search */}
-        <div className="relative flex-1">
+        {/* Search — full width on mobile, 50% width on tablet/desktop */}
+        <div className="relative w-full sm:w-1/2">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search expenses..."
@@ -384,15 +384,15 @@ export default function Expenses() {
           />
         </div>
 
-        {/* Tab Buttons */}
-        <div className="flex shrink-0 rounded-lg border bg-muted p-0.5">
+        {/* Tab Buttons — full width on mobile, 50% width on tablet/desktop */}
+        <div className="flex w-full rounded-lg border bg-muted p-0.5 sm:w-1/2">
           {(['all', 'meal', 'fixed'] as TabFilter[]).map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setTab(t)}
               className={cn(
-                'rounded-md px-3 py-1.5 text-xs font-semibold transition-all sm:px-4 sm:text-sm',
+                'flex-1 rounded-md py-1.5 text-xs font-semibold transition-all sm:text-sm',
                 tab === t
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
