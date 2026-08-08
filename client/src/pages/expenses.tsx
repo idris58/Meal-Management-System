@@ -348,7 +348,7 @@ export default function Expenses() {
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Expenses</p>
-              <p className="mt-0.5 font-heading text-xl font-bold leading-none sm:text-2xl">৳{totalExpenses.toFixed(0)}</p>
+              <p className="mt-0.5 font-heading text-xl font-bold leading-none sm:text-2xl">৳{totalExpenses.toLocaleString('en-US')}</p>
             </div>
           </div>
 
@@ -362,9 +362,15 @@ export default function Expenses() {
                 <span className="hidden sm:inline">Expenses Breakdown</span>
                 <span className="sm:hidden">Breakdown</span>
               </p>
-              <div className="mt-1 flex flex-col gap-1">
-                <span className="font-heading text-sm font-bold leading-none text-emerald-600 sm:text-base">Meal&nbsp;৳{totalMeal.toFixed(0)}</span>
-                <span className="font-heading text-sm font-bold leading-none text-indigo-600 sm:text-base">Fixed&nbsp;৳{totalFixed.toFixed(0)}</span>
+              <div className="mt-1.5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-emerald-700 dark:text-emerald-300">
+                  <span className="text-xs font-medium sm:text-sm">Meal</span>
+                  <span className="font-heading text-sm font-bold sm:text-base">৳{totalMeal.toLocaleString('en-US')}</span>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-lg bg-indigo-500/10 px-2.5 py-1 text-indigo-700 dark:text-indigo-300">
+                  <span className="text-xs font-medium sm:text-sm">Fixed</span>
+                  <span className="font-heading text-sm font-bold sm:text-base">৳{totalFixed.toLocaleString('en-US')}</span>
+                </div>
               </div>
             </div>
           </div>
