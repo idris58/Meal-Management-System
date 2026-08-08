@@ -7,9 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ShoppingBag, Zap, Plus, Pencil } from 'lucide-react';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ShoppingBag, Zap, Plus, Pencil, DollarSign, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -43,36 +41,31 @@ type DeletedExpenseGhost = {
 
 function ExpenseRow({ expense, onEdit }: { expense: Expense; onEdit?: () => void }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border bg-card p-4 transition-shadow hover:shadow-sm">
-      <div className="flex min-w-0 items-center gap-4">
-        <div className={`rounded-full p-2 ${expense.type === 'meal' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
-          {expense.type === 'meal' ? <ShoppingBag className="h-5 w-5" /> : <Zap className="h-5 w-5" />}
+    <div className="flex items-center justify-between rounded-lg border bg-card p-3.5 transition-shadow hover:shadow-sm sm:p-4">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <div className={`shrink-0 rounded-full p-2 ${expense.type === 'meal' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
+          {expense.type === 'meal' ? <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" /> : <Zap className="h-4 w-4 sm:h-5 sm:w-5" />}
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <p className="truncate font-medium">{expense.description}</p>
+            <p className="truncate text-sm font-medium sm:text-base">{expense.description}</p>
             <SyncBadge itemId={expense.id} />
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <span>{format(new Date(expense.date), 'MMM d, yyyy')}</span>
             <span>•</span>
             <span>Paid by {expense.paidBy}</span>
           </div>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         {onEdit ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onEdit}
-          >
-            <Pencil className="h-4 w-4" />
+          <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5" />
           </Button>
         ) : null}
         <div className="text-right">
-          <p className="font-heading font-bold">৳{expense.amount.toFixed(0)}</p>
+          <p className="font-heading text-sm font-bold sm:text-base">৳{expense.amount.toFixed(0)}</p>
           <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
             {expense.type === 'meal' ? 'Meal' : 'Fixed'}
           </Badge>
@@ -118,17 +111,12 @@ function ExpenseEditor({
   const onSubmit = async (data: z.infer<typeof expenseSchema>) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-
     try {
       if (expense) {
-        await updateExpense(expense.id, {
-          ...data,
-          date: format(date, 'yyyy-MM-dd'),
-        });
+        await updateExpense(expense.id, { ...data, date: format(date, 'yyyy-MM-dd') });
       } else {
         await addExpense(data.amount, data.description, data.type, data.paidBy, undefined, format(date, 'yyyy-MM-dd'));
       }
-
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -138,7 +126,6 @@ function ExpenseEditor({
   const handleDelete = async () => {
     if (!expense || isDeleting) return;
     setIsDeleting(true);
-
     try {
       await deleteExpense(expense.id);
       onDeleted?.(expense);
@@ -211,13 +198,7 @@ function ExpenseEditor({
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="100"
-                  {...field}
-                  value={field.value ?? ''}
-                />
+                <Input type="text" inputMode="decimal" placeholder="100" {...field} value={field.value ?? ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -271,22 +252,35 @@ function ExpenseEditor({
   );
 }
 
+type TabFilter = 'all' | 'meal' | 'fixed';
+
 export default function Expenses() {
   const { expenses, restoreExpense } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletedExpenses, setDeletedExpenses] = useState<DeletedExpenseGhost[]>([]);
+  const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<TabFilter>('all');
+
+  // Sort descending by date (latest first)
+  const allExpenses = useMemo(
+    () => [...expenses].sort((a, b) => b.date.localeCompare(a.date)),
+    [expenses],
+  );
+
+  const totalExpenses = useMemo(() => allExpenses.reduce((s, e) => s + e.amount, 0), [allExpenses]);
+  const totalMeal = useMemo(() => allExpenses.filter(e => e.type === 'meal').reduce((s, e) => s + e.amount, 0), [allExpenses]);
+  const totalFixed = useMemo(() => allExpenses.filter(e => e.type === 'fixed').reduce((s, e) => s + e.amount, 0), [allExpenses]);
 
   const handleExpenseDeleted = (expense: Expense) => {
-    const allExpenses = [...expenses].reverse();
-    const typedExpenses = expenses.filter((entry) => entry.type === expense.type).reverse();
-
+    const sorted = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+    const typedSorted = sorted.filter(e => e.type === expense.type);
     setDeletedExpenses((prev) => [
       ...prev.filter((entry) => entry.expense.id !== expense.id),
       {
         expense,
-        allIndex: Math.max(0, allExpenses.findIndex((entry) => entry.id === expense.id)),
-        typeIndex: Math.max(0, typedExpenses.findIndex((entry) => entry.id === expense.id)),
+        allIndex: Math.max(0, sorted.findIndex((e) => e.id === expense.id)),
+        typeIndex: Math.max(0, typedSorted.findIndex((e) => e.id === expense.id)),
         expiresAt: Date.now() + DELETE_GRACE_MS,
       },
     ]);
@@ -297,90 +291,37 @@ export default function Expenses() {
     await restoreExpense(id);
   };
 
-  const renderExpenseList = (filteredExpenses: Expense[], scope: 'all' | 'meal' | 'fixed') => {
-    const total = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Apply tab + search filter
+  const filteredExpenses = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allExpenses.filter((e) => {
+      const matchesTab = tab === 'all' || e.type === tab;
+      const matchesSearch = !q || e.description.toLowerCase().includes(q) || e.paidBy.toLowerCase().includes(q);
+      return matchesTab && matchesSearch;
+    });
+  }, [allExpenses, tab, search]);
+
+  // Build rows (filtered + deleted ghosts interleaved)
+  const rows = useMemo(() => {
+    const scope = tab;
     const ghosts = deletedExpenses
       .filter((entry) => scope === 'all' || entry.expense.type === scope)
       .sort((a, b) => (scope === 'all' ? a.allIndex - b.allIndex : a.typeIndex - b.typeIndex));
 
-    const rows: Array<
-      | { type: 'expense'; expense: Expense }
-      | { type: 'deleted'; ghost: DeletedExpenseGhost }
-    > = filteredExpenses.map((expense) => ({ type: 'expense', expense }));
+    const result: Array<{ type: 'expense'; expense: Expense } | { type: 'deleted'; ghost: DeletedExpenseGhost }> =
+      filteredExpenses.map((expense) => ({ type: 'expense', expense }));
 
     for (const ghost of ghosts) {
-      rows.splice(Math.min(scope === 'all' ? ghost.allIndex : ghost.typeIndex, rows.length), 0, { type: 'deleted', ghost });
+      result.splice(Math.min(scope === 'all' ? ghost.allIndex : ghost.typeIndex, result.length), 0, { type: 'deleted', ghost });
     }
+    return result;
+  }, [filteredExpenses, deletedExpenses, tab]);
 
-    return (
-      <div className="space-y-3 pb-4">
-        {rows.length === 0 ? (
-          <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[300px] animate-in fade-in-50 duration-300">
-            <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
-              <ShoppingBag className="h-10 w-10 text-primary animate-pulse" />
-            </div>
-            <h3 className="font-heading text-lg font-bold text-foreground">
-              No {scope === 'all' ? '' : scope === 'meal' ? 'meal ' : 'fixed '}expenses found
-            </h3>
-            <p className="text-muted-foreground text-sm max-w-sm mt-2 mb-6 leading-relaxed">
-              {scope === 'all'
-                ? 'Track your groceries, helper wages, house rent, or utility bills for the current cycle.'
-                : scope === 'meal'
-                ? 'Record food, grocery shopping, market costs, or daily cooking items here.'
-                : 'Log fixed bills like rent, wifi connection, cook wages, and electricity charges.'}
-            </p>
-            <Button
-              className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform bg-primary hover:bg-primary/95 text-primary-foreground font-semibold"
-              onClick={() => setOpenExpense(true)}
-            >
-              <Plus className="h-4 w-4" />
-              Add Expense
-            </Button>
-          </Card>
-        ) : (
-          <>
-            {rows.map((row) => {
-              if (row.type === 'deleted') {
-                const { ghost } = row;
-                return (
-                  <UndoDeleteGhost
-                    key={`deleted-${ghost.expense.id}`}
-                    message={`Expense '${ghost.expense.description}' deleted.`}
-                    expiresAt={ghost.expiresAt}
-                    onUndo={() => void handleUndoExpense(ghost.expense.id)}
-                    onExpired={() => setDeletedExpenses((prev) => prev.filter((entry) => entry.expense.id !== ghost.expense.id))}
-                  >
-                    <ExpenseRow expense={ghost.expense} />
-                  </UndoDeleteGhost>
-                );
-              }
-
-              return (
-                <ExpenseRow
-                  key={row.expense.id}
-                  expense={row.expense}
-                  onEdit={() => setEditingExpense(row.expense)}
-                />
-              );
-            })}
-            <Card className="border-dashed">
-              <CardContent className="flex items-center justify-between py-4">
-                <span className="text-sm font-medium text-muted-foreground">Total</span>
-                <span className="font-heading text-xl font-bold">৳{total.toFixed(2)}</span>
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
-    );
-  };
-
-  const allExpenses = useMemo(() => [...expenses].reverse(), [expenses]);
-  const mealExpenses = useMemo(() => expenses.filter((expense) => expense.type === 'meal').reverse(), [expenses]);
-  const fixedExpenses = useMemo(() => expenses.filter((expense) => expense.type === 'fixed').reverse(), [expenses]);
+  const tabLabels: Record<TabFilter, string> = { all: 'All', meal: 'Meals', fixed: 'Fixed' };
 
   return (
-    <div className="flex h-full flex-col space-y-6">
+    <div className="flex h-full flex-col space-y-5">
+      {/* ── Header ── */}
       <div className="flex flex-none items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Expenses</h1>
         <Dialog open={openExpense} onOpenChange={setOpenExpense}>
@@ -391,39 +332,147 @@ export default function Expenses() {
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Expense</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Add New Expense</DialogTitle></DialogHeader>
             <ExpenseEditor onClose={() => setOpenExpense(false)} />
           </DialogContent>
         </Dialog>
       </div>
 
-      <Tabs defaultValue="all" className="flex flex-1 flex-col">
-        <TabsList className="mb-4 grid w-full flex-none grid-cols-3">
-          <TabsTrigger value="all">All Expenses</TabsTrigger>
-          <TabsTrigger value="meal">Meals</TabsTrigger>
-          <TabsTrigger value="fixed">Fixed</TabsTrigger>
-        </TabsList>
+      {/* ── KPI Summary Cards ── */}
+      {allExpenses.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          {/* Card 1: Total Expenses */}
+          <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:gap-4 sm:p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 sm:h-12 sm:w-12">
+              <DollarSign className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Expenses</p>
+              <p className="mt-0.5 font-heading text-xl font-bold leading-none sm:text-2xl">৳{totalExpenses.toFixed(0)}</p>
+            </div>
+          </div>
 
-        <ScrollArea className="flex-1 -mx-4 px-4">
-          <TabsContent value="all" className="m-0">
-            {renderExpenseList(allExpenses, 'all')}
-          </TabsContent>
-          <TabsContent value="meal" className="m-0">
-            {renderExpenseList(mealExpenses, 'meal')}
-          </TabsContent>
-          <TabsContent value="fixed" className="m-0">
-            {renderExpenseList(fixedExpenses, 'fixed')}
-          </TabsContent>
-        </ScrollArea>
-      </Tabs>
+          {/* Card 2: Breakdown */}
+          <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:gap-4 sm:p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 sm:h-12 sm:w-12">
+              <Zap className="h-5 w-5 text-indigo-600 sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <span className="hidden sm:inline">Expenses Breakdown</span>
+                <span className="sm:hidden">Breakdown</span>
+              </p>
+              <div className="mt-1 flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-emerald-600">Meal&nbsp;৳{totalMeal.toFixed(0)}</span>
+                <span className="text-xs font-semibold text-indigo-600">Fixed&nbsp;৳{totalFixed.toFixed(0)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* ── Controls Row: Search + Tab Filter ── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search expenses..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {/* Tab Buttons */}
+        <div className="flex shrink-0 rounded-lg border bg-muted p-0.5">
+          {(['all', 'meal', 'fixed'] as TabFilter[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-xs font-semibold transition-all sm:px-4 sm:text-sm',
+                tab === t
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {tabLabels[t]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Expense Feed ── */}
+      {allExpenses.length === 0 ? (
+        <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[300px] animate-in fade-in-50 duration-300">
+          <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
+            <ShoppingBag className="h-10 w-10 text-primary animate-pulse" />
+          </div>
+          <h3 className="font-heading text-lg font-bold text-foreground">No expenses yet</h3>
+          <p className="text-muted-foreground text-sm max-w-sm mt-2 mb-6 leading-relaxed">
+            Track your groceries, helper wages, house rent, or utility bills for the current cycle.
+          </p>
+          <Button
+            className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
+            onClick={() => setOpenExpense(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add First Expense
+          </Button>
+        </Card>
+      ) : (
+        <div
+          className="flex-1 overflow-y-auto rounded-xl pr-0.5"
+          style={{ maxHeight: 'calc(100vh - 340px)', minHeight: '200px' }}
+        >
+          <div className="space-y-2.5 pb-4">
+            {rows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Search className="mb-3 h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm font-medium text-muted-foreground">No expenses match your search.</p>
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-primary underline-offset-2 hover:underline"
+                  onClick={() => setSearch('')}
+                >
+                  Clear search
+                </button>
+              </div>
+            ) : (
+              rows.map((row) => {
+                if (row.type === 'deleted') {
+                  const { ghost } = row;
+                  return (
+                    <UndoDeleteGhost
+                      key={`deleted-${ghost.expense.id}`}
+                      message={`Expense '${ghost.expense.description}' deleted.`}
+                      expiresAt={ghost.expiresAt}
+                      onUndo={() => void handleUndoExpense(ghost.expense.id)}
+                      onExpired={() => setDeletedExpenses((prev) => prev.filter((e) => e.expense.id !== ghost.expense.id))}
+                    >
+                      <ExpenseRow expense={ghost.expense} />
+                    </UndoDeleteGhost>
+                  );
+                }
+                return (
+                  <ExpenseRow
+                    key={row.expense.id}
+                    expense={row.expense}
+                    onEdit={() => setEditingExpense(row.expense)}
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Dialog ── */}
       <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Expense</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Edit Expense</DialogTitle></DialogHeader>
           {editingExpense ? (
             <ExpenseEditor
               expense={editingExpense}
@@ -436,3 +485,6 @@ export default function Expenses() {
     </div>
   );
 }
+
+
+
