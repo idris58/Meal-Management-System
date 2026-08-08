@@ -374,10 +374,10 @@ function PwaUpdateNotifier() {
       hasShownUpdateToast.current = true;
       toast({
         title: "New version available",
-        description: "Refresh to load the latest app changes.",
+        description: "Refresh to load the latest version.",
         action: (
-          <ToastAction altText="Refresh app" onClick={activateWaitingServiceWorker}>
-            Refresh
+          <ToastAction altText="Update app" onClick={activateWaitingServiceWorker}>
+            Update
           </ToastAction>
         ),
       });
