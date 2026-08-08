@@ -358,18 +358,14 @@ export default function Expenses() {
               <ChartPie className="h-5 w-5 text-indigo-600 sm:h-6 sm:w-6" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <span className="hidden sm:inline">Expenses Breakdown</span>
-                <span className="sm:hidden">Breakdown</span>
-              </p>
-              <div className="mt-1.5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-emerald-700 dark:text-emerald-300">
-                  <span className="text-xs font-medium sm:text-sm">Meal</span>
-                  <span className="font-heading text-sm font-bold sm:text-base">৳{totalMeal.toLocaleString('en-US')}</span>
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Meal</span>
+                  <span className="mt-0.5 font-heading text-xl font-bold leading-none sm:text-2xl">৳{totalMeal.toLocaleString('en-US')}</span>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-lg bg-indigo-500/10 px-2.5 py-1 text-indigo-700 dark:text-indigo-300">
-                  <span className="text-xs font-medium sm:text-sm">Fixed</span>
-                  <span className="font-heading text-sm font-bold sm:text-base">৳{totalFixed.toLocaleString('en-US')}</span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Fixed</span>
+                  <span className="mt-0.5 font-heading text-xl font-bold leading-none sm:text-2xl">৳{totalFixed.toLocaleString('en-US')}</span>
                 </div>
               </div>
             </div>
