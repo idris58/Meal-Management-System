@@ -42,7 +42,7 @@ type MessInfo = {
 // ─── UserProfileCard ─────────────────────────────────────────────────────────
 
 function UserProfileCard() {
-  const { user, profile, profileLoading } = useAuth();
+  const { user, profile, profileLoading, refreshProfile } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -99,9 +99,8 @@ function UserProfileCard() {
 
       setMessage('Profile updated successfully.');
       setIsEditing(false);
-      // Force profile refresh by reloading page data (auth context will re-fetch on next session event;
-      // for immediate UI update we patch directly)
-      window.location.reload();
+      // Fetch the updated profile via context so UI updates immediately
+      await refreshProfile();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update profile right now.');
     } finally {
@@ -193,17 +192,17 @@ function UserProfileCard() {
       <CardContent className="space-y-4 px-6 pb-6">
         {isEditing ? (
           <form onSubmit={handleSave} className="space-y-4 pt-2">
-            {/* Full Name */}
+            {/* Name */}
             <div className="space-y-1.5">
               <Label htmlFor="profile-full-name" className="flex items-center gap-1.5">
                 <User className="h-3.5 w-3.5" />
-                Full Name
+                Name
               </Label>
               <Input
                 id="profile-full-name"
                 value={fullName}
                 onChange={(e) => { setFullName(e.target.value); setError(null); }}
-                placeholder="Your full name"
+                placeholder="Enter your name"
                 disabled={saving}
               />
             </div>

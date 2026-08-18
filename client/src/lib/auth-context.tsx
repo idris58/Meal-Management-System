@@ -24,6 +24,7 @@ interface AuthContextValue {
   canManageCycles: boolean;
   canManageMess: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -75,6 +76,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const fetchProfile = async () => {
+    if (!session?.user) return;
+    setProfileLoading(true);
+    const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, mess_id, picture_url").eq("id", session.user.id).maybeSingle();
+    if (error) console.error("Error loading profile:", error);
+    setProfile(data as AuthContextValue["profile"]);
+    setProfileLoading(false);
+  };
+
   useEffect(() => {
     let active = true;
     if (!session?.user) {
@@ -117,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
+    refreshProfile: fetchProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
