@@ -90,19 +90,35 @@ function UserProfileCard() {
     setMessage(null);
 
     try {
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ full_name: trimName, picture_url: trimUrl || null, updated_at: new Date().toISOString() })
-        .eq('id', user.id);
+      // 1. Try RPC function first (recommended & secure)
+      const { error: rpcError } = await supabase.rpc('update_user_profile', {
+        name_input: trimName,
+        picture_url_input: trimUrl || null,
+      });
 
-      if (updateError) throw updateError;
+      if (rpcError) {
+        // 2. Fallback to direct table update if RPC is not yet created
+        const { error: tableError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: trimName,
+            picture_url: trimUrl || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+
+        if (tableError) {
+          throw new Error(rpcError.message || tableError.message || 'Unable to update profile');
+        }
+      }
 
       setMessage('Profile updated successfully.');
       setIsEditing(false);
       // Fetch the updated profile via context so UI updates immediately
       await refreshProfile();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update profile right now.');
+    } catch (err: any) {
+      console.error('Failed to update profile:', err);
+      setError(err?.message || (typeof err === 'string' ? err : 'Unable to update profile right now.'));
     } finally {
       setSaving(false);
     }
