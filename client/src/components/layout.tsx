@@ -12,6 +12,7 @@ import {
   UtensilsCrossed,
   LogOut,
   Loader2,
+  User,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,15 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
-import { RoleBadge } from '@/components/role-badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type NavItem = {
   icon: LucideIcon;
@@ -42,9 +51,17 @@ const PRIMARY_MOBILE_NAV_ITEMS = NAV_ITEMS.filter(
   (item) => item.href !== '/app/settings' && item.href !== '/app/history',
 );
 
+/** Returns up to two uppercase initials from a display name or email. */
+function getInitials(name?: string | null, email?: string | null): string {
+  const source = name ?? email ?? '';
+  const parts = source.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
-  // Fix: was called twice before - once for location, once for setLocation.
-  // A single call gives both values and avoids two separate router subscriptions.
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -62,6 +79,61 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const initials = getInitials(profile?.full_name, user?.email);
+
+  /** Avatar button used in the header */
+  const userAvatar = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          id="header-user-avatar"
+          type="button"
+          className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full ring-2 ring-primary/20 transition-all hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-label="User menu"
+        >
+          <Avatar className="h-9 w-9">
+            {profile?.picture_url ? (
+              <AvatarImage src={profile.picture_url} alt={profile.full_name ?? 'User avatar'} />
+            ) : null}
+            <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+              {initials || <User className="h-4 w-4" />}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-56">
+        {/* User info label */}
+        <DropdownMenuLabel className="flex flex-col gap-0.5 py-2">
+          <span className="truncate font-semibold">{profile?.full_name ?? user?.email ?? 'Signed in'}</span>
+          {user?.email ? (
+            <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+          ) : null}
+        </DropdownMenuLabel>
+
+        <DropdownMenuSeparator />
+
+        <Link href="/app/profile">
+          <DropdownMenuItem id="header-menu-profile" className="cursor-pointer gap-2">
+            <User className="h-4 w-4" />
+            Profile
+          </DropdownMenuItem>
+        </Link>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem
+          id="header-menu-logout"
+          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+          disabled={isLoggingOut}
+          onSelect={() => void handleLogout()}
+        >
+          {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+          {isLoggingOut ? 'Logging out…' : 'Logout'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const brand = (
     <Link href="/app">
@@ -72,13 +144,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </span>
       </div>
     </Link>
-  );
-
-  const userSummary = (
-    <div className="min-w-0 px-2">
-      <div className="flex items-center gap-2"><span className="truncate text-sm font-semibold">{profile?.full_name ?? user?.email ?? 'Signed in'}</span>{profile ? <RoleBadge role={profile.role} /> : null}</div>
-      {user?.email ? <p className="truncate text-xs text-muted-foreground">{user.email}</p> : null}
-    </div>
   );
 
   const mobileSheet = (
@@ -111,18 +176,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
-          <div className="space-y-3 border-t p-4">
-            {userSummary}
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2"
-              disabled={isLoggingOut}
-              onClick={() => { setIsMobileMenuOpen(false); void handleLogout(); }}
-            >
-              {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              {isLoggingOut ? 'Logging out...' : 'Logout'}
-            </Button>
-          </div>
         </div>
       </SheetContent>
     </Sheet>
@@ -137,11 +190,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {brand}
         </div>
 
-        <div className="flex items-center gap-2"><ThemeToggle /><PwaInstallButton
-          appId="main"
-          appName="MealTrack"
-          className="h-9 shrink-0 gap-1.5 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm max-[380px]:[&_span]:hidden"
-        />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <PwaInstallButton
+            appId="main"
+            appName="MealTrack"
+            className="h-9 shrink-0 gap-1.5 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm max-[380px]:[&_span]:hidden"
+          />
+          {userAvatar}
         </div>
       </header>
 
@@ -165,19 +221,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
-
-          <div className="space-y-3 border-t p-4">
-            {userSummary}
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2"
-              disabled={isLoggingOut}
-              onClick={() => void handleLogout()}
-            >
-              {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              {isLoggingOut ? 'Logging out...' : 'Logout'}
-            </Button>
-          </div>
         </aside>
 
         {/* Main Content */}

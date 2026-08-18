@@ -14,7 +14,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   lastAuthEvent: AuthChangeEvent | null;
-  profile: { id: string; full_name: string; email: string; role: "manager" | "coordinator" | "member"; mess_id: string | null } | null;
+  profile: { id: string; full_name: string; email: string; role: "manager" | "coordinator" | "member"; mess_id: string | null; picture_url: string | null } | null;
   profileLoading: boolean;
   canManageMembers: boolean;
   canManageRoles: boolean;
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setProfileLoading(true);
-    void supabase.from("profiles").select("id, full_name, email, role, mess_id").eq("id", session.user.id).maybeSingle()
+    void supabase.from("profiles").select("id, full_name, email, role, mess_id, picture_url").eq("id", session.user.id).maybeSingle()
       .then(({ data, error }) => {
         if (!active) return;
         if (error) console.error("Error loading profile:", error);

@@ -26,6 +26,7 @@ import Members from "@/pages/members";
 import OnboardingPage from "@/pages/onboarding";
 import NotFound from "@/pages/not-found";
 import Settings from "@/pages/settings";
+import ProfilePage from "@/pages/profile";
 import SharedPage, { SharedAccessPage } from "@/pages/shared";
 
 function AppLoadingSkeleton({ message }: { message: string }) {
@@ -103,6 +104,7 @@ function Router() {
           <Route path="/app/history" component={HistoryPage} />
           <Route path="/app/changelog" component={ChangelogPage} />
           <Route path="/app/settings" component={Settings} />
+          <Route path="/app/profile" component={ProfilePage} />
           <Route component={NotFound} />
         </Switch>
       </ErrorBoundary>
