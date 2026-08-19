@@ -1,7 +1,7 @@
 import { useMeal } from '@/lib/meal-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon, Archive } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon, Archive, Wallet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -361,9 +361,12 @@ export default function Dashboard() {
     <div className="space-y-6 pb-20">
       <OnboardingTour />
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="glass-card border-none bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg lg:col-span-2">
+        <Card className="glass-card border-none bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white shadow-lg lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium uppercase tracking-wide text-emerald-100">Remaining Cash in Hand</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-emerald-50">
+              <Wallet className="h-4 w-4" />
+              Remaining Cash in Hand
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
@@ -371,36 +374,40 @@ export default function Dashboard() {
               <span className="text-sm text-emerald-100">/ ৳{stats.totalDeposits.toFixed(2)} Collected</span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-              <div className="rounded bg-white/10 p-2 backdrop-blur-sm">
+              <div className="rounded-xl bg-white/15 backdrop-blur-md border border-white/20 shadow-sm p-3">
                 <p className="text-xs text-emerald-100">Total Meal Cost</p>
-                <p className="font-bold">৳{stats.totalMealExpenses.toFixed(2)}</p>
+                <p className="font-bold text-lg">৳{stats.totalMealExpenses.toFixed(2)}</p>
               </div>
-              <div className="rounded bg-white/10 p-2 backdrop-blur-sm">
+              <div className="rounded-xl bg-white/15 backdrop-blur-md border border-white/20 shadow-sm p-3">
                 <p className="text-xs text-emerald-100">Total Fixed Cost</p>
-                <p className="font-bold">৳{stats.totalFixedExpenses.toFixed(2)}</p>
+                <p className="font-bold text-lg">৳{stats.totalFixedExpenses.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="glass-card shadow-sm border-emerald-100/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Current Meal Rate</CardTitle>
             <Utensils className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
             <div className="flex flex-col">
-              <span className="font-heading text-3xl font-bold text-foreground md:text-4xl">৳{stats.currentMealRate.toFixed(2)}</span>
+              <span className="font-heading text-3xl font-extrabold text-foreground md:text-4xl">৳{stats.currentMealRate.toFixed(2)}</span>
               <p className="mt-1 text-xs text-muted-foreground">Per Meal</p>
             </div>
-            <div className="mt-4 space-y-1 border-t pt-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Total Meals:</span>
-                <span className="font-medium">{formatMealCount(stats.totalMealsConsumed)}</span>
+            <div className="mt-4 space-y-2 border-t pt-4 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <Utensils className="h-3.5 w-3.5" /> Total Meals:
+                </span>
+                <span className="font-semibold text-foreground">{formatMealCount(stats.totalMealsConsumed)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Fixed Cost/Person:</span>
-                <span className="font-medium">৳{stats.fixedCostPerMember.toFixed(2)}</span>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <ShoppingBag className="h-3.5 w-3.5" /> Fixed Cost/Person:
+                </span>
+                <span className="font-semibold text-foreground">৳{stats.fixedCostPerMember.toFixed(2)}</span>
               </div>
             </div>
           </CardContent>
@@ -410,9 +417,9 @@ export default function Dashboard() {
       <section className="grid grid-cols-2 gap-4">
         <Dialog open={openExpense} onOpenChange={setOpenExpense}>
           <DialogTrigger asChild>
-            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-primary/70 bg-card text-primary shadow-sm transition-all hover:border-primary hover:bg-primary/10" disabled={!canManageExpenses}>
-              <ShoppingBag className="h-6 w-6" />
-              <span className="font-semibold">Add Expense</span>
+            <Button size="lg" className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-md dark:border-emerald-900 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/40" disabled={!canManageExpenses}>
+              <ShoppingBag className="h-7 w-7" />
+              <span className="font-semibold tracking-wide">Add Expense</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md w-[95%]">
@@ -426,9 +433,9 @@ export default function Dashboard() {
 
         <Dialog open={openMeal} onOpenChange={setOpenMeal}>
           <DialogTrigger asChild>
-            <Button size="lg" className="flex h-20 flex-col items-center justify-center gap-2 border border-dashed border-border bg-card text-foreground shadow-sm transition-all hover:border-muted-foreground/50 hover:bg-muted" disabled={!canOperateMeals}>
-              <Utensils className="h-6 w-6" />
-              <span className="font-semibold">Log Meals</span>
+            <Button size="lg" className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 text-blue-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:shadow-md dark:border-blue-900 dark:bg-blue-950/30 dark:hover:bg-blue-900/40" disabled={!canOperateMeals}>
+              <Utensils className="h-7 w-7" />
+              <span className="font-semibold tracking-wide">Log Meals</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md w-[95%]">
@@ -456,7 +463,7 @@ export default function Dashboard() {
             {memberSettlementRows.map((member) => (
               <div
                 key={member.id}
-                className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 px-4 py-3"
+                className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <Avatar className="h-8 w-8 text-xs">
@@ -467,12 +474,12 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={cn('text-sm font-semibold', member.managerWillGet > 0 ? 'text-red-600' : 'text-muted-foreground')}>
+                  <p className={cn('text-sm font-semibold', member.managerWillGet > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground')}>
                     {member.managerWillGet > 0 ? formatCurrency(member.managerWillGet) : '৳0'}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className={cn('text-sm font-semibold', member.managerWillGive > 0 ? 'text-emerald-600' : 'text-muted-foreground')}>
+                  <p className={cn('text-sm font-semibold', member.managerWillGive > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
                     {member.managerWillGive > 0 ? formatCurrency(member.managerWillGive) : '৳0'}
                   </p>
                 </div>
