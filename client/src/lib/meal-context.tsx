@@ -1124,16 +1124,23 @@ export function MealProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const oldDateKey = existingExpense.date ? new Date(existingExpense.date).toISOString().slice(0, 10) : '';
+    const newDateKey = updates.date ? new Date(updates.date).toISOString().slice(0, 10) : oldDateKey;
+    const isDateChanged = Boolean(updates.date && oldDateKey !== newDateKey);
+
     const changes = [
       buildUpdateChange('amount', 'Amount', existingExpense.amount, updates.amount),
       buildUpdateChange('description', 'Description', existingExpense.description, updates.description),
       buildUpdateChange('type', 'Type', existingExpense.type, updates.type),
       buildUpdateChange('paid_by', 'Paid By', existingExpense.paidBy, updates.paidBy),
+      isDateChanged ? buildUpdateChange('date', 'Date', oldDateKey, newDateKey) : null,
     ].filter((change): change is ChangelogChange => Boolean(change));
 
     if (changes.length === 0) {
       return;
     }
+
+    const nextDate = updates.date ? (updates.date.includes('T') ? updates.date : new Date(updates.date).toISOString()) : existingExpense.date;
 
     const { error } = await supabase
       .from('expenses')
@@ -1142,7 +1149,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
         description: updates.description,
         type: updates.type,
         paid_by: updates.paidBy,
-        ...(updates.date ? { date: updates.date } : {}),
+        date: nextDate,
       })
       .eq('id', id)
       .eq('mess_id', messId);
@@ -1160,7 +1167,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
           description: updates.description,
           type: updates.type,
           paidBy: updates.paidBy,
-          date: updates.date ?? expense.date,
+          date: nextDate,
         }
         : expense
     )));

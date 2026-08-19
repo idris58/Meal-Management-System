@@ -131,7 +131,7 @@ function CurrentCycleSettingsCard() {
 }
 
 function ShareSettingsCard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [config, setConfig] = useState<ShareLinkConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -150,11 +150,14 @@ function ShareSettingsCard() {
         setLoading(true);
         setError(null);
 
-        const { data, error: fetchError } = await supabase
-          .from('share_links')
-          .select('token, is_enabled')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        let query = supabase.from('share_links').select('token, is_enabled');
+        if (profile?.mess_id) {
+          query = query.eq('mess_id', profile.mess_id);
+        } else {
+          query = query.eq('user_id', user.id);
+        }
+
+        const { data, error: fetchError } = await query.maybeSingle();
 
         if (fetchError) {
           throw fetchError;
@@ -197,15 +200,21 @@ function ShareSettingsCard() {
     setMessage(null);
 
     try {
+      const payload: Record<string, any> = {
+        user_id: user.id,
+        profile_id: user.id,
+        token: nextConfig.token,
+        is_enabled: nextConfig.is_enabled,
+        updated_at: new Date().toISOString(),
+      };
+      if (profile?.mess_id) {
+        payload.mess_id = profile.mess_id;
+      }
+
       const { data, error: upsertError } = await supabase
         .from('share_links')
         .upsert(
-          {
-            user_id: user.id,
-            token: nextConfig.token,
-            is_enabled: nextConfig.is_enabled,
-            updated_at: new Date().toISOString(),
-          },
+          payload,
           { onConflict: 'user_id' },
         )
         .select('token, is_enabled')
@@ -217,9 +226,9 @@ function ShareSettingsCard() {
 
       setConfig({ token: data.token, is_enabled: data.is_enabled });
       return data;
-    } catch (caughtError) {
+    } catch (caughtError: any) {
       console.error('Error saving share config:', caughtError);
-      setError('Unable to update the share link right now.');
+      setError(caughtError?.message || 'Unable to update the share link right now.');
       return null;
     } finally {
       setWorking(false);
@@ -482,7 +491,7 @@ type ActiveNotice = {
 };
 
 function NoticeSettingsCard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [activeNotice, setActiveNotice] = useState<ActiveNotice | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -541,22 +550,35 @@ function NoticeSettingsCard() {
       setLoading(true);
       try {
         const now = new Date().toISOString();
-        const { error: cleanupError } = await supabase
+        let cleanupQuery = supabase
           .from('notices')
           .delete()
-          .eq('user_id', user.id)
           .lte('expires_at', now);
+
+        if (profile?.mess_id) {
+          cleanupQuery = cleanupQuery.eq('mess_id', profile.mess_id);
+        } else {
+          cleanupQuery = cleanupQuery.eq('user_id', user.id);
+        }
+
+        const { error: cleanupError } = await cleanupQuery;
 
         if (cleanupError) throw cleanupError;
 
-        const { data, error: fetchError } = await supabase
+        let fetchQuery = supabase
           .from('notices')
           .select('id, title, content, expires_at')
-          .eq('user_id', user.id)
           .gt('expires_at', now)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .limit(1);
+
+        if (profile?.mess_id) {
+          fetchQuery = fetchQuery.eq('mess_id', profile.mess_id);
+        } else {
+          fetchQuery = fetchQuery.eq('user_id', user.id);
+        }
+
+        const { data, error: fetchError } = await fetchQuery.maybeSingle();
 
         if (fetchError) throw fetchError;
         if (active) setActiveNotice(data as ActiveNotice | null);
@@ -570,7 +592,7 @@ function NoticeSettingsCard() {
 
     void load();
     return () => { active = false; };
-  }, [user?.id]);
+  }, [user?.id, profile?.mess_id]);
 
   useEffect(() => {
     if (!activeNotice || !user?.id) return;
@@ -587,7 +609,6 @@ function NoticeSettingsCard() {
         .from('notices')
         .delete()
         .eq('id', activeNotice.id)
-        .eq('user_id', user.id)
         .then(({ error: deleteError }) => {
           if (deleteError) {
             console.error('Error deleting expired notice:', deleteError);
@@ -640,7 +661,6 @@ function NoticeSettingsCard() {
             expires_at: expiresAt.toISOString(),
           })
           .eq('id', activeNotice.id)
-          .eq('user_id', user.id)
           .select('id, title, content, expires_at')
           .single();
 
@@ -654,20 +674,32 @@ function NoticeSettingsCard() {
       }
 
       const now = new Date().toISOString();
-      await supabase
+      let expireOldQuery = supabase
         .from('notices')
-        .update({ expires_at: now })
-        .eq('user_id', user.id)
-        .gt('expires_at', now);
+        .update({ expires_at: now });
+
+      if (profile?.mess_id) {
+        expireOldQuery = expireOldQuery.eq('mess_id', profile.mess_id);
+      } else {
+        expireOldQuery = expireOldQuery.eq('user_id', user.id);
+      }
+
+      await expireOldQuery.gt('expires_at', now);
+
+      const insertPayload: Record<string, any> = {
+        user_id: user.id,
+        profile_id: user.id,
+        title: trimTitle,
+        content: trimContent,
+        expires_at: expiresAt.toISOString(),
+      };
+      if (profile?.mess_id) {
+        insertPayload.mess_id = profile.mess_id;
+      }
 
       const { data, error: insertError } = await supabase
         .from('notices')
-        .insert([{
-          user_id: user.id,
-          title: trimTitle,
-          content: trimContent,
-          expires_at: expiresAt.toISOString(),
-        }])
+        .insert([insertPayload])
         .select('id, title, content, expires_at')
         .single();
 
@@ -677,9 +709,9 @@ function NoticeSettingsCard() {
       resetNoticeForm();
       void broadcastNoticeUpdate();
       setMessage('Notice posted! It will appear in the shared view immediately.');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error posting notice:', err);
-      setError(isEditingNotice ? 'Unable to update the notice right now.' : 'Unable to post the notice right now.');
+      setError(err?.message || (isEditingNotice ? 'Unable to update the notice right now.' : 'Unable to post the notice right now.'));
     } finally {
       setWorking(false);
     }
@@ -714,8 +746,7 @@ function NoticeSettingsCard() {
       const { error: deleteError } = await supabase
         .from('notices')
         .delete()
-        .eq('id', activeNotice.id)
-        .eq('user_id', user.id);
+        .eq('id', activeNotice.id);
 
       if (deleteError) throw deleteError;
 
@@ -723,9 +754,9 @@ function NoticeSettingsCard() {
       resetNoticeForm();
       void broadcastNoticeUpdate();
       setMessage('Notice removed from the shared view.');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting notice:', err);
-      setError('Unable to delete the notice right now.');
+      setError(err?.message || 'Unable to delete the notice right now.');
     } finally {
       setWorking(false);
     }
