@@ -893,20 +893,11 @@ function NoticeSettingsCard() {
 
         {/* Active notice preview */}
         {!loading && activeNotice && (
-          <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Active Notice</p>
-                <p className="truncate font-semibold text-slate-900">{activeNotice.title}</p>
-                <p className="text-sm text-slate-700">{activeNotice.content}</p>
-                <p className="text-xs text-emerald-700">
-                  Expires {formatDistanceToNow(parseISO(activeNotice.expires_at), { addSuffix: true })}
-                  <span className="text-emerald-600">
-                    {' '}({format(parseISO(activeNotice.expires_at), 'dd MMM yyyy, hh:mm a')})
-                  </span>
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            {/* Header row: label + buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Active Notice</p>
+              <div className="flex shrink-0 gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -930,6 +921,17 @@ function NoticeSettingsCard() {
                   Remove
                 </Button>
               </div>
+            </div>
+            {/* Notice body */}
+            <div className="space-y-1">
+              <p className="font-semibold text-slate-900">{activeNotice.title}</p>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">{activeNotice.content}</p>
+              <p className="text-xs text-emerald-700">
+                Expires {formatDistanceToNow(parseISO(activeNotice.expires_at), { addSuffix: true })}
+                <span className="text-emerald-600">
+                  {' '}({format(parseISO(activeNotice.expires_at), 'dd MMM yyyy, hh:mm a')})
+                </span>
+              </p>
             </div>
           </div>
         )}
