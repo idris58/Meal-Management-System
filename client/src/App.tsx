@@ -124,9 +124,7 @@ const legacyMainRouteMap: Record<string, string> = {
 };
 
 function AppShell() {
-  const [profile, setProfile] = useState<{ mess_id: string | null } | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const { session, loading, lastAuthEvent } = useAuth();
+  const { session, loading, lastAuthEvent, profile, profileLoading } = useAuth();
   const [location, setLocation] = useLocation();
   const [isSharedLandingRoute] = useRoute("/shared");
   const [isSharedRoute, sharedParams] = useRoute("/shared/:token");
@@ -143,37 +141,6 @@ function AppShell() {
     hashParams.has("access_token") ||
     (Boolean(recoveryTokenHash) && recoveryType === "recovery");
 
-  useEffect(() => {
-    let active = true;
-    if (!session?.user) { setProfile(null); setProfileLoading(false); return; }
-    
-    const cachedProfile = localStorage.getItem(`profile-${session.user.id}`);
-    if (cachedProfile) {
-      try {
-        setProfile(JSON.parse(cachedProfile));
-      } catch { /* ignore */ }
-    } else {
-      setProfileLoading(true);
-    }
-    
-    void supabase.from("profiles").select("mess_id").eq("id", session.user.id).maybeSingle()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          console.error("Could not load profile:", error);
-          if (!cachedProfile) {
-            setProfile({ mess_id: null });
-          }
-        } else {
-          setProfile(data ?? { mess_id: null });
-          if (data) {
-            localStorage.setItem(`profile-${session.user.id}`, JSON.stringify(data));
-          }
-        }
-        setProfileLoading(false);
-      });
-    return () => { active = false; };
-  }, [session?.user?.id]);
   const [authLinkResolved, setAuthLinkResolved] = useState(
     !authCode && !(recoveryTokenHash && recoveryType === "recovery"),
   );
@@ -313,7 +280,7 @@ function AppShell() {
     return <SharedPage token={sharedParams.token} />;
   }
 
-  if (loading || !authLinkResolved || (session && profileLoading)) {
+  if (loading || !authLinkResolved || (session && (profileLoading || profile === null))) {
     return (
       <AppLoadingSkeleton
         message={authLinkResolved ? "Checking your session..." : "Preparing your reset link..."}

@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [profile, setProfile] = useState<AuthContextValue["profile"]>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +50,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error("Error loading auth session:", error);
+      }
+
+      const sessionUser = data.session?.user;
+      if (sessionUser) {
+        const cacheKey = `mealtrack-profile-${sessionUser.id}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (parsed && typeof parsed === "object") {
+              setProfile(parsed);
+              setProfileLoading(false);
+            }
+          } catch {
+            /* ignore */
+          }
+        }
       }
 
       setSession(data.session ?? null);
@@ -79,9 +96,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async () => {
     if (!session?.user) return;
     setProfileLoading(true);
-    const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, mess_id, picture_url").eq("id", session.user.id).maybeSingle();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role, mess_id, picture_url")
+      .eq("id", session.user.id)
+      .maybeSingle();
     if (error) console.error("Error loading profile:", error);
-    setProfile(data as AuthContextValue["profile"]);
+    if (data) {
+      setProfile(data as AuthContextValue["profile"]);
+      try {
+        localStorage.setItem(`mealtrack-profile-${session.user.id}`, JSON.stringify(data));
+      } catch {
+        /* ignore */
+      }
+    }
     setProfileLoading(false);
   };
 
@@ -92,15 +120,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileLoading(false);
       return;
     }
-    setProfileLoading(true);
-    void supabase.from("profiles").select("id, full_name, email, role, mess_id, picture_url").eq("id", session.user.id).maybeSingle()
+
+    const cacheKey = `mealtrack-profile-${session.user.id}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === "object") {
+          setProfile(parsed);
+          setProfileLoading(false);
+        }
+      } catch {
+        setProfileLoading(true);
+      }
+    } else {
+      setProfileLoading(true);
+    }
+
+    void supabase
+      .from("profiles")
+      .select("id, full_name, email, role, mess_id, picture_url")
+      .eq("id", session.user.id)
+      .maybeSingle()
       .then(({ data, error }) => {
         if (!active) return;
-        if (error) console.error("Error loading profile:", error);
-        setProfile(data as AuthContextValue["profile"]);
+        if (error) {
+          console.error("Error loading profile:", error);
+          if (!cached) {
+            setProfile(null);
+          }
+        } else {
+          setProfile(data as AuthContextValue["profile"]);
+          if (data) {
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(data));
+            } catch {
+              /* ignore */
+            }
+          }
+        }
         setProfileLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [session?.user?.id]);
 
   const isManager = profile?.role === "manager";
