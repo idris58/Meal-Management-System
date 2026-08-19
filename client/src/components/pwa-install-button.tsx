@@ -54,9 +54,9 @@ export function PwaInstallButton({
     <>
       <Button
         type="button"
-        variant="ghost"
+        variant="outline"
         size={size}
-        className={className}
+        className={`bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 hover:text-primary transition-colors font-medium shadow-sm ${className || ''}`}
         onClick={handleInstall}
       >
         <CloudDownload className="h-4 w-4" />

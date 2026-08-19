@@ -88,17 +88,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <button
           id="header-user-avatar"
           type="button"
-          className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full ring-2 ring-primary/20 transition-all hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="relative flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-transparent p-0.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:border-border sm:pr-3"
           aria-label="User menu"
         >
-          <Avatar className="h-9 w-9">
+          <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border border-primary/20">
             {profile?.picture_url ? (
               <AvatarImage src={profile.picture_url} alt={profile.full_name ?? 'User avatar'} />
             ) : null}
-            <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+            <AvatarFallback className="bg-primary/10 text-xs sm:text-sm font-semibold text-primary">
               {initials || <User className="h-4 w-4" />}
             </AvatarFallback>
           </Avatar>
+          <span className="hidden text-sm font-medium sm:block max-w-[150px] truncate">
+            {profile?.full_name ?? user?.email?.split('@')[0] ?? 'User'}
+          </span>
         </button>
       </DropdownMenuTrigger>
 
@@ -190,13 +193,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {brand}
         </div>
 
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
+        <div className="flex items-center gap-2 sm:gap-3">
           <PwaInstallButton
             appId="main"
             appName="MealTrack"
-            className="h-9 shrink-0 gap-1.5 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm max-[380px]:[&_span]:hidden"
+            className="h-8 sm:h-9 shrink-0 gap-1.5 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm max-[380px]:[&_span]:hidden"
           />
+          <ThemeToggle />
+          <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
           {userAvatar}
         </div>
       </header>
