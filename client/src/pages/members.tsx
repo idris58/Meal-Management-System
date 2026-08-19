@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/auth-context';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SyncBadge } from '@/components/sync-badge';
+import { cn } from '@/lib/utils';
 
 const DELETE_GRACE_MS = 10 * 1000;
 
@@ -163,6 +164,7 @@ function MemberCard({
   onDelete,
   profileRole,
   onCoordinatorAction,
+  canManageRoles = false,
   isLinked = false,
   dragHandleProps,
   isDragging = false,
@@ -174,6 +176,7 @@ function MemberCard({
   onDelete?: () => void;
   profileRole?: 'manager' | 'coordinator' | 'member';
   onCoordinatorAction?: () => void;
+  canManageRoles?: boolean;
   isLinked?: boolean;
   dragHandleProps?: any;
   isDragging?: boolean;
@@ -257,41 +260,51 @@ function MemberCard({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            <Button variant="outline" className="shrink-0 gap-1.5 px-2.5 sm:px-3" onClick={onDeposit} disabled={!onDeposit}>
-              <Wallet className="h-4 w-4 shrink-0" />
-              <span>Deposit</span>
-            </Button>
-            {onCoordinatorAction && profileRole !== 'manager' ? (
-              <Button variant="outline" className="min-w-0 flex-1 gap-1.5 px-2.5 sm:px-3 text-xs sm:text-sm" onClick={onCoordinatorAction}>
-                <ShieldCheck className="h-4 w-4 shrink-0" />
-                <span className="truncate">{profileRole === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</span>
-              </Button>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="min-w-0 flex-1">
-                    <Button variant="outline" className="w-full gap-1.5 px-2.5 sm:px-3 text-xs sm:text-sm" disabled>
-                      <ShieldCheck className="h-4 w-4 shrink-0" />
-                      <span className="truncate">Unavailable</span>
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>Action available only for linked accounts</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          {(onDeposit || canManageRoles) ? (
+            <div className="flex items-center gap-2 pt-1">
+              {onDeposit ? (
+                <Button
+                  variant="outline"
+                  className={cn("gap-1.5 px-2.5 sm:px-3", canManageRoles ? "shrink-0" : "w-full")}
+                  onClick={onDeposit}
+                >
+                  <Wallet className="h-4 w-4 shrink-0" />
+                  <span>Deposit</span>
+                </Button>
+              ) : null}
+              {canManageRoles ? (
+                onCoordinatorAction && profileRole !== 'manager' ? (
+                  <Button variant="outline" className="min-w-0 flex-1 gap-1.5 px-2.5 sm:px-3 text-xs sm:text-sm" onClick={onCoordinatorAction}>
+                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{profileRole === 'coordinator' ? 'Remove Coordinator' : 'Make Coordinator'}</span>
+                  </Button>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="min-w-0 flex-1">
+                        <Button variant="outline" className="w-full gap-1.5 px-2.5 sm:px-3 text-xs sm:text-sm" disabled>
+                          <ShieldCheck className="h-4 w-4 shrink-0" />
+                          <span className="truncate">Unavailable</span>
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Action available only for linked accounts</TooltipContent>
+                  </Tooltip>
+                )
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function SortableMemberCard({ member, stats, deletingMemberId, onDeposit, onDelete, profileRole, onCoordinatorAction, isLinked }: { member: Member; stats: MemberStatsSnapshot; deletingMemberId?: string | null; onDeposit?: () => void; onDelete?: () => void; profileRole?: 'manager' | 'coordinator' | 'member'; onCoordinatorAction?: () => void; isLinked?: boolean; }) {
+function SortableMemberCard({ member, stats, deletingMemberId, onDeposit, onDelete, profileRole, onCoordinatorAction, canManageRoles, isLinked }: { member: Member; stats: MemberStatsSnapshot; deletingMemberId?: string | null; onDeposit?: () => void; onDelete?: () => void; profileRole?: 'manager' | 'coordinator' | 'member'; onCoordinatorAction?: () => void; canManageRoles?: boolean; isLinked?: boolean; }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: member.id });
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 1 : undefined }} className={isDragging ? "opacity-80" : undefined} {...attributes}>
-      <MemberCard member={member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={onDeposit} onDelete={onDelete} profileRole={profileRole} onCoordinatorAction={onCoordinatorAction} isLinked={isLinked} isDragging={isDragging} dragHandleProps={{ ref: setActivatorNodeRef, ...listeners }} />
+      <MemberCard member={member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={onDeposit} onDelete={onDelete} profileRole={profileRole} onCoordinatorAction={onCoordinatorAction} canManageRoles={canManageRoles} isLinked={isLinked} isDragging={isDragging} dragHandleProps={{ ref: setActivatorNodeRef, ...listeners }} />
     </div>
   );
 }
@@ -447,7 +460,7 @@ export default function Members() {
                 const stats = getMemberStats(item.member.id);
                 const linkedProfile = profiles.find((profile) => profile.id === item.member.profileId);
                 const coordinatorAction = canManageRoles && linkedProfile && linkedProfile.role !== 'manager' ? () => void toggleCoordinator(linkedProfile.id, linkedProfile.role === 'coordinator' ? 'member' : 'coordinator') : undefined;
-                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={canManageDeposits ? () => setDepositMemberId(item.member.id) : undefined} onDelete={canManageMembers ? () => handleRemoveMember(item.member.id) : undefined} profileRole={linkedProfile?.role} onCoordinatorAction={coordinatorAction} isLinked={!!item.member.profileId} />;
+                return <SortableMemberCard key={item.member.id} member={item.member} stats={stats} deletingMemberId={deletingMemberId} onDeposit={canManageDeposits ? () => setDepositMemberId(item.member.id) : undefined} onDelete={canManageMembers ? () => handleRemoveMember(item.member.id) : undefined} profileRole={linkedProfile?.role} onCoordinatorAction={coordinatorAction} canManageRoles={canManageRoles} isLinked={!!item.member.profileId} />;
               })}
             </div>
           </SortableContext>
