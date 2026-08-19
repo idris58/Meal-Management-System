@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMeal } from '@/lib/meal-context';
+import { useAuth } from '@/lib/auth-context';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -144,6 +145,7 @@ function QuickLogMeal({
 
 export default function Meals() {
   const { members, mealLogs } = useMeal();
+  const { canOperateMeals } = useAuth();
   const [openMeal, setOpenMeal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   
@@ -193,40 +195,42 @@ export default function Meals() {
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-heading">Meal Logs</h1>
-        <Dialog
-          open={openMeal}
-          onOpenChange={(open) => {
-            setOpenMeal(open);
-            if (!open) {
-              setSelectedDate(undefined);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button
-              className="gap-2"
-              onClick={() => setSelectedDate(undefined)}
-              disabled={members.length === 0}
-            >
-              <Utensils className="h-4 w-4" />
-              Log Meals
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {selectedDate ? `Edit Meals for ${format(selectedDate, 'PPP')}` : 'Log Meals by Date'}
-              </DialogTitle>
-            </DialogHeader>
-            <QuickLogMeal
-              initialDate={selectedDate}
-              onClose={() => {
-                setOpenMeal(false);
+        {canOperateMeals ? (
+          <Dialog
+            open={openMeal}
+            onOpenChange={(open) => {
+              setOpenMeal(open);
+              if (!open) {
                 setSelectedDate(undefined);
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button
+                className="gap-2"
+                onClick={() => setSelectedDate(undefined)}
+                disabled={members.length === 0}
+              >
+                <Utensils className="h-4 w-4" />
+                Log Meals
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedDate ? `Edit Meals for ${format(selectedDate, 'PPP')}` : 'Log Meals by Date'}
+                </DialogTitle>
+              </DialogHeader>
+              <QuickLogMeal
+                initialDate={selectedDate}
+                onClose={() => {
+                  setOpenMeal(false);
+                  setSelectedDate(undefined);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </div>
 
       {members.length > 0 && mealLogs.length > 0 && (
@@ -280,13 +284,15 @@ export default function Meals() {
           <p className="text-muted-foreground text-sm max-w-sm mt-2 mb-6 leading-relaxed">
             Keep track of daily meal counts for each member. The app will calculate the current meal rate automatically.
           </p>
-          <Button 
-            className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform bg-primary hover:bg-primary/95 text-primary-foreground font-semibold"
-            onClick={() => setOpenMeal(true)}
-          >
-            <Utensils className="h-4 w-4" />
-            Log First Daily Meal
-          </Button>
+          {canOperateMeals ? (
+            <Button 
+              className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform bg-primary hover:bg-primary/95 text-primary-foreground font-semibold"
+              onClick={() => setOpenMeal(true)}
+            >
+              <Utensils className="h-4 w-4" />
+              Log First Daily Meal
+            </Button>
+          ) : null}
         </Card>
       ) : (
         <div className="flex-1 min-h-0 overflow-hidden rounded-lg border bg-card shadow-sm">
@@ -321,8 +327,8 @@ export default function Meals() {
                   return (
                     <tr
                       key={dateStr}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => openEditorForDate(day)}
+                      className={cn("transition-colors", canOperateMeals && "cursor-pointer hover:bg-muted/50")}
+                      onClick={canOperateMeals ? () => openEditorForDate(day) : undefined}
                     >
                       <td className="sticky left-0 z-10 whitespace-nowrap border-r bg-card p-3 font-medium md:p-4">
                         <div className="flex flex-col">

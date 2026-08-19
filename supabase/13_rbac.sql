@@ -78,7 +78,7 @@ create policy meal_logs_operate on public.meal_logs for all to authenticated usi
 
 drop policy if exists mess_cycle_deposits on public.cycle_deposits;
 create policy deposits_read on public.cycle_deposits for select to authenticated using (mess_id = public.current_mess_id());
-create policy deposits_manage on public.cycle_deposits for all to authenticated using (mess_id = public.current_mess_id() and public.has_mess_role(array['manager'])) with check (mess_id = public.current_mess_id() and public.has_mess_role(array['manager']));
+create policy deposits_manage on public.cycle_deposits for all to authenticated using (mess_id = public.current_mess_id() and public.has_mess_role(array['manager','coordinator'])) with check (mess_id = public.current_mess_id() and public.has_mess_role(array['manager','coordinator']));
 
 drop policy if exists mess_cycles on public.cycles;
 create policy cycles_read on public.cycles for select to authenticated using (mess_id = public.current_mess_id());

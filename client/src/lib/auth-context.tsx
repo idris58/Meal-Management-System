@@ -180,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     canManageRoles: isManager,
     canOperateMeals: canOperate,
     canManageExpenses: canOperate,
-    canManageDeposits: isManager,
+    canManageDeposits: canOperate,
     canManageCycles: isManager,
     canManageMess: isManager,
     signOut: async () => {

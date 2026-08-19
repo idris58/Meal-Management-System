@@ -5,6 +5,7 @@ import { Archive, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Wa
 import { Link } from 'wouter';
 
 import { useMeal, type Cycle, type CycleDetails, type Expense } from '@/lib/meal-context';
+import { useAuth } from '@/lib/auth-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -801,15 +802,10 @@ function ClosedCycleCard({
 }: {
   cycle: Cycle;
   isExpanded: boolean;
-  onDeleted: (details: CycleDetails) => void;
+  onDeleted?: (details: CycleDetails) => void;
 }) {
-  const {
-    deleteCycle,
-    getCycleDetails,
-    getCycleDetailsError,
-    isCycleDetailsLoading,
-    loadCycleDetails,
-  } = useMeal();
+  const { getCycleDetails, loadCycleDetails, isCycleDetailsLoading, getCycleDetailsError, deleteCycle } = useMeal();
+  const { canManageCycles } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const details = getCycleDetails(cycle.id);
   const isLoading = isCycleDetailsLoading(cycle.id);
@@ -824,7 +820,7 @@ function ClosedCycleCard({
   }, [cycle.id, details, isExpanded, isLoading, loadCycleDetails, loadError]);
 
   const handleDeleteCycle = async () => {
-    if (isDeleting || !details) return;
+    if (isDeleting || !details || !onDeleted) return;
     setIsDeleting(true);
 
     try {
@@ -850,7 +846,7 @@ function ClosedCycleCard({
         </AccordionPrimitive.Header>
         <div className="flex shrink-0 items-center gap-2">
           <Badge variant="secondary">Closed</Badge>
-          {isExpanded ? (
+          {isExpanded && canManageCycles ? (
             <>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -968,6 +964,7 @@ function ClosedCycleCard({
     </AccordionItem>
   );
 }
+
 function StatCard({
   title,
   value,
@@ -1008,6 +1005,7 @@ function StatCard({
 
 export default function HistoryPage() {
   const { cycles, getCycleDetails, restoreCycle } = useMeal();
+  const { profile } = useAuth();
   const [openClosedCycleId, setOpenClosedCycleId] = useState('');
   const [deletedClosedCycles, setDeletedClosedCycles] = useState<DeletedCycleGhost[]>([]);
 
@@ -1044,6 +1042,7 @@ export default function HistoryPage() {
   for (const ghost of [...deletedClosedCycles].sort((a, b) => a.index - b.index)) {
     closedCycleRows.splice(Math.min(ghost.index, closedCycleRows.length), 0, { type: 'deleted', ghost });
   }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -1053,11 +1052,13 @@ export default function HistoryPage() {
             Pending cycles stay editable for settlement and corrections. Closed cycles are read-only.
           </p>
         </div>
-        <Button variant="outline" size="icon" asChild title="View Changelog" aria-label="View Changelog">
-          <Link href="/app/changelog">
-            <ScrollText className="h-4 w-4" />
-          </Link>
-        </Button>
+        {profile?.role !== 'member' ? (
+          <Button variant="outline" size="icon" asChild title="View Changelog" aria-label="View Changelog">
+            <Link href="/app/changelog">
+              <ScrollText className="h-4 w-4" />
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       {pendingCycles.length === 0 && closedCycleRows.length === 0 ? (

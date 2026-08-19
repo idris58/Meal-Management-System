@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useLocation } from 'wouter';
 import { BellRing, Copy, ExternalLink, Megaphone, Pencil, RefreshCcw, Save, Share2, Trash2 } from 'lucide-react';
 import { addHours, format, formatDistanceToNow, isPast, parseISO } from 'date-fns';
 
@@ -952,6 +953,19 @@ function NoticeSettingsCard() {
 }
 
 export default function SettingsPage() {
+  const { profile } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (profile?.role === 'member') {
+      setLocation('/app');
+    }
+  }, [profile?.role, setLocation]);
+
+  if (profile?.role === 'member') {
+    return null;
+  }
+
   return (
     <div className="space-y-6 pb-20">
       <header>

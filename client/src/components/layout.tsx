@@ -79,6 +79,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const isMember = profile?.role === 'member';
+  const navItems = NAV_ITEMS.filter((item) => !(isMember && item.href === '/app/settings'));
+
   const initials = getInitials(profile?.full_name, user?.email);
 
   /** Avatar button used in the header */
@@ -162,7 +165,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <nav className="flex-1 space-y-2 p-4">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
                 <div
                   className={cn(
@@ -209,7 +212,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Desktop Sidebar */}
         <aside className="hidden h-[calc(100vh-4rem)] w-64 shrink-0 flex-col border-r bg-card md:sticky md:top-16 md:flex">
           <nav className="flex-1 space-y-2 p-4 pt-6">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
                 <div
                   className={cn(

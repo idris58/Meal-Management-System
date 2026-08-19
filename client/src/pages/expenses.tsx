@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMeal, Expense } from '@/lib/meal-context';
+import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -256,6 +257,7 @@ type TabFilter = 'all' | 'meal' | 'fixed';
 
 export default function Expenses() {
   const { expenses, restoreExpense } = useMeal();
+  const { canManageExpenses } = useAuth();
   const [openExpense, setOpenExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletedExpenses, setDeletedExpenses] = useState<DeletedExpenseGhost[]>([]);
@@ -324,18 +326,20 @@ export default function Expenses() {
       {/* ── Header ── */}
       <div className="flex flex-none items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Expenses</h1>
-        <Dialog open={openExpense} onOpenChange={setOpenExpense}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Expense
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Add New Expense</DialogTitle></DialogHeader>
-            <ExpenseEditor onClose={() => setOpenExpense(false)} />
-          </DialogContent>
-        </Dialog>
+        {canManageExpenses ? (
+          <Dialog open={openExpense} onOpenChange={setOpenExpense}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Expense
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Add New Expense</DialogTitle></DialogHeader>
+              <ExpenseEditor onClose={() => setOpenExpense(false)} />
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </div>
 
       {/* ── KPI Summary Cards ── */}
@@ -416,13 +420,15 @@ export default function Expenses() {
           <p className="text-muted-foreground text-sm max-w-sm mt-2 mb-6 leading-relaxed">
             Track your groceries, helper wages, house rent, or utility bills for the current cycle.
           </p>
-          <Button
-            className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
-            onClick={() => setOpenExpense(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Add First Expense
-          </Button>
+          {canManageExpenses ? (
+            <Button
+              className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
+              onClick={() => setOpenExpense(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add First Expense
+            </Button>
+          ) : null}
         </Card>
       ) : (
         <div
@@ -462,7 +468,7 @@ export default function Expenses() {
                   <ExpenseRow
                     key={row.expense.id}
                     expense={row.expense}
-                    onEdit={() => setEditingExpense(row.expense)}
+                    onEdit={canManageExpenses ? () => setEditingExpense(row.expense) : undefined}
                   />
                 );
               })
