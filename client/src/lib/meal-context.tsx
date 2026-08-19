@@ -391,22 +391,43 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const isSyncingRef = useRef(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
+  // ─── Offline-aware identity resolution ─────────────────────────────────────
+  // Use getSession() — the Supabase client caches the session in localStorage so
+  // this works without a network connection. getUser() always hits the network.
   useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data.user) {
-        setUserId(data.user.id);
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('mess_id')
-          .eq('id', data.user.id)
-          .maybeSingle();
-        if (error) console.error('Error loading current mess:', error);
-        setMessId(profile?.mess_id ?? null);
+    const resolveIdentity = async () => {
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data.session?.user;
+      if (!sessionUser) return;
+
+      setUserId(sessionUser.id);
+
+      // Try to get mess_id from network; fall back to cached value if offline
+      const MESS_CACHE_KEY = `mealtrack-mess-id-${sessionUser.id}`;
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem(MESS_CACHE_KEY);
+        setMessId(cached || null);
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('mess_id')
+        .eq('id', sessionUser.id)
+        .maybeSingle();
+
+      if (error) console.error('Error loading current mess:', error);
+
+      const nextMessId = profile?.mess_id ?? null;
+      setMessId(nextMessId);
+
+      // Persist so future offline loads can resolve the mess
+      if (nextMessId) {
+        localStorage.setItem(MESS_CACHE_KEY, nextMessId);
       }
     };
 
-    void getUser();
+    void resolveIdentity();
   }, []);
 
   // Hydrate pendingSyncIds from IDB on mount so badges survive a page refresh
@@ -703,9 +724,47 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
 
 
+  const DATA_CACHE_KEY = userId && messId ? `mealtrack-data-cache-${userId}-${messId}` : null;
+
   const loadData = async () => {
     if (!userId || !messId) return;
 
+    const cacheKey = `mealtrack-data-cache-${userId}-${messId}`;
+
+    // ── Offline path: hydrate from localStorage cache ────────────────────────
+    if (!navigator.onLine) {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const snap = JSON.parse(cached) as {
+            members: Member[];
+            cycles: Cycle[];
+            deposits: CycleDeposit[];
+            expenses: Expense[];
+            mealLogs: MealLog[];
+            changelog: ChangelogEntry[];
+            loadedCycleIds: string[];
+          };
+          setMemberRoster(snap.members);
+          setCycles(snap.cycles);
+          setAllDeposits(snap.deposits);
+          setAllExpenses(snap.expenses);
+          setAllMealLogs(snap.mealLogs);
+          setAllChangelogEntries(snap.changelog);
+          setLoadedCycleIds(new Set(snap.loadedCycleIds));
+          setDataError(null);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // corrupt cache – fall through to show error
+      }
+      setDataError('You are offline and no cached data was found. Connect to the internet to load your data.');
+      setLoading(false);
+      return;
+    }
+
+    // ── Online path ──────────────────────────────────────────────────────────
     try {
       setLoading(true);
 
@@ -763,20 +822,67 @@ export function MealProvider({ children }: { children: ReactNode }) {
         .filter((cycle) => cycle.status === 'active' || cycle.status === 'pending')
         .map((cycle) => cycle.id);
       const initialRows = await Promise.all(initialCycleIds.map((cycleId) => fetchCycleRows(cycleId)));
+      const nextDeposits = initialRows.flatMap((rows) => rows?.deposits ?? []);
+      const nextExpenses = initialRows.flatMap((rows) => rows?.expenses ?? []);
+      const nextMealLogs = initialRows.flatMap((rows) => rows?.mealLogs ?? []);
 
       setMemberRoster(nextMembers);
       setCycles(nextCycles);
-      setAllDeposits(initialRows.flatMap((rows) => rows?.deposits ?? []));
-      setAllExpenses(initialRows.flatMap((rows) => rows?.expenses ?? []));
-      setAllMealLogs(initialRows.flatMap((rows) => rows?.mealLogs ?? []));
+      setAllDeposits(nextDeposits);
+      setAllExpenses(nextExpenses);
+      setAllMealLogs(nextMealLogs);
       setLoadedCycleIds(new Set(initialCycleIds));
       setCycleDetailsErrorById({});
       setCycleDetailsLoadingById({});
       setAllChangelogEntries(nextChangelogEntries);
       setHasMoreChangelogEntries(nextChangelogEntries.length === CHANGELOG_PAGE_SIZE);
       setDataError(null);
+
+      // Persist snapshot to localStorage for offline access
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({
+          members: nextMembers,
+          cycles: nextCycles,
+          deposits: nextDeposits,
+          expenses: nextExpenses,
+          mealLogs: nextMealLogs,
+          changelog: nextChangelogEntries,
+          loadedCycleIds: initialCycleIds,
+        }));
+      } catch {
+        // Quota exceeded or private browsing — non-fatal
+      }
     } catch (error) {
       console.error('Error loading data:', error);
+
+      // If we go offline mid-load, try falling back to cache
+      if (!navigator.onLine) {
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const snap = JSON.parse(cached) as {
+              members: Member[];
+              cycles: Cycle[];
+              deposits: CycleDeposit[];
+              expenses: Expense[];
+              mealLogs: MealLog[];
+              changelog: ChangelogEntry[];
+              loadedCycleIds: string[];
+            };
+            setMemberRoster(snap.members);
+            setCycles(snap.cycles);
+            setAllDeposits(snap.deposits);
+            setAllExpenses(snap.expenses);
+            setAllMealLogs(snap.mealLogs);
+            setAllChangelogEntries(snap.changelog);
+            setLoadedCycleIds(new Set(snap.loadedCycleIds));
+            setDataError(null);
+            setLoading(false);
+            return;
+          }
+        } catch { /* ignore */ }
+      }
+
       setDataError(
         error instanceof Error
           ? error.message
