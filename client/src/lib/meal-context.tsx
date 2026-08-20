@@ -61,6 +61,13 @@ export interface ChangelogChange {
   to?: ChangelogValue;
 }
 
+export interface ChangelogActor {
+  id: string;
+  name: string;
+  pictureUrl?: string | null;
+  role?: 'manager' | 'coordinator' | 'member' | null;
+}
+
 export interface ChangelogEntry {
   id: string;
   cycleId: string;
@@ -70,6 +77,7 @@ export interface ChangelogEntry {
   title: string;
   changes: ChangelogChange[];
   createdAt: string;
+  actor?: ChangelogActor | null;
 }
 
 export interface Cycle {
@@ -226,6 +234,12 @@ type ChangelogRow = {
   title: string;
   changes: ChangelogChange[] | null;
   created_at: string;
+  profiles?: {
+    id: string;
+    full_name: string;
+    picture_url?: string | null;
+    role?: string | null;
+  } | null;
 };
 
 const CHANGELOG_PAGE_SIZE = 50;
@@ -277,6 +291,12 @@ function mapChangelogRows(rows: ChangelogRow[]): ChangelogEntry[] {
     title: entry.title,
     changes: entry.changes ?? [],
     createdAt: entry.created_at,
+    actor: entry.profiles ? {
+      id: entry.profiles.id,
+      name: entry.profiles.full_name,
+      pictureUrl: entry.profiles.picture_url ?? null,
+      role: (entry.profiles.role as ChangelogActor['role']) ?? null,
+    } : null,
   }));
 }
 
@@ -784,7 +804,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .order('started_at', { ascending: false }),
         supabase
           .from('changelog_entries')
-          .select('*')
+          .select('*, profiles(id, full_name, picture_url, role)')
           .eq('mess_id', messId)
           .order('created_at', { ascending: false })
           .range(0, CHANGELOG_PAGE_SIZE - 1),
@@ -909,7 +929,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       const to = from + CHANGELOG_PAGE_SIZE - 1;
       const { data, error } = await supabase
         .from('changelog_entries')
-        .select('*')
+        .select('*, profiles(id, full_name, picture_url, role)')
         .eq('mess_id', messId)
         .order('created_at', { ascending: false })
         .range(from, to);
