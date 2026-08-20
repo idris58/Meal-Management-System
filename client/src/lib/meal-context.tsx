@@ -228,6 +228,8 @@ type CycleDepositRow = {
 type ChangelogRow = {
   id: string;
   cycle_id: string;
+  user_id?: string;
+  profile_id?: string | null;
   entity_type: ChangelogEntityType;
   entity_id: string;
   action: ChangelogAction;
@@ -281,23 +283,40 @@ function mapDepositRows(rows: CycleDepositRow[]): CycleDeposit[] {
   }));
 }
 
-function mapChangelogRows(rows: ChangelogRow[]): ChangelogEntry[] {
-  return rows.map((entry) => ({
-    id: entry.id,
-    cycleId: entry.cycle_id,
-    entityType: entry.entity_type,
-    entityId: entry.entity_id,
-    action: entry.action,
-    title: entry.title,
-    changes: entry.changes ?? [],
-    createdAt: entry.created_at,
-    actor: entry.profiles ? {
-      id: entry.profiles.id,
-      name: entry.profiles.full_name,
-      pictureUrl: entry.profiles.picture_url ?? null,
-      role: (entry.profiles.role as ChangelogActor['role']) ?? null,
-    } : null,
-  }));
+function mapChangelogRows(
+  rows: ChangelogRow[],
+  profilesMap?: Map<string, ChangelogActor>,
+): ChangelogEntry[] {
+  return rows.map((entry) => {
+    let actor: ChangelogActor | null = null;
+    if (entry.profiles) {
+      actor = {
+        id: entry.profiles.id,
+        name: entry.profiles.full_name,
+        pictureUrl: entry.profiles.picture_url ?? null,
+        role: (entry.profiles.role as ChangelogActor['role']) ?? null,
+      };
+    } else if (profilesMap) {
+      const matched =
+        (entry.profile_id && profilesMap.get(entry.profile_id)) ||
+        (entry.user_id && profilesMap.get(entry.user_id));
+      if (matched) {
+        actor = matched;
+      }
+    }
+
+    return {
+      id: entry.id,
+      cycleId: entry.cycle_id,
+      entityType: entry.entity_type,
+      entityId: entry.entity_id,
+      action: entry.action,
+      title: entry.title,
+      changes: entry.changes ?? [],
+      createdAt: entry.created_at,
+      actor,
+    };
+  });
 }
 
 function toAvatar(name: string, fallback?: string | null) {
@@ -409,6 +428,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
   const [messId, setMessId] = useState<string | null>(null);
   const [pendingSyncIds, setPendingSyncIds] = useState<Set<string>>(new Set());
   const isSyncingRef = useRef(false);
+  const profilesMapRef = useRef<Map<string, ChangelogActor>>(new Map());
   const [dataError, setDataError] = useState<string | null>(null);
 
   // ─── Offline-aware identity resolution ─────────────────────────────────────
@@ -432,11 +452,20 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('mess_id')
+        .select('mess_id, full_name, picture_url, role')
         .eq('id', sessionUser.id)
         .maybeSingle();
 
       if (error) console.error('Error loading current mess:', error);
+
+      if (profile) {
+        profilesMapRef.current.set(sessionUser.id, {
+          id: sessionUser.id,
+          name: profile.full_name,
+          pictureUrl: profile.picture_url ?? null,
+          role: profile.role ?? null,
+        });
+      }
 
       const nextMessId = profile?.mess_id ?? null;
       setMessId(nextMessId);
@@ -534,6 +563,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       .from('changelog_entries')
       .insert([{
         user_id: userId,
+        profile_id: userId,
         mess_id: messId,
         cycle_id: cycleId,
         entity_type: entityType,
@@ -542,13 +572,23 @@ export function MealProvider({ children }: { children: ReactNode }) {
         title,
         changes,
       }])
-      .select()
+      .select('*, profiles(id, full_name, picture_url, role)')
       .single();
 
     if (error) {
       console.error('Error recording changelog entry:', error);
       return;
     }
+
+    const currentActor =
+      (data.profiles
+        ? {
+            id: data.profiles.id,
+            name: data.profiles.full_name,
+            pictureUrl: data.profiles.picture_url ?? null,
+            role: data.profiles.role as ChangelogActor['role'],
+          }
+        : null) || profilesMapRef.current.get(userId) || null;
 
     setAllChangelogEntries((prev) => [{
       id: data.id,
@@ -559,6 +599,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
       title: data.title,
       changes: (data.changes as ChangelogChange[] | null) ?? [],
       createdAt: data.created_at,
+      actor: currentActor,
     }, ...prev]);
   };
 
@@ -788,7 +829,7 @@ export function MealProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
 
-      const [membersResult, cyclesResult, changelogResult] = await Promise.all([
+      const [membersResult, cyclesResult, changelogResult, profilesResult] = await Promise.all([
         supabase
           .from('members')
           .select('*')
@@ -808,11 +849,26 @@ export function MealProvider({ children }: { children: ReactNode }) {
           .eq('mess_id', messId)
           .order('created_at', { ascending: false })
           .range(0, CHANGELOG_PAGE_SIZE - 1),
+        supabase
+          .from('profiles')
+          .select('id, full_name, picture_url, role')
+          .eq('mess_id', messId),
       ]);
 
       if (membersResult.error) throw membersResult.error;
       if (cyclesResult.error) throw cyclesResult.error;
       if (changelogResult.error) throw changelogResult.error;
+
+      const nextProfilesMap = new Map<string, ChangelogActor>();
+      ((profilesResult.data || []) as any[]).forEach((p) => {
+        nextProfilesMap.set(p.id, {
+          id: p.id,
+          name: p.full_name,
+          pictureUrl: p.picture_url ?? null,
+          role: p.role ?? null,
+        });
+      });
+      profilesMapRef.current = nextProfilesMap;
 
       const nextMembers = ((membersResult.data || []) as MemberRow[])
         .filter((member) => !member.deleted_at)
@@ -837,7 +893,10 @@ export function MealProvider({ children }: { children: ReactNode }) {
           membersSnapshot: cycle.members_snapshot,
         }));
 
-      const nextChangelogEntries = mapChangelogRows((changelogResult.data || []) as ChangelogRow[]);
+      const nextChangelogEntries = mapChangelogRows(
+        (changelogResult.data || []) as ChangelogRow[],
+        nextProfilesMap,
+      );
       const initialCycleIds = nextCycles
         .filter((cycle) => cycle.status === 'active' || cycle.status === 'pending')
         .map((cycle) => cycle.id);
@@ -936,7 +995,10 @@ export function MealProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      const nextEntries = mapChangelogRows((data || []) as ChangelogRow[]);
+      const nextEntries = mapChangelogRows(
+        (data || []) as ChangelogRow[],
+        profilesMapRef.current,
+      );
       setAllChangelogEntries((prev) => {
         const seen = new Set(prev.map((entry) => entry.id));
         return [...prev, ...nextEntries.filter((entry) => !seen.has(entry.id))];
