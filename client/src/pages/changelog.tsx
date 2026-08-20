@@ -220,12 +220,6 @@ const ENTITY_STYLE: Record<ChangelogEntityType, { icon: React.ElementType; label
   deposit: { icon: RefreshCcw, label: 'Deposit', color: 'text-teal-500' },
 };
 
-const ROLE_BADGE: Record<string, string> = {
-  manager: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
-  coordinator: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
-  member: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
-};
-
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function ActorAvatar({ actor }: { actor?: ChangelogActor | null }) {
@@ -347,16 +341,9 @@ function ChangelogCard({ entry }: { entry: ChangelogEntry }) {
             <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
               <div className="flex items-center gap-2">
                 <ActorAvatar actor={entry.actor} />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium leading-none">
-                    {entry.actor?.name ?? 'System'}
-                  </p>
-                  {entry.actor?.role && (
-                    <span className={cn('mt-0.5 inline-flex items-center rounded px-1 py-px text-[10px] font-medium border', ROLE_BADGE[entry.actor.role])}>
-                      {entry.actor.role.charAt(0).toUpperCase() + entry.actor.role.slice(1)}
-                    </span>
-                  )}
-                </div>
+                <p className="text-xs font-medium leading-none">
+                  {entry.actor?.name ?? 'System'}
+                </p>
               </div>
 
               <div className="flex items-center gap-3">
