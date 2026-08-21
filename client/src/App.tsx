@@ -28,6 +28,7 @@ import NotFound from "@/pages/not-found";
 import Settings from "@/pages/settings";
 import ProfilePage from "@/pages/profile";
 import SharedPage, { SharedAccessPage } from "@/pages/shared";
+import InvitePage from "@/pages/invite";
 
 function AppLoadingSkeleton({ message }: { message: string }) {
   return (
@@ -126,9 +127,12 @@ const legacyMainRouteMap: Record<string, string> = {
 function AppShell() {
   const { session, loading, lastAuthEvent, profile, profileLoading } = useAuth();
   const [location, setLocation] = useLocation();
+  const routePath = location.split("?")[0];
   const [isSharedLandingRoute] = useRoute("/shared");
   const [isSharedRoute, sharedParams] = useRoute("/shared/:token");
+  const [isInviteRoute, inviteParams] = useRoute("/invite/:token");
   const searchParams = new URLSearchParams(window.location.search);
+  const pendingInviteToken = searchParams.get("invite");
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const authCode = searchParams.get("code");
   const recoveryType =
@@ -195,19 +199,19 @@ function AppShell() {
 
   const hasRecoveryContext =
     recoveryLinkVerified || recoveryTokenInUrl || lastAuthEvent === "PASSWORD_RECOVERY";
-  const isRecoveryFlow = location === "/auth" && hasRecoveryContext;
+  const isRecoveryFlow = routePath === "/auth" && hasRecoveryContext;
 
   useEffect(() => {
     const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
     const appleTitle = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]');
-    const isSharedExperience = isSharedLandingRoute || isSharedRoute;
+    const isSharedExperience = isSharedLandingRoute || isSharedRoute || isInviteRoute;
 
     manifestLink?.setAttribute(
       "href",
       isSharedExperience ? "/shared-manifest.webmanifest" : "/manifest.webmanifest",
     );
     appleTitle?.setAttribute("content", isSharedExperience ? "MealTrack Shared" : "MealTrack");
-  }, [isSharedLandingRoute, isSharedRoute]);
+  }, [isInviteRoute, isSharedLandingRoute, isSharedRoute]);
 
   useEffect(() => {
     if (isSharedLandingRoute) {
@@ -217,6 +221,10 @@ function AppShell() {
 
     if (isSharedRoute) {
       document.title = "Shared View - MealTrack";
+      return;
+    }
+    if (isInviteRoute) {
+      document.title = "Join a Mess - MealTrack";
       return;
     }
 
@@ -240,37 +248,42 @@ function AppShell() {
       "/auth": `${isRecoveryFlow ? "Reset Password" : "Authentication"} - MealTrack`,
     };
 
-    document.title = pageTitleMap[location] ?? "MealTrack";
-  }, [isRecoveryFlow, isSharedLandingRoute, isSharedRoute, location]);
+    document.title = pageTitleMap[routePath] ?? "MealTrack";
+  }, [isInviteRoute, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, routePath]);
 
   useEffect(() => {
-    if (isSharedLandingRoute || isSharedRoute || !authLinkResolved) return;
+    if (isSharedLandingRoute || isSharedRoute || isInviteRoute || !authLinkResolved) return;
 
-    if (hasRecoveryContext && location !== "/auth") {
+    if (hasRecoveryContext && routePath !== "/auth") {
       window.history.replaceState(null, document.title, `/auth${window.location.search}${window.location.hash}`);
       setLocation("/auth");
       return;
     }
 
     if (loading) return;
-    if (!session && location !== "/auth") {
+    if (!session && routePath !== "/auth") {
       setLocation("/auth");
       return;
     }
     if (!session || isRecoveryFlow || profileLoading || !profile) return;
 
-    if (!profile.mess_id && location !== "/onboarding") {
+    if (!profile.mess_id && pendingInviteToken && routePath === "/auth") {
+      setLocation(`/invite/${encodeURIComponent(pendingInviteToken)}`);
+      return;
+    }
+
+    if (!profile.mess_id && routePath !== "/onboarding") {
       setLocation("/onboarding");
       return;
     }
-    if (profile.mess_id && (location === "/auth" || location === "/onboarding")) {
+    if (profile.mess_id && (routePath === "/auth" || routePath === "/onboarding")) {
       setLocation("/app");
       return;
     }
-    if (profile.mess_id && legacyMainRouteMap[location]) {
-      setLocation(legacyMainRouteMap[location]);
+    if (profile.mess_id && legacyMainRouteMap[routePath]) {
+      setLocation(legacyMainRouteMap[routePath]);
     }
-  }, [authLinkResolved, hasRecoveryContext, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, loading, location, profile, profileLoading, session, setLocation]);
+  }, [authLinkResolved, hasRecoveryContext, isInviteRoute, isRecoveryFlow, isSharedLandingRoute, isSharedRoute, loading, pendingInviteToken, profile, profileLoading, routePath, session, setLocation]);
 
   if (isSharedLandingRoute) {
     return <SharedAccessPage />;
@@ -278,6 +291,10 @@ function AppShell() {
 
   if (isSharedRoute && sharedParams?.token) {
     return <SharedPage token={sharedParams.token} />;
+  }
+
+  if (isInviteRoute && inviteParams?.token) {
+    return <InvitePage token={inviteParams.token} />;
   }
 
   if (loading || !authLinkResolved || (session && (profileLoading || profile === null))) {

@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ChevronDown, GripVertical, Link2, Link2Off, Plus, ShieldCheck, Trash2, Wallet, Users } from 'lucide-react';
+import { Check, ChevronDown, Clipboard, Clock3, Copy, GripVertical, Link2, Link2Off, Plus, RotateCcw, Send, ShieldCheck, Trash2, Wallet, Users } from 'lucide-react';
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -48,6 +48,25 @@ type DeletedMemberGhost = {
   index: number;
   expiresAt: number;
 };
+
+type MemberInvite = {
+  id: string;
+  target_member_id: string | null;
+  target_member_name: string | null;
+  expires_at: string;
+  created_at: string;
+  claimed_at: string | null;
+  revoked_at: string | null;
+  status: 'active' | 'used' | 'revoked' | 'expired';
+};
+
+function inviteUrl(invite: MemberInvite) {
+  return `${window.location.origin}/invite/${invite.id}`;
+}
+
+function inviteTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
 
 function AddMemberForm({ onClose }: { onClose: () => void }) {
   const { addMember } = useMeal();
@@ -325,6 +344,16 @@ export default function Members() {
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteTargetMemberId, setInviteTargetMemberId] = useState<string>('new');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [creatingInvite, setCreatingInvite] = useState(false);
+  const [createdInvite, setCreatedInvite] = useState<MemberInvite | null>(null);
+  const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
+  const [invites, setInvites] = useState<MemberInvite[]>([]);
+  const [invitesLoading, setInvitesLoading] = useState(false);
+  const [inviteActionId, setInviteActionId] = useState<string | null>(null);
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
 
   const handleRemoveMember = async (memberId: string) => {
     if (deletingMemberId) return;
@@ -397,6 +426,58 @@ export default function Members() {
     setRoleUpdating(null);
   };
 
+  const loadInvites = async () => {
+    if (!canManageMembers) return;
+    setInvitesLoading(true);
+    const { data, error } = await supabase.rpc('list_member_invites');
+    if (error) setInviteError(error.message);
+    else setInvites((data ?? []) as MemberInvite[]);
+    setInvitesLoading(false);
+  };
+
+  useEffect(() => {
+    if (inviteManagerOpen) void loadInvites();
+  }, [inviteManagerOpen]);
+
+  const createInvite = async () => {
+    if (creatingInvite) return;
+    setCreatingInvite(true); setInviteError(null);
+    const targetMemberId = inviteTargetMemberId === 'new' ? null : inviteTargetMemberId;
+    const { data, error } = await supabase.rpc('create_member_invite', { target_member_id_input: targetMemberId });
+    if (error) setInviteError(error.message);
+    else {
+      const target = targetMemberId ? members.find((member) => member.id === targetMemberId) : null;
+      setCreatedInvite({ ...(data as any), target_member_id: targetMemberId, target_member_name: target?.name ?? null, status: 'active' });
+      setInviteOpen(false);
+      void loadInvites();
+    }
+    setCreatingInvite(false);
+  };
+
+  const copyInvite = async (invite: MemberInvite) => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl(invite));
+      setCopiedInviteId(invite.id);
+      window.setTimeout(() => setCopiedInviteId(null), 1800);
+    } catch { setInviteError('Could not copy the link. Please copy it from your browser address bar.'); }
+  };
+
+  const shareInvite = async (invite: MemberInvite) => {
+    const text = invite.target_member_name ? `Join MealTrack and link your account to ${invite.target_member_name}.` : 'Join our MealTrack mess.';
+    if (navigator.share) {
+      try { await navigator.share({ title: 'MealTrack invitation', text, url: inviteUrl(invite) }); return; } catch { /* cancelled */ }
+    }
+    await copyInvite(invite);
+  };
+
+  const revokeInvite = async (inviteId: string) => {
+    setInviteActionId(inviteId); setInviteError(null);
+    const { error } = await supabase.rpc('revoke_member_invite', { invite_id_input: inviteId });
+    if (error) setInviteError(error.message);
+    else setInvites((current) => current.map((invite) => invite.id === inviteId ? { ...invite, status: 'revoked', revoked_at: new Date().toISOString() } : invite));
+    setInviteActionId(null);
+  };
+
   const memberCards = useMemo(() => {
     const cards: Array<
       | { type: 'member'; member: Member; index: number }
@@ -418,13 +499,26 @@ export default function Members() {
         {canManageMembers ? <DropdownMenu>
           <DropdownMenuTrigger asChild><Button className="shrink-0 gap-1.5 whitespace-nowrap"><Plus className="h-4 w-4" />Add / Link Member<ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-52">
+            <DropdownMenuItem onSelect={() => { setInviteError(null); setInviteOpen(true); }}><Send className="h-4 w-4" />Invite Member</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setIsAddOpen(true)}><Plus className="h-4 w-4" />Add Offline Member</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setLinkOpen(true)}><Link2 className="h-4 w-4" />Link Account</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setInviteManagerOpen(true)}><Clipboard className="h-4 w-4" />Manage Invite Links</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu> : null}
       </div>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}><DialogContent><DialogHeader><DialogTitle>Add New Member</DialogTitle></DialogHeader><AddMemberForm onClose={() => setIsAddOpen(false)} /></DialogContent></Dialog>
+      <Dialog open={inviteOpen} onOpenChange={(open) => { setInviteOpen(open); if (!open) { setInviteError(null); setInviteTargetMemberId('new'); } }}><DialogContent><DialogHeader><DialogTitle>Invite a member</DialogTitle></DialogHeader>
+        <div className="space-y-4"><p className="text-sm text-muted-foreground">The link works once and expires in 7 days. The recipient can create an account or sign in to join.</p>
+          <div className="grid gap-2"><Button type="button" variant={inviteTargetMemberId === 'new' ? 'default' : 'outline'} className="h-auto justify-start p-4 text-left" onClick={() => setInviteTargetMemberId('new')}><div><p>Invite a new member</p><p className="mt-1 text-xs font-normal opacity-80">Their account name will be added to your roster.</p></div></Button>
+          <Button type="button" variant={inviteTargetMemberId !== 'new' ? 'default' : 'outline'} className="h-auto justify-start p-4 text-left" onClick={() => { if (members.some((member) => !member.profileId)) setInviteTargetMemberId(members.find((member) => !member.profileId)?.id ?? 'new'); }} disabled={!members.some((member) => !member.profileId)}><div><p>Link an offline member</p><p className="mt-1 text-xs font-normal opacity-80">Keep their existing meals and deposits attached to their account.</p></div></Button></div>
+          {inviteTargetMemberId !== 'new' ? <Select value={inviteTargetMemberId} onValueChange={setInviteTargetMemberId}><SelectTrigger><SelectValue placeholder="Choose an offline member" /></SelectTrigger><SelectContent>{members.filter((member) => !member.profileId).map((member) => <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>)}</SelectContent></Select> : null}
+          {inviteError ? <p className="text-sm text-destructive">{inviteError}</p> : null}<Button className="w-full" disabled={creatingInvite} onClick={() => void createInvite()}>{creatingInvite ? 'Creating link...' : 'Create invite link'}</Button>
+        </div>
+      </DialogContent></Dialog>
+      <Dialog open={!!createdInvite} onOpenChange={(open) => !open && setCreatedInvite(null)}><DialogContent><DialogHeader><DialogTitle>Invite link ready</DialogTitle></DialogHeader>{createdInvite ? <div className="space-y-4"><div className="rounded-xl border bg-muted/40 p-4 text-sm"><p className="font-semibold">{createdInvite.target_member_name ? `For ${createdInvite.target_member_name}` : 'For a new member'}</p><p className="mt-1 text-muted-foreground">One use only · expires {inviteTime(createdInvite.expires_at)}</p><p className="mt-3 break-all rounded-md bg-background p-2 font-mono text-xs">{inviteUrl(createdInvite)}</p></div><div className="grid grid-cols-2 gap-2"><Button onClick={() => void copyInvite(createdInvite)}>{copiedInviteId === createdInvite.id ? <><Check className="h-4 w-4" />Copied</> : <><Copy className="h-4 w-4" />Copy link</>}</Button><Button variant="outline" onClick={() => void shareInvite(createdInvite)}><Send className="h-4 w-4" />Share</Button></div></div> : null}</DialogContent></Dialog>
+      <Dialog open={inviteManagerOpen} onOpenChange={setInviteManagerOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Invite links</DialogTitle></DialogHeader><div className="space-y-3"><p className="text-sm text-muted-foreground">Links are one-time and expire after 7 days.</p>{inviteError ? <p className="text-sm text-destructive">{inviteError}</p> : null}{invitesLoading ? <p className="py-6 text-center text-sm text-muted-foreground">Loading invite links...</p> : invites.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No invite links yet.</p> : <div className="max-h-[55vh] space-y-2 overflow-y-auto">{invites.map((invite) => <div key={invite.id} className="rounded-xl border p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{invite.target_member_name ? `Link ${invite.target_member_name}` : 'New member invite'}</p><p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{invite.status === 'active' ? `Expires ${inviteTime(invite.expires_at)}` : `${invite.status[0].toUpperCase()}${invite.status.slice(1)}${invite.claimed_at ? ` ${inviteTime(invite.claimed_at)}` : ''}`}</p></div><span className={`rounded-full px-2 py-1 text-xs font-medium ${invite.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>{invite.status}</span></div>{invite.status === 'active' ? <div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => void copyInvite(invite)}>{copiedInviteId === invite.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copy</Button><Button size="sm" variant="outline" onClick={() => void shareInvite(invite)}><Send className="h-4 w-4" />Share</Button><Button size="sm" variant="ghost" className="ml-auto text-destructive" disabled={inviteActionId === invite.id} onClick={() => void revokeInvite(invite.id)}><Trash2 className="h-4 w-4" />Revoke</Button></div> : <Button size="sm" variant="ghost" className="mt-3" onClick={() => { setInviteManagerOpen(false); setInviteTargetMemberId(invite.target_member_id ?? 'new'); setInviteOpen(true); }}><RotateCcw className="h-4 w-4" />Create replacement</Button>}</div>)}</div>}</div></DialogContent></Dialog>
       <Dialog open={linkOpen} onOpenChange={(open) => { setLinkOpen(open); if (!open) { setLinkError(null); setLinkMemberId(''); setLinkProfileId(''); } }}><DialogContent><DialogHeader><DialogTitle>Link a member account</DialogTitle></DialogHeader>
         <div className="space-y-3"><Select value={linkMemberId} onValueChange={setLinkMemberId}><SelectTrigger><SelectValue placeholder="Choose an offline member" /></SelectTrigger><SelectContent>{members.filter((member) => !member.profileId).map((member) => <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>)}</SelectContent></Select>
         <Select value={linkProfileId} onValueChange={setLinkProfileId}><SelectTrigger><SelectValue placeholder="Choose the joined user" /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={profile.id} value={profile.id}>{profile.full_name} ({profile.email})</SelectItem>)}</SelectContent></Select>

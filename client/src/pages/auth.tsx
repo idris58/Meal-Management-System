@@ -110,7 +110,9 @@ function mapAuthError(error: unknown, mode: AuthMode) {
 
 export default function AuthPage() {
   const { lastAuthEvent } = useAuth();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const inviteToken = new URLSearchParams(window.location.search).get("invite");
+  const requestedMode = new URLSearchParams(window.location.search).get("mode");
+  const [mode, setMode] = useState<AuthMode>(requestedMode === "signup" ? "signup" : "login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -140,6 +142,14 @@ export default function AuthPage() {
       setMessage("Set a new password for your account.");
     }
   }, [isRecoveryLink]);
+
+  useEffect(() => {
+    if (!isRecoveryLink && requestedMode === "signup") setMode("signup");
+  }, [isRecoveryLink, requestedMode]);
+
+  const authRedirectUrl = inviteToken
+    ? `${window.location.origin}/invite/${encodeURIComponent(inviteToken)}`
+    : `${window.location.origin}/`;
 
   const switchMode = (next: AuthMode) => {
     if (mode === "reset-password" && next !== "reset-password") {
@@ -258,7 +268,7 @@ export default function AuthPage() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: authRedirectUrl,
           data: {
             full_name: fullName.trim(),
             name: fullName.trim(),
@@ -306,7 +316,7 @@ export default function AuthPage() {
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: authRedirectUrl,
       },
     });
 
