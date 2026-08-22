@@ -142,7 +142,6 @@ function AppShell() {
   const recoveryTokenHash = searchParams.get("token_hash");
   const recoveryTokenInUrl =
     recoveryType === "recovery" ||
-    hashParams.has("access_token") ||
     (Boolean(recoveryTokenHash) && recoveryType === "recovery");
 
   const [authLinkResolved, setAuthLinkResolved] = useState(
