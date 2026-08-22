@@ -339,11 +339,6 @@ export default function Members() {
   const [isManager, setIsManager] = useState(false);
   const [profiles, setProfiles] = useState<Array<{ id: string; full_name: string; email: string; role: 'manager' | 'coordinator' | 'member' }>>([]);
   const [roleUpdating, setRoleUpdating] = useState<string | null>(null);
-  const [linkMemberId, setLinkMemberId] = useState('');
-  const [linkProfileId, setLinkProfileId] = useState('');
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [linking, setLinking] = useState(false);
-  const [linkOpen, setLinkOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteTargetMemberId, setInviteTargetMemberId] = useState<string>('new');
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -408,20 +403,11 @@ export default function Members() {
     return () => { active = false; };
   }, [user?.id]);
 
-  const linkProfile = async () => {
-    if (!linkMemberId || !linkProfileId || linking) return;
-    setLinking(true); setLinkError(null);
-    const { error } = await supabase.rpc('link_member_profile', { member_id_input: linkMemberId, profile_id_input: linkProfileId });
-    if (error) setLinkError(error.message);
-    else { setLinkMemberId(''); setLinkProfileId(''); }
-    setLinking(false);
-  };
-
   const toggleCoordinator = async (profileId: string, role: 'coordinator' | 'member') => {
     if (!canManageRoles || roleUpdating) return;
     setRoleUpdating(profileId);
     const { error } = await supabase.rpc('set_mess_role', { profile_id_input: profileId, role_input: role });
-    if (error) setLinkError(error.message);
+    if (error) console.error('Could not update member role:', error);
     else setProfiles((current) => current.map((profile) => profile.id === profileId ? { ...profile, role } : profile));
     setRoleUpdating(null);
   };
@@ -501,7 +487,6 @@ export default function Members() {
           <DropdownMenuContent align="end" className="min-w-52">
             <DropdownMenuItem onSelect={() => { setInviteError(null); setInviteOpen(true); }}><Send className="h-4 w-4" />Invite Member</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setIsAddOpen(true)}><Plus className="h-4 w-4" />Add Offline Member</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setLinkOpen(true)}><Link2 className="h-4 w-4" />Link Account</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => setInviteManagerOpen(true)}><Clipboard className="h-4 w-4" />Manage Invite Links</DropdownMenuItem>
           </DropdownMenuContent>
@@ -519,12 +504,6 @@ export default function Members() {
       </DialogContent></Dialog>
       <Dialog open={!!createdInvite} onOpenChange={(open) => !open && setCreatedInvite(null)}><DialogContent><DialogHeader><DialogTitle>Invite link ready</DialogTitle></DialogHeader>{createdInvite ? <div className="space-y-4"><div className="rounded-xl border bg-muted/40 p-4 text-sm"><p className="font-semibold">{createdInvite.target_member_name ? `For ${createdInvite.target_member_name}` : 'For a new member'}</p><p className="mt-1 text-muted-foreground">One use only · expires {inviteTime(createdInvite.expires_at)}</p><p className="mt-3 break-all rounded-md bg-background p-2 font-mono text-xs">{inviteUrl(createdInvite)}</p></div><div className="grid grid-cols-2 gap-2"><Button onClick={() => void copyInvite(createdInvite)}>{copiedInviteId === createdInvite.id ? <><Check className="h-4 w-4" />Copied</> : <><Copy className="h-4 w-4" />Copy link</>}</Button><Button variant="outline" onClick={() => void shareInvite(createdInvite)}><Send className="h-4 w-4" />Share</Button></div></div> : null}</DialogContent></Dialog>
       <Dialog open={inviteManagerOpen} onOpenChange={setInviteManagerOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Invite links</DialogTitle></DialogHeader><div className="space-y-3"><p className="text-sm text-muted-foreground">Links are one-time and expire after 7 days.</p>{inviteError ? <p className="text-sm text-destructive">{inviteError}</p> : null}{invitesLoading ? <p className="py-6 text-center text-sm text-muted-foreground">Loading invite links...</p> : invites.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No invite links yet.</p> : <div className="max-h-[55vh] space-y-2 overflow-y-auto">{invites.map((invite) => <div key={invite.id} className="rounded-xl border p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{invite.target_member_name ? `Link ${invite.target_member_name}` : 'New member invite'}</p><p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{invite.status === 'active' ? `Expires ${inviteTime(invite.expires_at)}` : `${invite.status[0].toUpperCase()}${invite.status.slice(1)}${invite.claimed_at ? ` ${inviteTime(invite.claimed_at)}` : ''}`}</p></div><span className={`rounded-full px-2 py-1 text-xs font-medium ${invite.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>{invite.status}</span></div>{invite.status === 'active' ? <div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => void copyInvite(invite)}>{copiedInviteId === invite.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copy</Button><Button size="sm" variant="outline" onClick={() => void shareInvite(invite)}><Send className="h-4 w-4" />Share</Button><Button size="sm" variant="ghost" className="ml-auto text-destructive" disabled={inviteActionId === invite.id} onClick={() => void revokeInvite(invite.id)}><Trash2 className="h-4 w-4" />Revoke</Button></div> : <Button size="sm" variant="ghost" className="mt-3" onClick={() => { setInviteManagerOpen(false); setInviteTargetMemberId(invite.target_member_id ?? 'new'); setInviteOpen(true); }}><RotateCcw className="h-4 w-4" />Create replacement</Button>}</div>)}</div>}</div></DialogContent></Dialog>
-      <Dialog open={linkOpen} onOpenChange={(open) => { setLinkOpen(open); if (!open) { setLinkError(null); setLinkMemberId(''); setLinkProfileId(''); } }}><DialogContent><DialogHeader><DialogTitle>Link a member account</DialogTitle></DialogHeader>
-        <div className="space-y-3"><Select value={linkMemberId} onValueChange={setLinkMemberId}><SelectTrigger><SelectValue placeholder="Choose an offline member" /></SelectTrigger><SelectContent>{members.filter((member) => !member.profileId).map((member) => <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>)}</SelectContent></Select>
-        <Select value={linkProfileId} onValueChange={setLinkProfileId}><SelectTrigger><SelectValue placeholder="Choose the joined user" /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={profile.id} value={profile.id}>{profile.full_name} ({profile.email})</SelectItem>)}</SelectContent></Select>
-        {linkError ? <p className="text-sm text-destructive">{linkError}</p> : null}<Button className="w-full" disabled={!linkMemberId || !linkProfileId || linking} onClick={() => void linkProfile()}>{linking ? 'Linking...' : 'Link account'}</Button></div>
-      </DialogContent></Dialog>
-
       {members.length === 0 ? (
         <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[350px] animate-in fade-in-50 duration-300">
           <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
