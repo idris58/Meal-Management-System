@@ -3,8 +3,6 @@ import {
   Pencil,
   X,
   Save,
-  Copy,
-  Check,
   RefreshCw,
   ChefHat,
   User,
@@ -36,7 +34,6 @@ function getInitials(name?: string | null, email?: string | null): string {
 type MessInfo = {
   id: string;
   name: string;
-  invite_code: string;
 };
 
 // ─── UserProfileCard ─────────────────────────────────────────────────────────
@@ -305,8 +302,6 @@ function MessInfoCard() {
   const [isEditing, setIsEditing] = useState(false);
   const [messName, setMessName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -317,7 +312,7 @@ function MessInfoCard() {
 
     void supabase
       .from('messes')
-      .select('id, name, invite_code')
+      .select('id, name')
       .eq('id', profile.mess_id)
       .maybeSingle()
       .then(({ data, error: fetchErr }) => {
@@ -364,44 +359,6 @@ function MessInfoCard() {
       setError(err instanceof Error ? err.message : 'Unable to update mess name.');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleGenerateCode = async () => {
-    if (!canManageMess || generating) return;
-    setGenerating(true);
-    setError(null);
-    setMessage(null);
-    try {
-      // Generate a new 6-char alphanumeric invite code on the client
-      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      const newCode = Array.from(crypto.getRandomValues(new Uint8Array(6)))
-        .map((b) => alphabet[b % alphabet.length])
-        .join('');
-
-      const { error: updateErr } = await supabase
-        .from('messes')
-        .update({ invite_code: newCode, updated_at: new Date().toISOString() })
-        .eq('id', profile!.mess_id!);
-
-      if (updateErr) throw updateErr;
-      setMess((prev) => (prev ? { ...prev, invite_code: newCode } : prev));
-      setMessage('New invite code generated.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to generate a new code.');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleCopyCode = async () => {
-    if (!mess?.invite_code) return;
-    try {
-      await navigator.clipboard.writeText(mess.invite_code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError('Could not copy to clipboard. Copy it manually.');
     }
   };
 
@@ -482,54 +439,6 @@ function MessInfoCard() {
               /* Read-only name row */
               <InfoRow icon={<ChefHat className="h-4 w-4" />} label="Mess Name" value={mess.name} />
             )}
-
-            {/* Invite code – always visible, copy + generate for managers */}
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium text-muted-foreground">Invite Code</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <code
-                  id="mess-invite-code"
-                  className="flex-1 rounded-lg border bg-secondary/40 px-4 py-2 font-mono text-lg font-bold tracking-[0.3em] text-primary"
-                >
-                  {mess.invite_code}
-                </code>
-                <Button
-                  id="mess-copy-code-btn"
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleCopyCode}
-                  title="Copy invite code"
-                >
-                  {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                </Button>
-
-                {/* Generate new code – only for managers */}
-                {isManager && (
-                  <Button
-                    id="mess-generate-code-btn"
-                    type="button"
-                    variant="outline"
-                    className="gap-2"
-                    onClick={handleGenerateCode}
-                    disabled={generating}
-                    title="Generate a new invite code (old one becomes invalid)"
-                  >
-                    {generating ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                    {generating ? 'Generating…' : 'New Code'}
-                  </Button>
-                )}
-              </div>
-              {isManager && (
-                <p className="text-xs text-muted-foreground">
-                  Generating a new code immediately invalidates the previous one.
-                </p>
-              )}
-            </div>
 
             {message && (
               <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
