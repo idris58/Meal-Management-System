@@ -209,23 +209,46 @@ type SharedPayload = ReturnType<typeof buildSharedPayload> & {
   activeNotice: ActiveNotice;
 };
 
-const shareEventClients = new Map<string, Set<Response>>();
+/**
+ * A share scope identifies whose data a public share view exposes. The app uses
+ * mess-based multi-tenancy: data rows are owned by a mess and may be written by
+ * any operator (manager OR coordinator), so reads MUST be scoped by mess_id.
+ * user_id is retained only as a fallback for legacy rows that were never
+ * migrated into a mess (mess_id is null).
+ */
+type Scope = { userId: string; messId: string | null };
 
-function addShareEventClient(userId: string, res: Response) {
-  const clients = shareEventClients.get(userId) ?? new Set<Response>();
-  clients.add(res);
-  shareEventClients.set(userId, clients);
+/** A stable key identifying a scope, used for the SSE client registry. */
+function scopeKey(scope: Scope): string {
+  return scope.messId ? `mess:${scope.messId}` : `user:${scope.userId}`;
 }
 
-function removeShareEventClient(userId: string, res: Response) {
-  const clients = shareEventClients.get(userId);
+/**
+ * The tenancy filter for a scope, as a [column, value] pair to spread into
+ * `.eq(...)`. Must be applied before any transform (.order/.limit/.maybeSingle),
+ * since .eq lives on the filter builder.
+ */
+function scopeFilter(scope: Scope): ["mess_id" | "user_id", string] {
+  return scope.messId ? ["mess_id", scope.messId] : ["user_id", scope.userId];
+}
+
+const shareEventClients = new Map<string, Set<Response>>();
+
+function addShareEventClient(key: string, res: Response) {
+  const clients = shareEventClients.get(key) ?? new Set<Response>();
+  clients.add(res);
+  shareEventClients.set(key, clients);
+}
+
+function removeShareEventClient(key: string, res: Response) {
+  const clients = shareEventClients.get(key);
   if (!clients) {
     return;
   }
 
   clients.delete(res);
   if (clients.size === 0) {
-    shareEventClients.delete(userId);
+    shareEventClients.delete(key);
   }
 }
 
@@ -234,8 +257,8 @@ function sendShareEvent(res: Response, event: string, payload: unknown) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-function broadcastNoticeUpdate(userId: string, activeNotice: ActiveNotice) {
-  const clients = shareEventClients.get(userId);
+function broadcastNoticeUpdate(key: string, activeNotice: ActiveNotice) {
+  const clients = shareEventClients.get(key);
   if (!clients) {
     return;
   }
@@ -245,8 +268,8 @@ function broadcastNoticeUpdate(userId: string, activeNotice: ActiveNotice) {
   }
 }
 
-function broadcastSharedPayload(userId: string, data: SharedPayload | null) {
-  const clients = shareEventClients.get(userId);
+function broadcastSharedPayload(key: string, data: SharedPayload | null) {
+  const clients = shareEventClients.get(key);
   if (!clients) {
     return;
   }
@@ -256,14 +279,14 @@ function broadcastSharedPayload(userId: string, data: SharedPayload | null) {
   }
 }
 
-async function getActiveNoticeForUser(userId: string): Promise<ActiveNotice> {
+async function getActiveNoticeForScope(scope: Scope): Promise<ActiveNotice> {
   const supabaseAdmin = assertSupabaseAdmin();
   const now = new Date().toISOString();
 
   const { error: cleanupError } = await supabaseAdmin
     .from("notices")
     .delete()
-    .eq("user_id", userId)
+    .eq(...scopeFilter(scope))
     .lte("expires_at", now);
 
   if (cleanupError) {
@@ -273,7 +296,7 @@ async function getActiveNoticeForUser(userId: string): Promise<ActiveNotice> {
   const { data, error } = await supabaseAdmin
     .from("notices")
     .select("id, title, content, expires_at")
-    .eq("user_id", userId)
+    .eq(...scopeFilter(scope))
     .gt("expires_at", now)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -295,13 +318,13 @@ async function getActiveNoticeForUser(userId: string): Promise<ActiveNotice> {
     : null;
 }
 
-async function getSharedPayloadForUser(userId: string): Promise<SharedPayload | null> {
+async function getSharedPayloadForScope(scope: Scope): Promise<SharedPayload | null> {
   const supabaseAdmin = assertSupabaseAdmin();
 
   const { data: cycle, error: cycleError } = await supabaseAdmin
     .from("cycles")
     .select("id, name, status, started_at, closed_at, members_snapshot")
-    .eq("user_id", userId)
+    .eq(...scopeFilter(scope))
     .is("deleted_at", null)
     .in("status", ["pending", "active"])
     .order("closed_at", { ascending: false, nullsFirst: false })
@@ -322,29 +345,29 @@ async function getSharedPayloadForUser(userId: string): Promise<SharedPayload | 
       supabaseAdmin
         .from("members")
         .select("id, name, avatar")
-        .eq("user_id", userId)
+        .eq(...scopeFilter(scope))
         .is("deleted_at", null)
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("cycle_deposits")
         .select("id, cycle_id, member_id, amount")
-        .eq("user_id", userId)
+        .eq(...scopeFilter(scope))
         .eq("cycle_id", cycle.id)
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("expenses")
         .select("id, cycle_id, amount, description, type, date, paid_by")
-        .eq("user_id", userId)
+        .eq(...scopeFilter(scope))
         .eq("cycle_id", cycle.id)
         .is("deleted_at", null)
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("meal_logs")
         .select("id, cycle_id, date, member_id, count")
-        .eq("user_id", userId)
+        .eq(...scopeFilter(scope))
         .eq("cycle_id", cycle.id)
         .order("date", { ascending: false }),
-      getActiveNoticeForUser(userId),
+      getActiveNoticeForScope(scope),
     ]);
 
   if (membersResult.error) {
@@ -390,6 +413,31 @@ async function getAuthenticatedUserId(authHeader: string | undefined): Promise<s
   }
 
   return data.user.id;
+}
+
+/**
+ * Resolve the tenancy scope for an authenticated user from their profile. The
+ * mess_id — not user_id — determines which data a share view exposes, because
+ * coordinators (not just the manager) write rows under the shared mess.
+ */
+async function resolveScopeForUserId(userId: string): Promise<Scope> {
+  const supabaseAdmin = assertSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("mess_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error resolving mess scope for user:", error);
+  }
+
+  return { userId, messId: (data?.mess_id as string | null) ?? null };
+}
+
+/** Resolve the tenancy scope a share link points at. */
+function scopeFromShareLink(shareLink: { user_id: string; mess_id?: string | null }): Scope {
+  return { userId: shareLink.user_id, messId: shareLink.mess_id ?? null };
 }
 
 export async function registerRoutes(
@@ -608,7 +656,7 @@ export async function registerRoutes(
 
     const { data: shareLink, error: shareLinkError } = await supabaseAdmin
       .from("share_links")
-      .select("user_id, is_enabled")
+      .select("user_id, is_enabled, mess_id")
       .eq("token", token)
       .maybeSingle();
 
@@ -627,7 +675,11 @@ export async function registerRoutes(
       "X-Accel-Buffering": "no",
     });
 
-    addShareEventClient(shareLink.user_id, res);
+    // Register under the mess scope so updates from ANY operator in the mess
+    // (manager or coordinator) reach this viewer.
+    const eventKey = scopeKey(scopeFromShareLink(shareLink));
+
+    addShareEventClient(eventKey, res);
     sendShareEvent(res, "connected", { ok: true });
 
     const heartbeatId = setInterval(() => {
@@ -636,7 +688,7 @@ export async function registerRoutes(
 
     req.on("close", () => {
       clearInterval(heartbeatId);
-      removeShareEventClient(shareLink.user_id, res);
+      removeShareEventClient(eventKey, res);
       res.end();
     });
   }));
@@ -648,8 +700,9 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Invalid authorization token." });
     }
 
-    const activeNotice = await getActiveNoticeForUser(userId);
-    broadcastNoticeUpdate(userId, activeNotice);
+    const scope = await resolveScopeForUserId(userId);
+    const activeNotice = await getActiveNoticeForScope(scope);
+    broadcastNoticeUpdate(scopeKey(scope), activeNotice);
     void sendNoticePushToSharedSubscribers(userId, activeNotice);
 
     return res.json({ activeNotice });
@@ -662,8 +715,9 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Invalid authorization token." });
     }
 
-    const data = await getSharedPayloadForUser(userId);
-    broadcastSharedPayload(userId, data);
+    const scope = await resolveScopeForUserId(userId);
+    const data = await getSharedPayloadForScope(scope);
+    broadcastSharedPayload(scopeKey(scope), data);
 
     return res.json({ data });
   }));
@@ -679,7 +733,7 @@ export async function registerRoutes(
 
     const { data: shareLink, error: shareLinkError } = await supabaseAdmin
       .from("share_links")
-      .select("user_id, is_enabled")
+      .select("user_id, is_enabled, mess_id")
       .eq("token", token)
       .maybeSingle();
 
@@ -695,7 +749,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Sharing is currently disabled for this Meal Code. Ask the manager to enable sharing again." });
     }
 
-    const data = await getSharedPayloadForUser(shareLink.user_id);
+    const data = await getSharedPayloadForScope(scopeFromShareLink(shareLink));
 
     if (!data) {
       return res.status(404).json({ message: "No active or pending cycle is available for this shared view yet." });

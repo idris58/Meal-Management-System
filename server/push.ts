@@ -25,6 +25,7 @@ type PushSubscriptionRow = {
 type ActiveCycleRow = {
   id: string;
   user_id: string;
+  mess_id: string | null;
 };
 
 const DEFAULT_TIMEZONE = "Asia/Dhaka";
@@ -355,7 +356,7 @@ export async function sendMealLogReminders() {
 
   const { data: activeCycles, error: cyclesError } = await supabase
     .from("cycles")
-    .select("id, user_id")
+    .select("id, user_id, mess_id")
     .eq("status", "active");
 
   if (cyclesError) {
@@ -380,12 +381,20 @@ export async function sendMealLogReminders() {
       continue;
     }
 
-    const { data: mealLog, error: mealLogError } = await supabase
+    // Scope by mess, not user: a coordinator may have logged today's meals, and
+    // those rows carry the coordinator's user_id. Falling back to user_id only
+    // covers legacy rows that were never migrated into a mess.
+    let mealLogQuery = supabase
       .from("meal_logs")
       .select("id")
-      .eq("user_id", cycle.user_id)
       .eq("cycle_id", cycle.id)
-      .eq("date", today)
+      .eq("date", today);
+
+    mealLogQuery = cycle.mess_id
+      ? mealLogQuery.eq("mess_id", cycle.mess_id)
+      : mealLogQuery.eq("user_id", cycle.user_id);
+
+    const { data: mealLog, error: mealLogError } = await mealLogQuery
       .limit(1)
       .maybeSingle();
 
