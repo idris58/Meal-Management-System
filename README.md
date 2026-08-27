@@ -75,71 +75,20 @@ Notes:
 
 ## Supabase Setup
 
-Run these SQL files in Supabase SQL Editor.
-
-### 1. Core app tables
-
-Run:
+Run these files in numeric order in the Supabase SQL Editor:
 
 ```text
-supabase/1_base_tables.sql
+supabase/01_tables.sql
+supabase/02_indexes.sql
+supabase/03_functions.sql
+supabase/04_triggers.sql
+supabase/05_backfill.sql
+supabase/06_rls_policies.sql
 ```
 
-This creates:
-
-- `members`
-- `expenses`
-- `meal_logs`
-
-It also adds:
-
-- `user_id` ownership
-- RLS policies for the core app tables
-- required indexes and defaults
-
-### 2. Share link setup
-
-Run:
-
-```text
-supabase/2_share_links.sql
-```
-
-This creates the `share_links` table and RLS needed for public read-only sharing.
-
-### 3. Cycle status workflow setup
-
-Run:
-
-```text
-supabase/3_cycles.sql
-```
-
-This script:
-
-- creates `cycles`
-- creates `cycle_deposits`
-- adds `cycle_id` to `expenses` and `meal_logs`
-- adds RLS for the new tables
-- creates an initial active cycle per user if needed
-- backfills existing `expenses` and `meal_logs` rows into the active cycle
-
-### 4. Changelog setup
-
-Run:
-
-```text
-supabase/4_changelog_entries.sql
-```
-
-This creates:
-
-- `changelog_entries`
-
-It also adds:
-
-- owner-only RLS for changelog rows
-- indexes for cycle-scoped activity queries
+The sequence contains the complete consolidated schema, indexes, RPCs and
+triggers, legacy-data backfill, and final RLS/RBAC policies. It is safe to run
+against a fresh database and is designed to be repeatable.
 
 
 ## Auth Configuration
