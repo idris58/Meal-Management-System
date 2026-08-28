@@ -9,7 +9,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Check, ChevronDown, Clipboard, Clock3, Copy, GripVertical, Link2, Link2Off, Plus, RotateCcw, Send, ShieldCheck, Trash2, Wallet, Users } from 'lucide-react';
+import { Check, ChevronDown, Clipboard, Clock3, Copy, GripVertical, Link2, Link2Off, Plus, RotateCcw, Send, ShieldCheck, Trash2, Wallet, Users, Play } from 'lucide-react';
+import { Link } from 'wouter';
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -329,7 +330,7 @@ function SortableMemberCard({ member, stats, deletingMemberId, onDeposit, onDele
 }
 
 export default function Members() {
-  const { members, removeMember, restoreMember, reorderMembers, getMemberStats } = useMeal();
+  const { members, removeMember, restoreMember, reorderMembers, getMemberStats, activeCycle } = useMeal();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [depositMemberId, setDepositMemberId] = useState<string | null>(null);
@@ -483,7 +484,7 @@ export default function Members() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="min-w-0 text-2xl font-bold font-heading">Members</h1>
         {canManageMembers ? <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button className="shrink-0 gap-1.5 whitespace-nowrap"><Plus className="h-4 w-4" />Add / Link Member<ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><Button disabled={!activeCycle} className="shrink-0 gap-1.5 whitespace-nowrap"><Plus className="h-4 w-4" />Add / Link Member<ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-52">
             <DropdownMenuItem onSelect={() => { setInviteError(null); setInviteOpen(true); }}><Send className="h-4 w-4" />Invite Member</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setIsAddOpen(true)}><Plus className="h-4 w-4" />Add Offline Member</DropdownMenuItem>
@@ -504,7 +505,23 @@ export default function Members() {
       </DialogContent></Dialog>
       <Dialog open={!!createdInvite} onOpenChange={(open) => !open && setCreatedInvite(null)}><DialogContent><DialogHeader><DialogTitle>Invite link ready</DialogTitle></DialogHeader>{createdInvite ? <div className="space-y-4"><div className="rounded-xl border bg-muted/40 p-4 text-sm"><p className="font-semibold">{createdInvite.target_member_name ? `For ${createdInvite.target_member_name}` : 'For a new member'}</p><p className="mt-1 text-muted-foreground">One use only · expires {inviteTime(createdInvite.expires_at)}</p><p className="mt-3 break-all rounded-md bg-background p-2 font-mono text-xs">{inviteUrl(createdInvite)}</p></div><div className="grid grid-cols-2 gap-2"><Button onClick={() => void copyInvite(createdInvite)}>{copiedInviteId === createdInvite.id ? <><Check className="h-4 w-4" />Copied</> : <><Copy className="h-4 w-4" />Copy link</>}</Button><Button variant="outline" onClick={() => void shareInvite(createdInvite)}><Send className="h-4 w-4" />Share</Button></div></div> : null}</DialogContent></Dialog>
       <Dialog open={inviteManagerOpen} onOpenChange={setInviteManagerOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Invite links</DialogTitle></DialogHeader><div className="space-y-3"><p className="text-sm text-muted-foreground">Links are one-time and expire after 7 days.</p>{inviteError ? <p className="text-sm text-destructive">{inviteError}</p> : null}{invitesLoading ? <p className="py-6 text-center text-sm text-muted-foreground">Loading invite links...</p> : invites.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No invite links yet.</p> : <div className="max-h-[55vh] space-y-2 overflow-y-auto">{invites.map((invite) => <div key={invite.id} className="rounded-xl border p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{invite.target_member_name ? `Link ${invite.target_member_name}` : 'New member invite'}</p><p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{invite.status === 'active' ? `Expires ${inviteTime(invite.expires_at)}` : `${invite.status[0].toUpperCase()}${invite.status.slice(1)}${invite.claimed_at ? ` ${inviteTime(invite.claimed_at)}` : ''}`}</p></div><span className={`rounded-full px-2 py-1 text-xs font-medium ${invite.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>{invite.status}</span></div>{invite.status === 'active' ? <div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => void copyInvite(invite)}>{copiedInviteId === invite.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copy</Button><Button size="sm" variant="outline" onClick={() => void shareInvite(invite)}><Send className="h-4 w-4" />Share</Button><Button size="sm" variant="ghost" className="ml-auto text-destructive" disabled={inviteActionId === invite.id} onClick={() => void revokeInvite(invite.id)}><Trash2 className="h-4 w-4" />Revoke</Button></div> : <Button size="sm" variant="ghost" className="mt-3" onClick={() => { setInviteManagerOpen(false); setInviteTargetMemberId(invite.target_member_id ?? 'new'); setInviteOpen(true); }}><RotateCcw className="h-4 w-4" />Create replacement</Button>}</div>)}</div>}</div></DialogContent></Dialog>
-      {members.length === 0 ? (
+      {!activeCycle ? (
+        <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[350px] animate-in fade-in-50 duration-300">
+          <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
+            <Play className="h-10 w-10 text-primary animate-pulse" />
+          </div>
+          <h3 className="font-heading text-lg font-bold text-foreground">No Active Cycle</h3>
+          <p className="text-muted-foreground text-sm max-w-sm mt-2 mb-6 leading-relaxed">
+            You must start an active cycle before managing members.
+          </p>
+          <Link href="/app/settings">
+            <Button className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform bg-primary hover:bg-primary/95 text-primary-foreground font-semibold">
+              <Plus className="h-4 w-4" />
+              Start New Cycle
+            </Button>
+          </Link>
+        </Card>
+      ) : members.length === 0 ? (
         <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[350px] animate-in fade-in-50 duration-300">
           <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
             <Users className="h-10 w-10 text-primary animate-pulse" />

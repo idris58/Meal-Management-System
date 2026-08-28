@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'wouter';
 import { useMeal, Expense } from '@/lib/meal-context';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
@@ -342,29 +343,8 @@ export default function Expenses() {
         ) : null}
       </div>
 
-      {/* ── No Active Cycle Banner ── */}
-      {!activeCycle && (
-        <div className="flex items-center gap-4 rounded-xl border border-dashed bg-card p-4 shadow-sm">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <Play className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold">No Active Cycle</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Start a new cycle in Settings before adding expenses.
-            </p>
-          </div>
-          <Button asChild size="sm" variant="outline" className="shrink-0 gap-1.5">
-            <a href="/app/settings">
-              <Settings2 className="h-3.5 w-3.5" />
-              Settings
-            </a>
-          </Button>
-        </div>
-      )}
-
       {/* ── KPI Summary Cards ── */}
-      {allExpenses.length > 0 && (
+      {activeCycle && allExpenses.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {/* Card 1: Total Expenses */}
           <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:gap-4 sm:p-5">
@@ -399,40 +379,58 @@ export default function Expenses() {
       )}
 
       {/* ── Controls Row: Search + Tab Filter ── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        {/* Search — full width on mobile, 50% width on tablet/desktop */}
-        <div className="relative w-full sm:w-1/2">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search expenses..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+      {activeCycle && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          {/* Search — full width on mobile, 50% width on tablet/desktop */}
+          <div className="relative w-full sm:w-1/2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search expenses..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
 
-        {/* Tab Buttons — full width on mobile, 50% width on tablet/desktop */}
-        <div className="flex w-full rounded-lg border bg-muted p-0.5 sm:w-1/2">
-          {(['all', 'meal', 'fixed'] as TabFilter[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={cn(
-                'flex-1 rounded-md py-1.5 text-xs font-semibold transition-all sm:text-sm',
-                tab === t
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {tabLabels[t]}
-            </button>
-          ))}
+          {/* Tab Buttons — full width on mobile, 50% width on tablet/desktop */}
+          <div className="flex w-full rounded-lg border bg-muted p-0.5 sm:w-1/2">
+            {(['all', 'meal', 'fixed'] as TabFilter[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={cn(
+                  'flex-1 rounded-md py-1.5 text-xs font-semibold transition-all sm:text-sm',
+                  tab === t
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tabLabels[t]}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Expense Feed ── */}
-      {allExpenses.length === 0 ? (
+      {!activeCycle ? (
+        <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[350px] animate-in fade-in-50 duration-300">
+          <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
+            <Play className="h-10 w-10 text-primary animate-pulse" />
+          </div>
+          <h3 className="font-heading text-lg font-bold text-foreground">No Active Cycle</h3>
+          <p className="text-muted-foreground text-sm max-w-sm mt-2 mb-6 leading-relaxed">
+            You must start an active cycle before adding expenses.
+          </p>
+          <Link href="/app/settings">
+            <Button className="gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform bg-primary hover:bg-primary/95 text-primary-foreground font-semibold">
+              <Plus className="h-4 w-4" />
+              Start New Cycle
+            </Button>
+          </Link>
+        </Card>
+      ) : allExpenses.length === 0 ? (
         <Card className="border-dashed border-2 flex flex-col items-center justify-center p-8 text-center bg-card/50 backdrop-blur-sm min-h-[300px] animate-in fade-in-50 duration-300">
           <div className="rounded-full bg-gradient-to-br from-primary/10 to-primary/5 p-4 mb-4 ring-8 ring-primary/5 text-primary">
             <ShoppingBag className="h-10 w-10 text-primary animate-pulse" />
