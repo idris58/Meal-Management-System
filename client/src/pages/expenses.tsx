@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ShoppingBag, Zap, ChartPie, Plus, Pencil, DollarSign, Search } from 'lucide-react';
+import { ShoppingBag, Zap, ChartPie, Plus, Pencil, DollarSign, Search, Play, Settings2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -256,7 +256,7 @@ function ExpenseEditor({
 type TabFilter = 'all' | 'meal' | 'fixed';
 
 export default function Expenses() {
-  const { expenses, restoreExpense } = useMeal();
+  const { expenses, restoreExpense, activeCycle } = useMeal();
   const { canManageExpenses } = useAuth();
   const [openExpense, setOpenExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -329,7 +329,7 @@ export default function Expenses() {
         {canManageExpenses ? (
           <Dialog open={openExpense} onOpenChange={setOpenExpense}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2" disabled={!activeCycle}>
                 <Plus className="h-4 w-4" />
                 Add Expense
               </Button>
@@ -341,6 +341,27 @@ export default function Expenses() {
           </Dialog>
         ) : null}
       </div>
+
+      {/* ── No Active Cycle Banner ── */}
+      {!activeCycle && (
+        <div className="flex items-center gap-4 rounded-xl border border-dashed bg-card p-4 shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Play className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">No Active Cycle</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Start a new cycle in Settings before adding expenses.
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="shrink-0 gap-1.5">
+            <a href="/app/settings">
+              <Settings2 className="h-3.5 w-3.5" />
+              Settings
+            </a>
+          </Button>
+        </div>
+      )}
 
       {/* ── KPI Summary Cards ── */}
       {allExpenses.length > 0 && (

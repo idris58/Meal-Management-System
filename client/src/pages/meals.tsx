@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Plus, Minus, Utensils, UtensilsCrossed, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { Plus, Minus, Utensils, UtensilsCrossed, Calendar as CalendarIcon, Users, Play, Settings2 } from 'lucide-react';
 import { format, eachDayOfInterval, isSameDay, parseISO, min, max, startOfDay } from 'date-fns';
 import { Link } from 'wouter';
 import { cn } from "@/lib/utils";
@@ -144,7 +144,7 @@ function QuickLogMeal({
 }
 
 export default function Meals() {
-  const { members, mealLogs } = useMeal();
+  const { members, mealLogs, activeCycle } = useMeal();
   const { canOperateMeals } = useAuth();
   const [openMeal, setOpenMeal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -209,7 +209,7 @@ export default function Meals() {
               <Button
                 className="gap-2"
                 onClick={() => setSelectedDate(undefined)}
-                disabled={members.length === 0}
+                disabled={members.length === 0 || !activeCycle}
               >
                 <Utensils className="h-4 w-4" />
                 Log Meals
@@ -232,6 +232,27 @@ export default function Meals() {
           </Dialog>
         ) : null}
       </div>
+
+      {/* ── No Active Cycle Banner ── */}
+      {!activeCycle && (
+        <div className="flex items-center gap-4 rounded-xl border border-dashed bg-card p-4 shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Play className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">No Active Cycle</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Start a new cycle in Settings before logging meals.
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="shrink-0 gap-1.5">
+            <a href="/app/settings">
+              <Settings2 className="h-3.5 w-3.5" />
+              Settings
+            </a>
+          </Button>
+        </div>
+      )}
 
       {members.length > 0 && mealLogs.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
