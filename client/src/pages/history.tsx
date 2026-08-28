@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
-import { Archive, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Wallet, Zap, CheckCircle2, Loader2, AlertCircle, Lock } from 'lucide-react';
+import { Archive, Check, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Utensils, Wallet, Zap, CheckCircle2, Loader2, AlertCircle, Lock } from 'lucide-react';
 import { Link } from 'wouter';
 
 import { useMeal, type Cycle, type CycleDetails, type Expense } from '@/lib/meal-context';
@@ -538,16 +538,18 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-          <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
-          <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
-          <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
+          <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} icon={Wallet} iconClass="text-emerald-600" iconBgClass="bg-emerald-500/10" />
+          <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} icon={ShoppingBag} iconClass="text-indigo-600" iconBgClass="bg-indigo-500/10" />
+          <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} icon={Zap} iconClass="text-amber-600" iconBgClass="bg-amber-500/10" />
           <StatCard
             title="Remaining Balance"
             value={`${remainingBalance >= 0 ? '' : '-'}${formatCurrency(Math.abs(remainingBalance))}`}
-            tone={remainingBalance >= 0 ? 'positive' : 'negative'}
+            icon={CheckCircle2}
+            iconClass={remainingBalance >= 0 ? 'text-emerald-600' : 'text-red-600'}
+            iconBgClass={remainingBalance >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}
           />
-          <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
+          <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} icon={Utensils} iconClass="text-teal-600" iconBgClass="bg-teal-500/10" />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 border-y py-4">
@@ -921,7 +923,7 @@ function ClosedCycleCard({
   };
 
   return (
-    <AccordionItem value={cycle.id} className="rounded-lg border bg-card px-4">
+    <AccordionItem value={cycle.id} className="rounded-xl border bg-card px-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-4 py-4">
         <AccordionPrimitive.Header className="min-w-0 flex-1">
           <AccordionPrimitive.Trigger className="flex w-full items-center text-left text-sm font-medium transition-all hover:no-underline">
@@ -934,7 +936,10 @@ function ClosedCycleCard({
           </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>
         <div className="flex shrink-0 items-center gap-2">
-          <Badge variant="secondary">Closed</Badge>
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
+            <Check className="h-3 w-3" />
+            Closed
+          </span>
           {isExpanded && canManageCycles ? (
             <>
               <AlertDialog>
@@ -1017,34 +1022,104 @@ function ClosedCycleCard({
           </div>
         ) : details ? (
           <>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
-              <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
-              <StatCard title="Fixed Expense" value={formatCurrency(details.stats.totalFixedExpenses)} />
-              <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
+            {/* ── KPI Metric Tiles ── */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <StatCard
+                title="Total Deposits"
+                value={formatCurrency(details.stats.totalDeposits)}
+                icon={Wallet}
+                iconClass="text-emerald-600"
+                iconBgClass="bg-emerald-500/10"
+              />
+              <StatCard
+                title="Meal Expense"
+                value={formatCurrency(details.stats.totalMealExpenses)}
+                icon={ShoppingBag}
+                iconClass="text-indigo-600"
+                iconBgClass="bg-indigo-500/10"
+              />
+              <StatCard
+                title="Fixed Expense"
+                value={formatCurrency(details.stats.totalFixedExpenses)}
+                icon={Zap}
+                iconClass="text-amber-600"
+                iconBgClass="bg-amber-500/10"
+              />
+              <StatCard
+                title="Meal Rate"
+                value={formatCurrency(details.stats.currentMealRate)}
+                icon={Utensils}
+                iconClass="text-teal-600"
+                iconBgClass="bg-teal-500/10"
+              />
             </div>
-            <div className="overflow-hidden rounded-lg border">
+
+            {/* ── Member Settlement Table ── */}
+            <div className="overflow-hidden rounded-xl border bg-card">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead className="text-center">Meals</TableHead>
-                    <TableHead className="text-center">Deposit</TableHead>
-                    <TableHead className="text-right">Final Balance</TableHead>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="font-bold">Member</TableHead>
+                    <TableHead className="text-center font-bold">Meals</TableHead>
+                    <TableHead className="text-center font-bold">Deposit</TableHead>
+                    <TableHead className="text-right font-bold">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {details.members.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium">{member.name}</TableCell>
-                      <TableCell className="text-center">{formatMealCount(member.mealsEaten)}</TableCell>
-                      <TableCell className="text-center">{formatCurrency(member.deposit)}</TableCell>
-                      <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                        {formatBalance(member.balance)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {details.members.map((member) => {
+                    const isSettled = Math.abs(member.balance) <= 1;
+                    const isDue = member.balance < -1;
+                    const isRefund = member.balance > 1;
+                    return (
+                      <TableRow key={member.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="h-8 w-8 shrink-0">
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                                {member.name.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{member.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center text-sm">{formatMealCount(member.mealsEaten)}</TableCell>
+                        <TableCell className="text-center text-sm">{formatCurrency(member.deposit)}</TableCell>
+                        <TableCell className="text-right">
+                          {isSettled ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
+                              <Check className="h-3 w-3" />
+                              Settled
+                            </span>
+                          ) : isDue ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-0.5 text-xs font-semibold text-red-600">
+                              Due: {formatCurrency(Math.abs(member.balance))}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/20 bg-sky-500/10 px-2.5 py-0.5 text-xs font-semibold text-sky-600">
+                              Refund: {formatCurrency(Math.abs(member.balance))}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
+                {/* Summary Footer */}
+                <tfoot>
+                  <tr className="border-t-2 bg-muted/40">
+                    <td className="p-3 text-xs font-bold uppercase tracking-wide text-muted-foreground" colSpan={2}>
+                      {details.members.length} Members
+                    </td>
+                    <td className="p-3 text-center text-sm font-bold">
+                      {formatCurrency(details.stats.totalDeposits)}
+                    </td>
+                    <td className="p-3 text-right">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {formatMealCount(details.stats.totalMealsConsumed)} meals total
+                      </span>
+                    </td>
+                  </tr>
+                </tfoot>
               </Table>
             </div>
           </>
@@ -1057,37 +1132,25 @@ function ClosedCycleCard({
 function StatCard({
   title,
   value,
-  tone = 'default',
+  icon: Icon,
+  iconClass,
+  iconBgClass,
 }: {
   title: string;
   value: string;
-  tone?: 'default' | 'positive' | 'negative';
+  icon: React.ElementType;
+  iconClass: string;
+  iconBgClass: string;
 }) {
   return (
-    <div
-      className={cn(
-        'rounded-lg bg-secondary/30 p-3',
-      )}
-    >
-      <p
-        className={cn(
-          'text-xs uppercase',
-          tone === 'default' && 'text-muted-foreground',
-          tone === 'positive' && 'text-emerald-700',
-          tone === 'negative' && 'text-red-700',
-        )}
-      >
-        {title}
-      </p>
-      <p
-        className={cn(
-          'font-bold',
-          tone === 'positive' && 'text-emerald-700',
-          tone === 'negative' && 'text-red-700',
-        )}
-      >
-        {value}
-      </p>
+    <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+      <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', iconBgClass)}>
+        <Icon className={cn('h-5 w-5', iconClass)} />
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
+        <p className="mt-0.5 font-heading text-lg font-bold leading-none">{value}</p>
+      </div>
     </div>
   );
 }
