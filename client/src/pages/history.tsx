@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
-import { Archive, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Wallet, Zap } from 'lucide-react';
+import { Archive, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Wallet, Zap, CheckCircle2, Loader2, AlertCircle, Lock } from 'lucide-react';
 import { Link } from 'wouter';
 
 import { useMeal, type Cycle, type CycleDetails, type Expense } from '@/lib/meal-context';
@@ -53,17 +53,23 @@ function SettlementForm({
   cycleId,
   memberId,
   memberName,
+  currentBalance,
   onClose,
 }: {
   cycleId: string;
   memberId: string;
   memberName: string;
+  currentBalance: number;
   onClose: () => void;
 }) {
   const { addDeposit } = useMeal();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fillExactAmount = () => {
+    setAmount(String(-currentBalance));
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -82,20 +88,47 @@ function SettlementForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-      <p className="text-sm text-muted-foreground">
-        Positive amount means this member paid money to the meal. Negative amount means the manager returned money to this member.
-      </p>
+    <form onSubmit={handleSubmit} className="space-y-5 pt-4">
+      <div className="rounded-lg bg-secondary/30 p-3.5 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground font-medium">Current Balance</span>
+          <span className={cn('text-lg font-bold', currentBalance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+            {formatBalance(currentBalance)}
+          </span>
+        </div>
+        <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+          {currentBalance < 0
+            ? `${memberName} owes the manager ${formatCurrency(Math.abs(currentBalance))}.`
+            : currentBalance > 0
+            ? `The manager owes ${memberName} ${formatCurrency(Math.abs(currentBalance))}.`
+            : `${memberName} is fully settled.`}
+        </p>
+      </div>
+
       <div className="space-y-2">
-        <label className="text-sm font-medium">Amount</label>
-        <Input type="number" placeholder="e.g. 300 or -300" value={amount} onChange={(event) => setAmount(event.target.value)} autoFocus disabled={isSubmitting} />
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium">Installment Amount</label>
+          {currentBalance !== 0 && (
+            <button
+              type="button"
+              onClick={fillExactAmount}
+              className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20"
+            >
+              Fill Full Amount
+            </button>
+          )}
+        </div>
+        <Input type="number" step="0.01" placeholder="e.g. 300 or -300" value={amount} onChange={(event) => setAmount(event.target.value)} autoFocus disabled={isSubmitting} />
+        <p className="text-[11px] text-muted-foreground">
+          Enter a positive number if the member pays you. Enter a negative number if you refund the member.
+        </p>
       </div>
       <div className="space-y-2">
-        <label className="text-sm font-medium">Note</label>
-        <Input placeholder={`Settlement for ${memberName}`} value={note} onChange={(event) => setNote(event.target.value)} disabled={isSubmitting} />
+        <label className="text-sm font-medium">Note (Optional)</label>
+        <Input placeholder="e.g. 1st installment" value={note} onChange={(event) => setNote(event.target.value)} disabled={isSubmitting} />
       </div>
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? 'Saving...' : 'Save Settlement'}
+      <Button type="submit" className="w-full" disabled={isSubmitting || !amount}>
+        {isSubmitting ? 'Saving...' : 'Save Installment'}
       </Button>
     </form>
   );
@@ -351,7 +384,7 @@ function PendingMealEditor({
 
 function PendingCycleCard({ details }: { details: CycleDetails }) {
   const { markCycleClosed, restoreExpense } = useMeal();
-  const [depositMember, setDepositMember] = useState<{ id: string; name: string } | null>(null);
+  const [depositMember, setDepositMember] = useState<{ id: string; name: string; balance: number } | null>(null);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
@@ -403,7 +436,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
   }, [details]);
 
   const handleMarkClosed = async () => {
-    if (isMarkingClosed) return;
+    if (isMarkingClosed || !isSettlementMatched) return;
     setIsMarkingClosed(true);
 
     try {
@@ -473,19 +506,38 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
     </div>
   );
   return (
-    <AccordionItem value={details.cycle.id} className="rounded-lg border bg-card px-4">
-      <AccordionTrigger className="hover:no-underline py-4">
+    <AccordionItem value={details.cycle.id} className="rounded-2xl border bg-card shadow-sm">
+      <AccordionTrigger className="hover:no-underline py-4 px-5">
         <div className="flex flex-1 items-center justify-between gap-4">
           <div className="text-left">
-            <p className="font-bold">{details.cycle.name}</p>
+            <p className="font-bold text-lg">{details.cycle.name}</p>
             <p className="text-sm text-muted-foreground">
-              Closed: {format(new Date(details.cycle.closedAt || details.cycle.startedAt), 'PPP')} • {details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals • Settlement still editable
+              Closed: {format(new Date(details.cycle.closedAt || details.cycle.startedAt), 'PPP')} • {details.members.length} Members • {formatMealCount(details.stats.totalMealsConsumed)} Meals
             </p>
           </div>
-          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Pending</Badge>
+          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 border-none shrink-0 rounded-full px-3 py-1">Pending Settlement</Badge>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="space-y-6 pb-6">
+      <AccordionContent className="space-y-8 px-5 pb-6">
+        
+        {/* Visual Cycle Stepper */}
+        <div className="flex items-center justify-center gap-3 py-2 text-xs font-semibold uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-4 w-4" />
+            <span>Active</span>
+          </div>
+          <div className="h-0.5 w-8 rounded-full bg-border" />
+          <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Pending Settlement</span>
+          </div>
+          <div className="h-0.5 w-8 rounded-full bg-border" />
+          <div className="flex items-center gap-1.5 text-muted-foreground opacity-50">
+            <Lock className="h-4 w-4" />
+            <span>Closed</span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
           <StatCard title="Total Deposits" value={formatCurrency(details.stats.totalDeposits)} />
           <StatCard title="Meal Expense" value={formatCurrency(details.stats.totalMealExpenses)} />
@@ -498,132 +550,169 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
           <StatCard title="Meal Rate" value={formatCurrency(details.stats.currentMealRate)} />
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button className="gap-2" onClick={() => { setEditingExpense(null); setExpenseDialogOpen(true); }}>
-            <Plus className="h-4 w-4" />
-            Add Expense Correction
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => { setMealDate(undefined); setMealDialogOpen(true); }}>
-            <Plus className="h-4 w-4" />
-            Add Meal Correction
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-y py-4">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => { setEditingExpense(null); setExpenseDialogOpen(true); }}>
+              <Plus className="h-4 w-4" />
+              Add Expense Correction
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => { setMealDate(undefined); setMealDialogOpen(true); }}>
+              <Plus className="h-4 w-4" />
+              Add Meal Correction
+            </Button>
+          </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={isMarkingClosed}>
-                {isMarkingClosed ? 'Closing...' : 'Mark Cycle Closed'}
+              <Button
+                variant={isSettlementMatched ? "default" : "secondary"}
+                className={cn("gap-2 shadow-sm transition-all", isSettlementMatched ? "bg-indigo-600 text-white hover:bg-indigo-700 hover:-translate-y-0.5" : "text-muted-foreground")}
+                disabled={isMarkingClosed || !isSettlementMatched}
+                title={!isSettlementMatched ? 'Cannot lock cycle until settlement math matches' : undefined}
+              >
+                {!isSettlementMatched ? <AlertCircle className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                {isMarkingClosed ? 'Locking...' : 'Lock & Archive Cycle'}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Lock this pending cycle?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  After this, the cycle will become read-only and settlement edits will stop.
+                  This will permanently archive the cycle. It will become read-only and no further settlements or corrections can be made.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleMarkClosed} disabled={isMarkingClosed}>
-                  {isMarkingClosed ? 'Closing...' : 'Yes, Mark Closed'}
+                  {isMarkingClosed ? 'Locking...' : 'Yes, Lock & Archive'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
 
-        <section className="space-y-3">
-          <h3 className="font-semibold">Member Settlement Summary</h3>
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead className="text-right">Deposit</TableHead>
-                  <TableHead className="text-right">Deposit - Fixed</TableHead>
-                  <TableHead className="hidden text-right sm:table-cell">Total Meals</TableHead>
-                  <TableHead className="text-right">Meal Cost</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {details.members.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-                        <div className="min-w-0">
-                          <span className="block truncate font-medium">{member.name}</span>
-                          <span className="text-xs text-muted-foreground sm:hidden whitespace-nowrap">{formatMealCount(member.mealsEaten)} meals</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(member.deposit)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(member.deposit - member.fixedCost)}</TableCell>
-                    <TableCell className="hidden text-right sm:table-cell">{formatMealCount(member.mealsEaten)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(member.mealCost)}</TableCell>
-                    <TableCell className={cn('text-right font-bold', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                      {formatBalance(member.balance)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm" className="gap-2" onClick={() => setDepositMember({ id: member.id, name: member.name })}>
-                        <Wallet className="h-4 w-4" />
-                        Settle
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <section className="space-y-4">
+          <div className="flex items-end justify-between">
+            <div>
+              <h3 className="text-lg font-bold">Settlement Hub</h3>
+              <p className="text-sm text-muted-foreground">Adjust deposits until everyone is fully settled (balance = 0).</p>
+            </div>
           </div>
-          <Card>
-            <CardContent className="space-y-4 py-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          
+          <Card className={cn("border-2 transition-colors", isSettlementMatched ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5")}>
+            <CardContent className="space-y-4 py-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold">Settlement Check</p>
+                  <p className="text-base font-semibold">Settlement Math Check</p>
                   <p className="text-xs text-muted-foreground">
-                    Confirms whether the pending-cycle settlement math is balanced.
+                    Verifies that the money you collect plus what's left covers what you must pay out.
                   </p>
                 </div>
-                <p
+                <div
                   className={cn(
-                    'inline-flex items-center self-start rounded-full px-2.5 py-1 text-sm font-semibold',
+                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider',
                     isSettlementMatched
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-red-50 text-red-700',
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                      : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
                   )}
                 >
-                  {isSettlementMatched ? 'Calculation matched' : 'Calculation mismatch'}
-                </p>
+                  {isSettlementMatched ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+                  {isSettlementMatched ? 'Calculation Matched' : 'Calculation Mismatch'}
+                </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs uppercase text-muted-foreground">
-                    Manager Get + Remaining
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl bg-card p-4 shadow-sm border">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Manager Receives (Inflow)
                   </p>
-                  <p className="mt-1 text-xl font-bold">
+                  <p className="mt-1 text-2xl font-bold">
                     {formatCurrency(managerGetPlusRemaining)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {settlementFormulaText}
+                    Collected from negative balances + leftover cycle cash
                   </p>
                 </div>
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs uppercase text-muted-foreground">Manager Give</p>
-                  <p className="mt-1 text-xl font-bold">
+                <div className="rounded-xl bg-card p-4 shadow-sm border">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Manager Gives (Outflow)
+                  </p>
+                  <p className="mt-1 text-2xl font-bold">
                     {formatCurrency(managerShouldGive)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Total of positive member balances
+                    Refunded to positive balances
                   </p>
                 </div>
               </div>
               {!isSettlementMatched ? (
-                <p className="text-sm font-medium text-red-600">
-                  Mismatch: {formatCurrency(Math.abs(settlementMismatch))}
+                <p className="text-sm font-medium text-red-600 dark:text-red-400 text-center">
+                  Mismatch of {formatCurrency(Math.abs(settlementMismatch))} — Please add corrections to fix this before locking.
                 </p>
               ) : null}
             </CardContent>
           </Card>
+
+          <div className="pt-2">
+            <Accordion type="multiple" className="space-y-2">
+              {details.members.map((member) => {
+                const memberDeposits = details.deposits
+                  .filter((d) => d.memberId === member.id)
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+                return (
+                  <AccordionItem key={member.id} value={member.id} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border border-primary/10 bg-primary/5 text-primary"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
+                        <div>
+                          <span className="block font-bold">{member.name}</span>
+                          <span className="text-xs text-muted-foreground">Cost: {formatCurrency(member.totalCost)} · Meals: {formatMealCount(member.mealsEaten)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-end gap-6">
+                        <div className="hidden md:block text-right">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Paid</p>
+                          <p className="font-medium text-sm">{formatCurrency(member.deposit)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Balance</p>
+                          <p className={cn('font-bold text-base', member.balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                            {formatBalance(member.balance)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" className="gap-2 rounded-full" onClick={() => setDepositMember({ id: member.id, name: member.name, balance: member.balance })}>
+                            <Wallet className="h-4 w-4" />
+                            Settle
+                          </Button>
+                          {memberDeposits.length > 0 && (
+                            <AccordionTrigger className="hover:bg-muted rounded-full p-2" title="View Installments" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {memberDeposits.length > 0 && (
+                      <AccordionContent className="border-t bg-secondary/20 px-5 py-4">
+                        <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">Installment History</h4>
+                        <div className="space-y-2">
+                          {memberDeposits.map(d => (
+                            <div key={d.id} className="flex justify-between rounded-md bg-card border px-3 py-2 text-sm shadow-sm">
+                              <span className="text-muted-foreground">
+                                {format(new Date(d.createdAt), 'MMM d, h:mm a')} 
+                                {d.note ? <span className="ml-2 font-medium text-foreground">· {d.note}</span> : ''}
+                              </span>
+                              <span className={cn("font-bold", d.amount >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                {d.amount > 0 ? '+' : ''}{formatCurrency(d.amount)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    )}
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </div>
         </section>
 
         <section className="space-y-3">
@@ -756,7 +845,7 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
           <DialogContent>
             <DialogHeader><DialogTitle>Record Settlement</DialogTitle></DialogHeader>
             {depositMember ? (
-              <SettlementForm cycleId={details.cycle.id} memberId={depositMember.id} memberName={depositMember.name} onClose={() => setDepositMember(null)} />
+              <SettlementForm cycleId={details.cycle.id} memberId={depositMember.id} memberName={depositMember.name} currentBalance={depositMember.balance} onClose={() => setDepositMember(null)} />
             ) : null}
           </DialogContent>
         </Dialog>

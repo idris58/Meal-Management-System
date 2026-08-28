@@ -145,7 +145,12 @@ interface MealContextType {
   saveMealLogs: (entries: Array<{ memberId: string; count: number }>, date: string, cycleId?: string) => Promise<void>;
   logMeal: (memberId: string, count: number, date: string, cycleId?: string) => Promise<void>;
   renameActiveCycle: (name: string) => Promise<void>;
+  /** Closes the active cycle (moves it to pending). Does NOT auto-start a new cycle. */
   closeActiveCycle: () => Promise<void>;
+  /** Creates a new active cycle. Only callable when there is no current active cycle. */
+  startNewCycle: (name: string, startedAt?: string) => Promise<void>;
+  /** Suggests a default cycle name based on the given date and existing cycles. */
+  suggestCycleName: (date?: Date) => string;
   markCycleClosed: (cycleId: string) => Promise<void>;
   deleteCycle: (cycleId: string) => Promise<void>;
   restoreCycle: (cycleId: string) => Promise<void>;
@@ -289,12 +294,13 @@ function mapChangelogRows(
 ): ChangelogEntry[] {
   return rows.map((entry) => {
     let actor: ChangelogActor | null = null;
-    if (entry.profiles) {
+    const profileData = Array.isArray(entry.profiles) ? entry.profiles[0] : entry.profiles;
+    if (profileData) {
       actor = {
-        id: entry.profiles.id,
-        name: entry.profiles.full_name,
-        pictureUrl: entry.profiles.picture_url ?? null,
-        role: (entry.profiles.role as ChangelogActor['role']) ?? null,
+        id: profileData.id,
+        name: profileData.full_name,
+        pictureUrl: profileData.picture_url ?? null,
+        role: (profileData.role as ChangelogActor['role']) ?? null,
       };
     } else if (profilesMap) {
       const matched =
@@ -580,13 +586,14 @@ export function MealProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const profileData = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
     const currentActor =
-      (data.profiles
+      (profileData
         ? {
-            id: data.profiles.id,
-            name: data.profiles.full_name,
-            pictureUrl: data.profiles.picture_url ?? null,
-            role: data.profiles.role as ChangelogActor['role'],
+            id: profileData.id,
+            name: profileData.full_name,
+            pictureUrl: profileData.picture_url ?? null,
+            role: profileData.role as ChangelogActor['role'],
           }
         : null) || profilesMapRef.current.get(userId) || null;
 
@@ -1865,7 +1872,6 @@ export function MealProvider({ children }: { children: ReactNode }) {
     }));
 
     const now = new Date().toISOString();
-    const nextCycleName = generateUniqueCycleName(now, cycles);
 
     const { error: updateError } = await supabase
       .from('cycles')
@@ -1882,10 +1888,38 @@ export function MealProvider({ children }: { children: ReactNode }) {
       throw new Error('Unable to close the cycle. Please try again.');
     }
 
-    const { data: nextActive, error: createError } = await supabase
+    setCycles((prev) => prev.map((cycle) =>
+      cycle.id === activeCycle.id
+        ? { ...cycle, status: 'pending' as CycleStatus, closedAt: now, membersSnapshot: snapshot }
+        : cycle,
+    ));
+    void broadcastSharedUpdate();
+  };
+
+  const startNewCycle = async (name: string, startedAt?: string) => {
+    if (!userId || !messId) return;
+    if (activeCycle) {
+      throw new Error('Close the current active cycle before starting a new one.');
+    }
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      throw new Error('Cycle name is required.');
+    }
+
+    const duplicate = cycles.find(
+      (c) => c.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    );
+    if (duplicate) {
+      throw new Error('A cycle with this name already exists.');
+    }
+
+    const now = startedAt ?? new Date().toISOString();
+
+    const { data: newCycle, error } = await supabase
       .from('cycles')
       .insert([{
-        name: nextCycleName,
+        name: trimmedName,
         status: 'active',
         user_id: userId,
         mess_id: messId,
@@ -1894,29 +1928,32 @@ export function MealProvider({ children }: { children: ReactNode }) {
       .select()
       .single();
 
-    if (createError) {
-      console.error('Error creating new active cycle:', createError);
-      throw new Error('Cycle was closed but a new cycle could not be created. Please reload.');
+    if (error) {
+      console.error('Error starting new cycle:', error);
+      if (error.code === '23505') {
+        throw new Error('A cycle with this name already exists.');
+      }
+      throw new Error('Unable to start a new cycle. Please try again.');
     }
 
     setCycles((prev) => [
       {
-        id: nextActive.id,
-        name: nextActive.name ?? nextCycleName,
-        status: nextActive.status as CycleStatus,
-        startedAt: nextActive.started_at,
-        closedAt: nextActive.closed_at,
-        finalizedAt: nextActive.finalized_at,
-        membersSnapshot: nextActive.members_snapshot,
+        id: newCycle.id,
+        name: newCycle.name ?? trimmedName,
+        status: newCycle.status as CycleStatus,
+        startedAt: newCycle.started_at,
+        closedAt: newCycle.closed_at,
+        finalizedAt: newCycle.finalized_at,
+        membersSnapshot: newCycle.members_snapshot,
       },
-      ...prev.map((cycle) => (
-        cycle.id === activeCycle.id
-          ? { ...cycle, status: 'pending' as CycleStatus, closedAt: now, membersSnapshot: snapshot }
-          : cycle
-      )),
+      ...prev,
     ]);
-    setLoadedCycleIds((prev) => new Set(prev).add(activeCycle.id).add(nextActive.id));
+    setLoadedCycleIds((prev) => new Set(prev).add(newCycle.id));
     void broadcastSharedUpdate();
+  };
+
+  const suggestCycleName = (date?: Date) => {
+    return generateUniqueCycleName(date ?? new Date(), cycles);
   };
 
   const markCycleClosed = async (cycleId: string) => {
@@ -2100,6 +2137,8 @@ export function MealProvider({ children }: { children: ReactNode }) {
         logMeal,
         renameActiveCycle,
         closeActiveCycle,
+        startNewCycle,
+        suggestCycleName,
         markCycleClosed,
         deleteCycle,
         restoreCycle,

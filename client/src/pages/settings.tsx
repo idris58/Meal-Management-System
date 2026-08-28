@@ -32,100 +32,50 @@ function createShareToken() {
 }
 
 function CurrentCycleSettingsCard() {
-  const { activeCycle, renameActiveCycle } = useMeal();
-  const [cycleName, setCycleName] = useState(activeCycle?.name ?? '');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCycleName(activeCycle?.name ?? '');
-    setMessage(null);
-    setError(null);
-  }, [activeCycle?.id, activeCycle?.name]);
-
-  const trimmedName = cycleName.trim();
-  const isUnchanged = Boolean(activeCycle) && trimmedName === activeCycle?.name;
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setMessage(null);
-    setError(null);
-
-    if (!activeCycle) {
-      setError('No active cycle is available to rename.');
-      return;
-    }
-
-    if (!trimmedName) {
-      setError('Cycle name is required.');
-      return;
-    }
-
-    if (isUnchanged) {
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await renameActiveCycle(trimmedName);
-      setMessage('Current cycle name updated.');
-    } catch (caughtError) {
-      const nextError =
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Unable to rename the current cycle right now.';
-      setError(nextError);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const { activeCycle, pendingCycle } = useMeal();
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle>Current Cycle</CardTitle>
+        <CardTitle className="text-base font-semibold">Current Cycle</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Rename the active cycle so it is easier to identify in history and shared records later.
-          </p>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="cycle-name">
-              Cycle name
-            </label>
-            <Input
-              id="cycle-name"
-              value={cycleName}
-              onChange={(event) => {
-                setCycleName(event.target.value);
-                if (message) setMessage(null);
-                if (error) setError(null);
-              }}
-              placeholder="Meal_Summer-26"
-              disabled={!activeCycle || saving}
-            />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border bg-secondary/20 p-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-base">
+                {activeCycle ? activeCycle.name : 'No Active Cycle'}
+              </span>
+              {activeCycle ? (
+                <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  Active
+                </span>
+              ) : pendingCycle ? (
+                <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  Pending Settlement
+                </span>
+              ) : (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  Idle
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {activeCycle
+                ? `Started on ${format(new Date(activeCycle.startedAt), 'PPP')}. Rename, log meals, and manage directly on the Dashboard.`
+                : pendingCycle
+                ? `Previous cycle is in pending settlement. Settle balances and archive in History.`
+                : 'Start a new cycle from the Dashboard to begin tracking meals and expenses.'}
+            </p>
           </div>
 
-          <Button type="submit" className="gap-2" disabled={!activeCycle || saving || isUnchanged}>
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : 'Save Cycle Name'}
+          <Button variant="outline" size="sm" asChild className="shrink-0 gap-1.5">
+            <a href="/app">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Go to Dashboard
+            </a>
           </Button>
-
-          {message ? (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              {message}
-            </p>
-          ) : null}
-
-          {error ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
-        </form>
+        </div>
       </CardContent>
     </Card>
   );

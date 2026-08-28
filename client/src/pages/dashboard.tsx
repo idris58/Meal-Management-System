@@ -1,11 +1,29 @@
 import { useMeal } from '@/lib/meal-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, ShoppingBag, Utensils, RefreshCcw, Calendar as CalendarIcon, Archive, Wallet } from 'lucide-react';
+import {
+  Archive,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Loader2,
+  Minus,
+  Pencil,
+  Plus,
+  RefreshCcw,
+  ShoppingBag,
+  Sparkles,
+  Utensils,
+  Wallet,
+  X,
+  AlertTriangle,
+  Play,
+} from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,8 +34,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { OnboardingTour } from '@/components/onboarding-tour';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/lib/auth-context';
+import { Link } from 'wouter';
 
 const expenseSchema = z.object({
   amount: z.preprocess(
@@ -50,7 +69,6 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
   const onSubmit = async (data: z.infer<typeof expenseSchema>) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-
     try {
       await addExpense(data.amount, data.description, data.type, data.paidBy, undefined, format(date, 'yyyy-MM-dd'));
       onClose();
@@ -95,7 +113,7 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className={cn('w-full justify-start py-2 text-left text-sm font-normal', !date && 'text-muted-foreground')}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
+                <CalendarDays className="mr-2 h-4 w-4" />
                 {date ? format(date, 'PPP') : <span>Pick a date</span>}
               </Button>
             </PopoverTrigger>
@@ -103,14 +121,9 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
               <Calendar
                 mode="single"
                 selected={date}
-                onSelect={(nextDate) => {
-                  if (nextDate) {
-                    setDate(nextDate);
-                    const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
-                    document.dispatchEvent(escapeEvent);
-                  }
-                }}
+                onSelect={(d) => { if (d) { setDate(d); } }}
                 initialFocus
+                className="p-3"
               />
             </PopoverContent>
           </Popover>
@@ -120,16 +133,8 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Amount</FormLabel>
-              <FormControl>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="100"
-                  {...field}
-                  value={field.value ?? ''}
-                />
-              </FormControl>
+              <FormLabel>Amount (৳)</FormLabel>
+              <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -190,7 +195,6 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
-
     const dateStr = format(date, 'yyyy-MM-dd');
     try {
       await saveMealLogs(
@@ -213,7 +217,7 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn('w-full justify-start py-2 text-left text-sm font-normal', !date && 'text-muted-foreground')}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
+              <CalendarDays className="mr-2 h-4 w-4" />
               {date ? format(date, 'PPP') : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
@@ -265,88 +269,393 @@ function QuickLogMeal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function CycleManagementCard({
-  onCloseCycle,
-  hasPendingCycle,
-}: {
-  onCloseCycle: () => Promise<void>;
-  hasPendingCycle: boolean;
-}) {
-  const [isClosingCycle, setIsClosingCycle] = useState(false);
+// ── Active Cycle Banner ──────────────────────────────────────────────────────
 
-  const handleCloseCycle = async () => {
-    if (isClosingCycle) return;
-    setIsClosingCycle(true);
+function ActiveCycleBanner() {
+  const { activeCycle, pendingCycle, stats, members, closeActiveCycle, renameActiveCycle } = useMeal();
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [closeStep, setCloseStep] = useState<0 | 1 | 2>(0); // 0=closed, 1=review, 2=confirm
+  const [isClosing, setIsClosing] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
+  const startRename = () => {
+    setRenameValue(activeCycle?.name ?? '');
+    setIsRenaming(true);
+    setTimeout(() => renameInputRef.current?.select(), 50);
+  };
+
+  const cancelRename = () => {
+    setIsRenaming(false);
+    setRenameValue('');
+  };
+
+  const saveRename = async () => {
+    if (!renameValue.trim() || renameValue.trim() === activeCycle?.name) {
+      cancelRename();
+      return;
+    }
+    setIsSavingName(true);
     try {
-      await onCloseCycle();
+      await renameActiveCycle(renameValue.trim());
+      setIsRenaming(false);
     } finally {
-      setIsClosingCycle(false);
+      setIsSavingName(false);
+    }
+  };
+
+  const handleCloseConfirm = async () => {
+    setIsClosing(true);
+    try {
+      await closeActiveCycle();
+      setCloseDialogOpen(false);
+      setCloseStep(0);
+    } finally {
+      setIsClosing(false);
+    }
+  };
+
+  if (!activeCycle) return null;
+
+  const startedAt = new Date(activeCycle.startedAt);
+  const durationLabel = formatDistanceToNow(startedAt, { addSuffix: false });
+
+  return (
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      {/* Header bar */}
+      <div className="flex items-center justify-between gap-3 border-b bg-emerald-500/5 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            Active Cycle
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          {durationLabel} · Started {format(startedAt, 'MMM d')}
+        </div>
+      </div>
+
+      {/* Cycle name + inline rename */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        {isRenaming ? (
+          <div className="flex flex-1 items-center gap-2">
+            <Input
+              ref={renameInputRef}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void saveRename();
+                if (e.key === 'Escape') cancelRename();
+              }}
+              className="h-8 text-base font-semibold"
+              disabled={isSavingName}
+            />
+            <Button size="sm" className="h-8 shrink-0" onClick={() => void saveRename()} disabled={isSavingName}>
+              {isSavingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 shrink-0" onClick={cancelRename} disabled={isSavingName}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center gap-2 min-w-0">
+            <h2 className="truncate text-lg font-bold">{activeCycle.name}</h2>
+            <button
+              type="button"
+              onClick={startRename}
+              className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Rename cycle"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Stats strip */}
+      <div className="grid grid-cols-3 gap-px border-t bg-border">
+        <div className="flex flex-col items-center gap-0.5 bg-card px-3 py-2.5 text-center">
+          <span className="text-lg font-bold">{members.length}</span>
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Members</span>
+        </div>
+        <div className="flex flex-col items-center gap-0.5 bg-card px-3 py-2.5 text-center">
+          <span className="text-lg font-bold">{formatCurrency(stats.totalMealExpenses + stats.totalFixedExpenses)}</span>
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Expenses</span>
+        </div>
+        <div className="flex flex-col items-center gap-0.5 bg-card px-3 py-2.5 text-center">
+          <span className="text-lg font-bold">{formatMealCount(stats.totalMealsConsumed)}</span>
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Meals</span>
+        </div>
+      </div>
+
+      {/* Pending cycle warning */}
+      {pendingCycle && (
+        <div className="flex items-center gap-2.5 border-t bg-amber-500/5 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            Pending settlement in progress —{' '}
+            <Link href="/app/history" className="font-semibold underline underline-offset-2">
+              go to History to finalize
+            </Link>
+          </span>
+        </div>
+      )}
+
+      {/* Close action */}
+      <div className="border-t px-4 py-3">
+        <Dialog open={closeDialogOpen} onOpenChange={(open) => { setCloseDialogOpen(open); if (!open) setCloseStep(0); }}>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-amber-300 text-amber-700 hover:border-amber-400 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30"
+              disabled={!!pendingCycle}
+              title={pendingCycle ? 'Finish the pending settlement before closing this cycle' : undefined}
+            >
+              <Archive className="h-4 w-4" />
+              Close Cycle
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md w-[95%]">
+            {closeStep === 0 || closeStep === 1 ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Archive className="h-5 w-5 text-amber-500" />
+                    Close Current Cycle
+                  </DialogTitle>
+                  <DialogDescription>
+                    Review the cycle summary before closing.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {/* Summary */}
+                <div className="space-y-4 py-2">
+                  <div className="rounded-xl border bg-secondary/30 p-4 space-y-3">
+                    <p className="text-sm font-semibold">{activeCycle.name}</p>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-lg bg-card p-2.5 border">
+                        <p className="text-xs text-muted-foreground">Members</p>
+                        <p className="text-lg font-bold">{members.length}</p>
+                      </div>
+                      <div className="rounded-lg bg-card p-2.5 border">
+                        <p className="text-xs text-muted-foreground">Total Meals</p>
+                        <p className="text-lg font-bold">{formatMealCount(stats.totalMealsConsumed)}</p>
+                      </div>
+                      <div className="rounded-lg bg-card p-2.5 border">
+                        <p className="text-xs text-muted-foreground">Total Expenses</p>
+                        <p className="text-lg font-bold">{formatCurrency(stats.totalMealExpenses + stats.totalFixedExpenses)}</p>
+                      </div>
+                      <div className="rounded-lg bg-card p-2.5 border">
+                        <p className="text-xs text-muted-foreground">Remaining Cash</p>
+                        <p className="text-lg font-bold">{formatCurrency(stats.remainingCash)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                    <p className="font-semibold">What happens when you close?</p>
+                    <ul className="mt-1.5 list-disc list-inside space-y-1 text-xs text-amber-700 dark:text-amber-400">
+                      <li>This cycle moves to <strong>Pending Settlement</strong> in History</li>
+                      <li>No new cycle starts automatically — you start one when ready</li>
+                      <li>You can still add settlement corrections in History</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" onClick={() => setCloseDialogOpen(false)}>Cancel</Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                    onClick={() => setCloseStep(2)}
+                  >
+                    Continue
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="h-5 w-5" />
+                    Confirm Close Cycle
+                  </DialogTitle>
+                  <DialogDescription>
+                    This action cannot be undone. The cycle will enter pending settlement.
+                  </DialogDescription>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground py-2">
+                  Are you sure you want to close <strong>"{activeCycle.name}"</strong>? No new cycle will start automatically. You'll start the next cycle from the Dashboard when you're ready.
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" onClick={() => setCloseStep(1)} disabled={isClosing}>
+                    Back
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="gap-2"
+                    onClick={() => void handleCloseConfirm()}
+                    disabled={isClosing}
+                  >
+                    {isClosing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+                    {isClosing ? 'Closing…' : 'Yes, Close Cycle'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+}
+
+// ── No Active Cycle state card ───────────────────────────────────────────────
+
+function NoActiveCycleCard() {
+  const { startNewCycle, suggestCycleName, pendingCycle } = useMeal();
+  const [open, setOpen] = useState(false);
+  const [cycleName, setCycleName] = useState('');
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [isStarting, setIsStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleOpen = () => {
+    setCycleName(suggestCycleName(new Date()));
+    setStartDate(new Date());
+    setError(null);
+    setOpen(true);
+  };
+
+  const handleStart = async () => {
+    if (!cycleName.trim()) {
+      setError('Cycle name is required.');
+      return;
+    }
+    setIsStarting(true);
+    setError(null);
+    try {
+      await startNewCycle(cycleName.trim(), startDate.toISOString());
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start cycle.');
+    } finally {
+      setIsStarting(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Archive className="h-5 w-5 text-emerald-500" />
-          Cycle Management
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Archive the current cycle and clear active expenses and meal logs while keeping the history available.
-        </p>
-
-        <div className="rounded-xl border bg-secondary/30 p-4">
-          <p className="text-sm font-medium">Close current cycle</p>
+    <div className="overflow-hidden rounded-2xl border border-dashed bg-card shadow-sm">
+      <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+          <Sparkles className="h-7 w-7 text-primary" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold">No Active Cycle</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            This will move the current cycle to pending settlement and start a new clean active cycle.
+            {pendingCycle
+              ? 'A cycle is pending settlement. Start a new cycle whenever you\'re ready.'
+              : 'Start your first cycle to begin tracking meals, expenses, and deposits.'}
           </p>
         </div>
 
-        {hasPendingCycle ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Finish and close the existing pending cycle from History before closing another cycle.
-          </p>
-        ) : null}
+        {pendingCycle && (
+          <div className="flex w-full items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="text-left text-xs">
+              Pending settlement in History — finalize it before starting a new cycle to keep accounts clean.
+            </span>
+          </div>
+        )}
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full gap-2" disabled={hasPendingCycle || isClosingCycle}>
-              <RefreshCcw className="h-4 w-4" />
-              {isClosingCycle ? 'Closing...' : 'Close Cycle'}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2" onClick={handleOpen}>
+              <Play className="h-4 w-4" />
+              Start New Cycle
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will move this cycle into pending settlement and create a new clean active cycle.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleCloseCycle} disabled={isClosingCycle}>
-                {isClosingCycle ? 'Closing...' : 'Yes, Close Cycle'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </CardContent>
-    </Card>
+          </DialogTrigger>
+          <DialogContent className="max-w-md w-[95%]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Play className="h-5 w-5 text-emerald-500" />
+                Start New Cycle
+              </DialogTitle>
+              <DialogDescription>
+                Name your new cycle and choose a start date.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Cycle Name</label>
+                <Input
+                  id="new-cycle-name"
+                  value={cycleName}
+                  onChange={(e) => { setCycleName(e.target.value); setError(null); }}
+                  placeholder="e.g. Meal_Aug-26"
+                  onKeyDown={(e) => { if (e.key === 'Enter') void handleStart(); }}
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground">
+                  A descriptive name helps identify this cycle in history later.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Start Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {format(startDate, 'PPP')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto rounded-xl p-0 shadow-xl" align="start">
+                    <Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} initialFocus className="p-3" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {error && (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
+                  {error}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" onClick={() => setOpen(false)} disabled={isStarting}>Cancel</Button>
+              <Button className="gap-2" onClick={() => void handleStart()} disabled={isStarting}>
+                {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                {isStarting ? 'Starting…' : 'Start Cycle'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
   );
 }
 
+// ── Dashboard ────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
-  const { stats, getMemberStats, members, closeActiveCycle, pendingCycle } = useMeal();
+  const { stats, getMemberStats, members, activeCycle, pendingCycle } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
   const [openMeal, setOpenMeal] = useState(false);
   const { canManageExpenses, canOperateMeals, canManageCycles } = useAuth();
   const memberSettlementRows = members.map((member) => {
     const memberStats = getMemberStats(member.id);
     const roundedBalance = Math.round(memberStats.balance);
-
     return {
       ...member,
       mealsEaten: memberStats.mealsEaten,
@@ -360,6 +669,15 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 pb-20">
       <OnboardingTour />
+
+      {/* Cycle status banner — always visible for cycle managers */}
+      {canManageCycles && (
+        <section>
+          {activeCycle ? <ActiveCycleBanner /> : <NoActiveCycleCard />}
+        </section>
+      )}
+
+      {/* Main stats cards */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="glass-card border-none bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white shadow-lg lg:col-span-2">
           <CardHeader className="pb-2">
@@ -414,6 +732,7 @@ export default function Dashboard() {
         </Card>
       </section>
 
+      {/* Quick action tiles */}
       {(canManageExpenses || canOperateMeals) ? (
         <section className={cn("grid gap-4", canManageExpenses && canOperateMeals ? "grid-cols-2" : "grid-cols-1")}>
           {canManageExpenses ? (
@@ -454,6 +773,7 @@ export default function Dashboard() {
         </section>
       ) : null}
 
+      {/* Member summary table */}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">All Members Summary</h2>
@@ -494,18 +814,10 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(96px,1fr)_minmax(96px,1fr)] gap-3 border-t bg-secondary/20 px-4 py-3">
             <div className="text-sm font-semibold">Total</div>
-            <div className="text-right text-sm font-bold text-red-600">
-              {formatCurrency(totalManagerWillGet)}
-            </div>
-            <div className="text-right text-sm font-bold text-emerald-600">
-              {formatCurrency(totalManagerWillGive)}
-            </div>
+            <div className="text-right text-sm font-bold text-red-600">{formatCurrency(totalManagerWillGet)}</div>
+            <div className="text-right text-sm font-bold text-emerald-600">{formatCurrency(totalManagerWillGive)}</div>
           </div>
         </div>
-      </section>
-
-      <section className="space-y-4 pt-2">
-        {canManageCycles ? <CycleManagementCard onCloseCycle={closeActiveCycle} hasPendingCycle={!!pendingCycle} /> : null}
       </section>
     </div>
   );
