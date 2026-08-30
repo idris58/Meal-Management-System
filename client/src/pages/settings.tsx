@@ -74,22 +74,7 @@ function formatMealCount(value: number) {
   return rounded.toString();
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
-
-function SettingsSectionHeader({ icon: Icon, eyebrow, title, description }: { icon: React.ElementType; eyebrow: string; title: string; description: string }) {
-  return (
-    <div className="flex items-start gap-3 px-1 sm:px-0">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/10">
-        <Icon className="h-4 w-4 text-primary" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">{eyebrow}</p>
-        <h2 className="mt-0.5 text-lg font-bold tracking-tight">{title}</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  );
-}
+// ── Section Navigation ───────────────────────────────────────────────────────
 
 function SettingsNavigation({ canManageCycles }: { canManageCycles: boolean }) {
   const items = [
@@ -176,13 +161,17 @@ function CycleManagementCard() {
 
   return (
     <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
-      <CardHeader className="border-b bg-gradient-to-r from-emerald-500/[0.07] to-transparent pb-4">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-            <RefreshCcw className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+      <CardHeader className="border-b bg-gradient-to-r from-emerald-500/[0.07] to-transparent p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">Operations</p>
+            <CardTitle className="mt-0.5 text-lg font-bold font-heading">Cycle Operations</CardTitle>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Keep the current meal cycle organised and ready for settlement.</p>
           </div>
-          Cycle Operations
-        </CardTitle>
+          <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20">
+            <RefreshCcw className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {activeCycle ? (
@@ -454,16 +443,19 @@ function ShareSettingsCard() {
 
   return (
     <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
-      <CardHeader className="border-b bg-gradient-to-r from-sky-500/[0.07] to-transparent pb-4">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10">
-            <Share2 className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+      <CardHeader className="border-b bg-gradient-to-r from-sky-500/[0.07] to-transparent p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">Access</p>
+            <CardTitle className="mt-0.5 text-lg font-bold font-heading">Public Sharing</CardTitle>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Control your read-only shared view link and meal code.</p>
           </div>
-          Public Sharing
-        </CardTitle>
+          <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 ring-1 ring-sky-500/20">
+            <Share2 className="h-4.5 w-4.5 text-sky-600 dark:text-sky-400" />
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">Create a read-only public link so members can view the current meal cycle without logging in.</p>
         <div className="flex items-center justify-between rounded-xl border bg-secondary/30 px-4 py-3">
           <div>
             <p className="text-sm font-medium">Sharing status</p>
@@ -516,13 +508,17 @@ function NotificationSettingsCard() {
 
   return (
     <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
-      <CardHeader className="border-b bg-gradient-to-r from-violet-500/[0.07] to-transparent pb-4">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10">
-            <BellRing className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+      <CardHeader className="border-b bg-gradient-to-r from-violet-500/[0.07] to-transparent p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600 dark:text-violet-400">Reminders</p>
+            <CardTitle className="mt-0.5 text-lg font-bold font-heading">Push Notifications</CardTitle>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Set up browser alerts for daily meal logs.</p>
           </div>
-          Push Notifications
-        </CardTitle>
+          <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20">
+            <BellRing className="h-4.5 w-4.5 text-violet-600 dark:text-violet-400" />
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-start justify-between gap-4 rounded-xl border bg-secondary/30 px-4 py-3">
@@ -673,16 +669,19 @@ function NoticeSettingsCard() {
 
   return (
     <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
-      <CardHeader className="border-b bg-gradient-to-r from-amber-500/[0.07] to-transparent pb-4">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10">
-            <Megaphone className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+      <CardHeader className="border-b bg-gradient-to-r from-amber-500/[0.07] to-transparent p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">Communication</p>
+            <CardTitle className="mt-0.5 text-lg font-bold font-heading">Notice Board</CardTitle>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Publish a time-limited update in the shared view header.</p>
           </div>
-          Notice Board
-        </CardTitle>
+          <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20">
+            <Megaphone className="h-4.5 w-4.5 text-amber-600 dark:text-amber-400" />
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <p className="text-sm text-muted-foreground">Post a notice that appears as a running ticker below the shared view header. Only one notice is active at a time.</p>
 
         {!loading && activeNotice && !isEditingNotice && (
           <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
@@ -791,26 +790,22 @@ export default function SettingsPage() {
       <SettingsNavigation canManageCycles={canManageCycles} />
 
       {canManageCycles && (
-        <section id="cycle-operations" className="scroll-mt-6 space-y-4">
-          <SettingsSectionHeader icon={RefreshCcw} eyebrow="Operations" title="Cycle operations" description="Keep the current meal cycle organised and ready for settlement." />
+        <section id="cycle-operations" className="scroll-mt-6">
           <CycleManagementCard />
         </section>
       )}
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-6">
-        <section id="public-access" className="scroll-mt-6 space-y-4">
-          <SettingsSectionHeader icon={Share2} eyebrow="Access" title="Public sharing" description="Control your read-only shared view." />
+        <section id="public-access" className="scroll-mt-6">
           <ShareSettingsCard />
         </section>
 
-        <section id="notifications" className="scroll-mt-6 space-y-4">
-          <SettingsSectionHeader icon={BellRing} eyebrow="Reminders" title="Notifications" description="Set up browser alerts for daily meal logs." />
+        <section id="notifications" className="scroll-mt-6">
           <NotificationSettingsCard />
         </section>
       </div>
 
-      <section id="notice-board" className="scroll-mt-6 space-y-4">
-        <SettingsSectionHeader icon={Megaphone} eyebrow="Communication" title="Notice board" description="Publish a time-limited update in the shared view." />
+      <section id="notice-board" className="scroll-mt-6">
         <NoticeSettingsCard />
       </section>
     </div>
