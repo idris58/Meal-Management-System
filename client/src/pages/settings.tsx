@@ -453,7 +453,7 @@ function ShareSettingsCard() {
   };
 
   return (
-    <Card className="h-full overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+    <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
       <CardHeader className="border-b bg-gradient-to-r from-sky-500/[0.07] to-transparent pb-4">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10">
@@ -515,7 +515,7 @@ function NotificationSettingsCard() {
   const handleToggle = (checked: boolean) => { if (checked) { void subscribe(); return; } void unsubscribe(); };
 
   return (
-    <Card className="h-full overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+    <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
       <CardHeader className="border-b bg-gradient-to-r from-violet-500/[0.07] to-transparent pb-4">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10">
