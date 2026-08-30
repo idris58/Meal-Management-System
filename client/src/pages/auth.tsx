@@ -271,15 +271,15 @@ export default function AuthPage() {
 
   const title =
     mode === "login" ? "Welcome back"
-    : mode === "signup" ? "Create your account"
-    : mode === "forgot-password" ? "Reset your password"
-    : "Choose a new password";
+      : mode === "signup" ? "Create your account"
+        : mode === "forgot-password" ? "Reset your password"
+          : "Choose a new password";
 
   const submitLabel =
     mode === "login" ? "Sign in with Email"
-    : mode === "signup" ? "Create Account"
-    : mode === "forgot-password" ? "Send Reset Link"
-    : "Update Password";
+      : mode === "signup" ? "Create Account"
+        : mode === "forgot-password" ? "Send Reset Link"
+          : "Update Password";
 
   const EyeToggle = ({ show, onToggle }: { show: boolean; onToggle: () => void }) => (
     <button
@@ -434,7 +434,7 @@ export default function AuthPage() {
               {/* Full name (signup only) */}
               {mode === "signup" && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="auth-full-name">Full Name</Label>
+                  <Label htmlFor="auth-full-name">Name</Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <User className="h-4 w-4 text-muted-foreground/70" />
