@@ -76,15 +76,40 @@ function formatMealCount(value: number) {
 
 // ── Section label ─────────────────────────────────────────────────────────────
 
-function SectionLabel({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+function SettingsSectionHeader({ icon: Icon, eyebrow, title, description }: { icon: React.ElementType; eyebrow: string; title: string; description: string }) {
   return (
-    <div className="flex items-center gap-2 px-1">
-      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
-        <Icon className="h-3.5 w-3.5 text-primary" />
+    <div className="flex items-start gap-3 px-1 sm:px-0">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/10">
+        <Icon className="h-4 w-4 text-primary" />
       </div>
-      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
-      <div className="h-px flex-1 bg-border" />
+      <div className="min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">{eyebrow}</p>
+        <h2 className="mt-0.5 text-lg font-bold tracking-tight">{title}</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+      </div>
     </div>
+  );
+}
+
+function SettingsNavigation({ canManageCycles }: { canManageCycles: boolean }) {
+  const items = [
+    ...(canManageCycles ? [{ href: '#cycle-operations', icon: RefreshCcw, label: 'Cycle' }] : []),
+    { href: '#public-access', icon: Share2, label: 'Sharing' },
+    { href: '#notice-board', icon: Megaphone, label: 'Notices' },
+    { href: '#notifications', icon: BellRing, label: 'Alerts' },
+  ];
+
+  return (
+    <nav aria-label="Settings sections" className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+      <div className="flex min-w-max gap-2">
+        {items.map(({ href, icon: Icon, label }) => (
+          <a key={href} href={href} className="inline-flex min-h-10 items-center gap-2 rounded-xl border bg-card px-3 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Icon className="h-4 w-4 text-primary" />
+            {label}
+          </a>
+        ))}
+      </div>
+    </nav>
   );
 }
 
@@ -150,8 +175,8 @@ function CycleManagementCard() {
   const durationLabel = startedAt ? formatDistanceToNow(startedAt, { addSuffix: false }) : null;
 
   return (
-    <Card className="overflow-hidden border shadow-sm">
-      <CardHeader className="pb-3">
+    <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+      <CardHeader className="border-b bg-gradient-to-r from-emerald-500/[0.07] to-transparent pb-4">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
             <RefreshCcw className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -428,8 +453,8 @@ function ShareSettingsCard() {
   };
 
   return (
-    <Card className="overflow-hidden border shadow-sm">
-      <CardHeader className="pb-3">
+    <Card className="h-full overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+      <CardHeader className="border-b bg-gradient-to-r from-sky-500/[0.07] to-transparent pb-4">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10">
             <Share2 className="h-4 w-4 text-sky-600 dark:text-sky-400" />
@@ -443,7 +468,7 @@ function ShareSettingsCard() {
           <div>
             <p className="text-sm font-medium">Sharing status</p>
             {loading ? <Skeleton className="mt-1 h-3.5 w-16" /> : (
-              <p className={cn('text-xs font-medium mt-0.5', config?.is_enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
+              <p className={cn('mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold', config?.is_enabled ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground')}>
                 {config?.is_enabled ? '● Enabled' : '○ Disabled'}
               </p>
             )}
@@ -466,7 +491,7 @@ function ShareSettingsCard() {
             <Button type="button" variant="outline" size="sm" onClick={handleCopyMealCode} disabled={!config?.is_enabled || !mealCode}>Copy Code</Button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 border-t pt-4">
           {config?.is_enabled && shareUrl ? (
             <Button type="button" variant="outline" size="sm" className="gap-1.5" asChild>
               <a href={shareUrl} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" />Open Shared View</a>
@@ -490,8 +515,8 @@ function NotificationSettingsCard() {
   const handleToggle = (checked: boolean) => { if (checked) { void subscribe(); return; } void unsubscribe(); };
 
   return (
-    <Card className="overflow-hidden border shadow-sm">
-      <CardHeader className="pb-3">
+    <Card className="h-full overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+      <CardHeader className="border-b bg-gradient-to-r from-violet-500/[0.07] to-transparent pb-4">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10">
             <BellRing className="h-4 w-4 text-violet-600 dark:text-violet-400" />
@@ -647,8 +672,8 @@ function NoticeSettingsCard() {
   };
 
   return (
-    <Card className="overflow-hidden border shadow-sm">
-      <CardHeader className="pb-3">
+    <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+      <CardHeader className="border-b bg-gradient-to-r from-amber-500/[0.07] to-transparent pb-4">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10">
             <Megaphone className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -744,39 +769,49 @@ export default function SettingsPage() {
   if (profile?.role === 'member') return null;
 
   return (
-    <div className="space-y-8 pb-20">
-      <header className="space-y-1">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shadow-sm">
-            <Settings2 className="h-5 w-5 text-primary" />
+    <div className="mx-auto max-w-6xl space-y-8 pb-16 sm:space-y-10 sm:pb-20">
+      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+              <Settings2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Workspace controls</p>
+              <h1 className="mt-1 text-2xl font-bold font-heading tracking-tight sm:text-3xl">Settings</h1>
+              <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">Manage your cycle, shared view, notices, and reminders from one place.</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold font-heading">Settings</h1>
-            <p className="text-sm text-muted-foreground">Manage your mess configuration and preferences.</p>
+          <div className="rounded-xl border bg-background/75 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+            Signed in as <span className="font-semibold capitalize text-foreground">{profile?.role}</span>
           </div>
         </div>
       </header>
 
+      <SettingsNavigation canManageCycles={canManageCycles} />
+
       {canManageCycles && (
-        <section className="space-y-4">
-          <SectionLabel icon={RefreshCcw} label="Cycle Operations" />
+        <section id="cycle-operations" className="scroll-mt-6 space-y-4">
+          <SettingsSectionHeader icon={RefreshCcw} eyebrow="Operations" title="Cycle operations" description="Keep the current meal cycle organised and ready for settlement." />
           <CycleManagementCard />
         </section>
       )}
 
-      <section className="space-y-4">
-        <SectionLabel icon={Share2} label="Public Access" />
-        <ShareSettingsCard />
-      </section>
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-6">
+        <section id="public-access" className="scroll-mt-6 space-y-4">
+          <SettingsSectionHeader icon={Share2} eyebrow="Access" title="Public sharing" description="Control your read-only shared view." />
+          <ShareSettingsCard />
+        </section>
 
-      <section className="space-y-4">
-        <SectionLabel icon={Megaphone} label="Notice Board" />
+        <section id="notifications" className="scroll-mt-6 space-y-4">
+          <SettingsSectionHeader icon={BellRing} eyebrow="Reminders" title="Notifications" description="Set up browser alerts for daily meal logs." />
+          <NotificationSettingsCard />
+        </section>
+      </div>
+
+      <section id="notice-board" className="scroll-mt-6 space-y-4">
+        <SettingsSectionHeader icon={Megaphone} eyebrow="Communication" title="Notice board" description="Publish a time-limited update in the shared view." />
         <NoticeSettingsCard />
-      </section>
-
-      <section className="space-y-4">
-        <SectionLabel icon={BellRing} label="Notifications" />
-        <NotificationSettingsCard />
       </section>
     </div>
   );
