@@ -193,45 +193,57 @@ export default function Meals() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold font-heading">Meal Logs</h1>
-        {canOperateMeals ? (
-          <Dialog
-            open={openMeal}
-            onOpenChange={(open) => {
-              setOpenMeal(open);
-              if (!open) {
-                setSelectedDate(undefined);
-              }
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button
-                className="gap-2"
-                onClick={() => setSelectedDate(undefined)}
-                disabled={members.length === 0 || !activeCycle}
-              >
-                <Utensils className="h-4 w-4" />
-                Log Meals
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedDate ? `Edit Meals for ${format(selectedDate, 'PPP')}` : 'Log Meals by Date'}
-                </DialogTitle>
-              </DialogHeader>
-              <QuickLogMeal
-                initialDate={selectedDate}
-                onClose={() => {
-                  setOpenMeal(false);
+      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+              <Utensils className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold font-heading tracking-tight sm:text-3xl">Meal Logs</h1>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Log daily member meals and view consumption records.
+              </p>
+            </div>
+          </div>
+          {canOperateMeals ? (
+            <Dialog
+              open={openMeal}
+              onOpenChange={(open) => {
+                setOpenMeal(open);
+                if (!open) {
                   setSelectedDate(undefined);
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        ) : null}
-      </div>
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button
+                  className="gap-2 shrink-0 shadow-sm"
+                  onClick={() => setSelectedDate(undefined)}
+                  disabled={members.length === 0 || !activeCycle}
+                >
+                  <Utensils className="h-4 w-4" />
+                  Log Meals
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {selectedDate ? `Edit Meals for ${format(selectedDate, 'PPP')}` : 'Log Meals by Date'}
+                  </DialogTitle>
+                </DialogHeader>
+                <QuickLogMeal
+                  initialDate={selectedDate}
+                  onClose={() => {
+                    setOpenMeal(false);
+                    setSelectedDate(undefined);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          ) : null}
+        </div>
+      </header>
 
       {activeCycle && members.length > 0 && mealLogs.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:gap-4">

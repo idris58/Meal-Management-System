@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import {
+  ArrowLeft,
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
@@ -9,6 +10,7 @@ import {
   Loader2,
   PlusCircle,
   RefreshCcw,
+  ScrollText,
   Search,
   Trash2,
   UtensilsCrossed,
@@ -491,16 +493,41 @@ export default function ChangelogPage() {
   return (
     <div className="space-y-6 pb-10">
       {/* Page header */}
-      <div className="space-y-1">
-        <h1 className="font-heading text-2xl font-bold">Changelog</h1>
-        <p className="text-sm text-muted-foreground">
-          {pendingCycle
-            ? 'Track settlement changes in the pending cycle alongside new active cycle activity.'
-            : activeCycle
-              ? 'Track create, update, and delete activity for the current active cycle.'
-              : 'No active cycle is available yet.'}
-        </p>
-      </div>
+      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+              <ScrollText className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold font-heading tracking-tight sm:text-3xl">Changelog</h1>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {pendingCycle
+                  ? 'Track settlement changes in the pending cycle alongside new active cycle activity.'
+                  : activeCycle
+                    ? 'Track create, update, and delete activity for the current active cycle.'
+                    : 'No active cycle is available yet.'}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                window.location.href = '/app/history';
+              }
+            }}
+            className="gap-2 border-border/80 bg-background/80 shadow-sm transition-all hover:bg-background hover:shadow shrink-0 self-start sm:self-auto"
+          >
+            <ArrowLeft className="h-4 w-4 text-primary" />
+            <span>Back</span>
+          </Button>
+        </div>
+      </header>
 
       {/* Filters */}
       <div className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
