@@ -1204,9 +1204,8 @@ export default function HistoryPage() {
               <History className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Audit & Archives</p>
-              <h1 className="mt-1 text-2xl font-bold font-heading tracking-tight sm:text-3xl">History</h1>
-              <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
+              <h1 className="text-2xl font-bold font-heading tracking-tight sm:text-3xl">History</h1>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Pending cycles stay editable for settlement and corrections. Closed cycles are read-only.
               </p>
             </div>

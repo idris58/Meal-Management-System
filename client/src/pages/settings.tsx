@@ -776,8 +776,7 @@ export default function SettingsPage() {
               <Settings2 className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Workspace controls</p>
-              <h1 className="mt-1 text-2xl font-bold font-heading tracking-tight sm:text-3xl">Settings</h1>
+              <h1 className="text-2xl font-bold font-heading tracking-tight sm:text-3xl">Settings</h1>
               <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">Manage your cycle, shared view, notices, and reminders from one place.</p>
             </div>
           </div>

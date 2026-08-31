@@ -482,22 +482,11 @@ export default function ChangelogPage() {
 
   const hasCycleSections = Boolean(pendingCycle || activeCycle);
 
-  // Compute section stats
   const computeStats = (entries: ChangelogEntry[]) => ({
     create: entries.filter((e) => getDisplayAction(e) === 'create').length,
     update: entries.filter((e) => getDisplayAction(e) === 'update').length,
     delete: entries.filter((e) => getDisplayAction(e) === 'delete').length,
   });
-
-  // Overall summary stats across all entries
-  const allEntries = [...activeCycleChangelogEntries, ...pendingCycleChangelogEntries];
-  const totalStats = {
-    total: allEntries.length,
-    members: allEntries.filter((e) => e.entityType === 'member').length,
-    meals: allEntries.filter((e) => e.entityType === 'meal_log').length,
-    expenses: allEntries.filter((e) => e.entityType === 'expense').length,
-    deposits: allEntries.filter((e) => e.entityType === 'deposit').length,
-  };
 
   return (
     <div className="space-y-6 pb-10">
@@ -512,31 +501,6 @@ export default function ChangelogPage() {
               : 'No active cycle is available yet.'}
         </p>
       </div>
-
-      {/* Quick stats */}
-      {hasCycleSections && totalStats.total > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { label: 'All Changes', count: totalStats.total, icon: ClipboardList, color: 'text-primary bg-primary/10' },
-            { label: 'Meal Logs', count: totalStats.meals, icon: UtensilsCrossed, color: 'text-orange-500 bg-orange-500/10' },
-            { label: 'Expenses', count: totalStats.expenses, icon: DollarSign, color: 'text-blue-500 bg-blue-500/10' },
-            { label: 'Deposits', count: totalStats.deposits, icon: RefreshCcw, color: 'text-teal-500 bg-teal-500/10' },
-          ].map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div key={stat.label} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm">
-                <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', stat.color)}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold leading-none">{stat.count}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* Filters */}
       <div className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
