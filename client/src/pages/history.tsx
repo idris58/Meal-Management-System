@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { eachDayOfInterval, format, max, min, parseISO, startOfDay } from 'date-fns';
-import { Archive, Check, ChevronDown, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Utensils, Wallet, Zap, CheckCircle2, Loader2, AlertCircle, Lock } from 'lucide-react';
+import { Archive, Check, ChevronDown, History, Lock, Pencil, Plus, ScrollText, ShoppingBag, Trash2, Utensils, Wallet, Zap, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 
 import { useMeal, type Cycle, type CycleDetails, type Expense } from '@/lib/meal-context';
@@ -936,10 +936,6 @@ function ClosedCycleCard({
           </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
-            <Check className="h-3 w-3" />
-            Closed
-          </span>
           {isExpanded && canManageCycles ? (
             <>
               <AlertDialog>
@@ -997,6 +993,10 @@ function ClosedCycleCard({
               </AlertDialog>
             </>
           ) : null}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/80 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            Closed
+          </span>
           <AccordionPrimitive.Header className="flex">
             <AccordionPrimitive.Trigger
               className="group flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary"
@@ -1197,27 +1197,41 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-heading">History</h1>
-          <p className="text-sm text-muted-foreground">
-            Pending cycles stay editable for settlement and corrections. Closed cycles are read-only.
-          </p>
+      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+              <History className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Audit & Archives</p>
+              <h1 className="mt-1 text-2xl font-bold font-heading tracking-tight sm:text-3xl">History</h1>
+              <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
+                Pending cycles stay editable for settlement and corrections. Closed cycles are read-only.
+              </p>
+            </div>
+          </div>
+          {profile?.role !== 'member' ? (
+            <Button variant="outline" size="sm" asChild className="gap-2 border-border/80 bg-background/80 shadow-sm transition-all hover:bg-background hover:shadow shrink-0">
+              <Link href="/app/changelog">
+                <ScrollText className="h-4 w-4 text-primary" />
+                <span>Changelog</span>
+              </Link>
+            </Button>
+          ) : null}
         </div>
-        {profile?.role !== 'member' ? (
-          <Button variant="outline" size="icon" asChild title="View Changelog" aria-label="View Changelog">
-            <Link href="/app/changelog">
-              <ScrollText className="h-4 w-4" />
-            </Link>
-          </Button>
-        ) : null}
-      </div>
+      </header>
 
       {pendingCycles.length === 0 && closedCycleRows.length === 0 ? (
-        <div className="py-20 text-center text-muted-foreground">
-          <h2 className="mb-2 text-2xl font-bold font-heading">No Past Cycles</h2>
-          <p>Close your first cycle to see settlement history here.</p>
-        </div>
+        <Card className="border-dashed p-8 sm:p-12 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+            <History className="h-6 w-6 text-primary" />
+          </div>
+          <h2 className="text-xl font-bold font-heading">No Past Cycles</h2>
+          <p className="mt-1.5 text-sm text-muted-foreground max-w-sm mx-auto">
+            Close your active cycle in Settings to see settlement history and member summaries here.
+          </p>
+        </Card>
       ) : null}
 
       {pendingCycles.length > 0 ? (
