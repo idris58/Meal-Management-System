@@ -493,15 +493,15 @@ export default function ChangelogPage() {
   return (
     <div className="space-y-6 pb-10">
       {/* Page header */}
-      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-5 shadow-sm sm:p-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-              <ScrollText className="h-5 w-5" />
+      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-4 sm:p-7 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-primary text-primary-foreground shadow-md shadow-primary/20">
+              <ScrollText className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold font-heading tracking-tight sm:text-3xl">Changelog</h1>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold font-heading tracking-tight sm:text-3xl truncate">Changelog</h1>
+              <p className="hidden sm:block mt-1 text-sm leading-6 text-muted-foreground">
                 {pendingCycle
                   ? 'Track settlement changes in the pending cycle alongside new active cycle activity.'
                   : activeCycle
@@ -521,7 +521,7 @@ export default function ChangelogPage() {
                 window.location.href = '/app/history';
               }
             }}
-            className="gap-2 border-border/80 bg-background/80 shadow-sm transition-all hover:bg-background hover:shadow shrink-0 self-start sm:self-auto"
+            className="gap-1.5 border-border/80 bg-background/80 shadow-sm transition-all hover:bg-background hover:shadow shrink-0 sm:h-9"
           >
             <ArrowLeft className="h-4 w-4 text-primary" />
             <span>Back</span>

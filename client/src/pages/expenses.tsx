@@ -325,15 +325,15 @@ export default function Expenses() {
   return (
     <div className="flex h-full flex-col space-y-5">
       {/* ── Header ── */}
-      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-5 shadow-sm sm:p-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-              <ShoppingBag className="h-5 w-5" />
+      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-4 sm:p-7 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-primary text-primary-foreground shadow-md shadow-primary/20">
+              <ShoppingBag className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold font-heading tracking-tight sm:text-3xl">Expenses</h1>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold font-heading tracking-tight sm:text-3xl truncate">Expenses</h1>
+              <p className="hidden sm:block mt-1 text-sm leading-6 text-muted-foreground">
                 Track groceries, bazaar costs, and shared mess utility bills.
               </p>
             </div>
@@ -341,9 +341,9 @@ export default function Expenses() {
           {canManageExpenses ? (
             <Dialog open={openExpense} onOpenChange={setOpenExpense}>
               <DialogTrigger asChild>
-                <Button className="gap-2 shrink-0 shadow-sm" disabled={!activeCycle}>
+                <Button size="sm" className="gap-1.5 shrink-0 shadow-sm sm:h-9" disabled={!activeCycle}>
                   <Plus className="h-4 w-4" />
-                  Add Expense
+                  <span className="hidden sm:inline">Add </span>Expense
                 </Button>
               </DialogTrigger>
               <DialogContent>

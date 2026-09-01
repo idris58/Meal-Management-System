@@ -193,15 +193,15 @@ export default function Meals() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-5 shadow-sm sm:p-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-              <Utensils className="h-5 w-5" />
+      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/[0.11] via-card to-card p-4 sm:p-7 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-primary text-primary-foreground shadow-md shadow-primary/20">
+              <Utensils className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold font-heading tracking-tight sm:text-3xl">Meal Logs</h1>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold font-heading tracking-tight sm:text-3xl truncate">Meal Logs</h1>
+              <p className="hidden sm:block mt-1 text-sm leading-6 text-muted-foreground">
                 Log daily member meals and view consumption records.
               </p>
             </div>
@@ -218,12 +218,13 @@ export default function Meals() {
             >
               <DialogTrigger asChild>
                 <Button
-                  className="gap-2 shrink-0 shadow-sm"
+                  size="sm"
+                  className="gap-1.5 shrink-0 shadow-sm sm:h-9"
                   onClick={() => setSelectedDate(undefined)}
                   disabled={members.length === 0 || !activeCycle}
                 >
                   <Utensils className="h-4 w-4" />
-                  Log Meals
+                  <span className="hidden sm:inline">Log </span>Meals
                 </Button>
               </DialogTrigger>
               <DialogContent>
