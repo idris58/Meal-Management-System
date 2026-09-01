@@ -173,7 +173,7 @@ function CycleManagementCard() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-5 sm:p-6 space-y-4">
         {activeCycle ? (
           <div className="overflow-hidden rounded-xl border bg-emerald-500/5">
             {/* Status bar */}
@@ -455,7 +455,7 @@ function ShareSettingsCard() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-5 sm:p-6 space-y-4">
         <div className="flex items-center justify-between rounded-xl border bg-secondary/30 px-4 py-3">
           <div>
             <p className="text-sm font-medium">Sharing status</p>
@@ -520,7 +520,7 @@ function NotificationSettingsCard() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-5 sm:p-6 space-y-4">
         <div className="flex items-start justify-between gap-4 rounded-xl border bg-secondary/30 px-4 py-3">
           <div className="space-y-0.5">
             <p className="text-sm font-medium">Meal log reminders</p>
@@ -681,7 +681,7 @@ function NoticeSettingsCard() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="p-5 sm:p-6 space-y-5">
 
         {!loading && activeNotice && !isEditingNotice && (
           <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
@@ -779,9 +779,6 @@ export default function SettingsPage() {
               <h1 className="text-xl font-bold font-heading tracking-tight sm:text-3xl truncate">Settings</h1>
               <p className="hidden sm:block mt-1 max-w-xl text-sm leading-6 text-muted-foreground">Manage your cycle, shared view, notices, and reminders from one place.</p>
             </div>
-          </div>
-          <div className="rounded-xl border bg-background/75 px-3 py-1.5 text-xs text-muted-foreground shadow-sm shrink-0">
-            <span className="hidden sm:inline">Signed in as </span><span className="font-semibold capitalize text-foreground">{profile?.role}</span>
           </div>
         </div>
       </header>
