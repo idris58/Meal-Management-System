@@ -333,6 +333,64 @@ export async function sendNoticePushToSharedSubscribers(
   });
 }
 
+/**
+ * Send a push notification for a new/updated notice to all mess members with
+ * a main-audience push subscription. This ensures every logged-in user in the
+ * mess (member, coordinator, manager) gets a push — not just shared-view visitors.
+ */
+export async function sendNoticePushToMessMembers(
+  messId: string | null,
+  userId: string,
+  notice: { id: string; title: string; content: string; expiresAt: string } | null,
+) {
+  if (!notice) return;
+  if (!messId) return;
+
+  // Deduplicate by notice so we don't blast the same notice multiple times
+  const deliveryRecorded = await recordDelivery(
+    userId,
+    "notice_posted",
+    `main:${messId}:${notice.id}:${notice.expiresAt}`,
+  );
+
+  if (!deliveryRecorded) return;
+
+  const supabase = assertSupabaseAdmin();
+
+  // Find all profile_ids that belong to this mess
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("mess_id", messId);
+
+  if (profilesError) {
+    console.error("Error loading mess profiles for notice push:", profilesError);
+    return;
+  }
+
+  const profileIds = (profiles || []).map((p: { id: string }) => p.id);
+  if (profileIds.length === 0) return;
+
+  // Get all main-audience subscriptions for those users
+  const { data: subs, error: subsError } = await supabase
+    .from("push_subscriptions")
+    .select("id, user_id, endpoint, p256dh, auth")
+    .in("user_id", profileIds)
+    .eq("audience", "main");
+
+  if (subsError) {
+    console.error("Error loading mess push subscriptions for notice:", subsError);
+    return;
+  }
+
+  await sendPushToRows((subs || []) as PushSubscriptionRow[], {
+    title: `📢 ${notice.title}`,
+    body: truncateNotificationBody(notice.content),
+    url: `/app`,
+    tag: `mess-notice-${notice.id}`,
+  });
+}
+
 function getDateInTimeZone(timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,

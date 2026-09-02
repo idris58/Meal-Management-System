@@ -36,6 +36,7 @@ import {
   parsePushSubscription,
   removePushSubscription,
   sendNoticePushToSharedSubscribers,
+  sendNoticePushToMessMembers,
   upsertPushSubscription,
 } from "./push";
 
@@ -703,7 +704,10 @@ export async function registerRoutes(
     const scope = await resolveScopeForUserId(userId);
     const activeNotice = await getActiveNoticeForScope(scope);
     broadcastNoticeUpdate(scopeKey(scope), activeNotice);
+    // Push to shared-view visitors
     void sendNoticePushToSharedSubscribers(userId, activeNotice);
+    // Push to all logged-in mess members (main audience)
+    void sendNoticePushToMessMembers(scope.messId, userId, activeNotice);
 
     return res.json({ activeNotice });
   }));

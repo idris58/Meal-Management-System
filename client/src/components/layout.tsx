@@ -13,6 +13,7 @@ import {
   LogOut,
   Loader2,
   User,
+  Bell,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,9 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useNotice } from '@/lib/notice-context';
+import { NoticeBanner } from '@/components/notice-banner';
+import { NoticeDialog } from '@/components/notice-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,7 +69,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showNoticeDialog, setShowNoticeDialog] = useState(false);
   const { user, profile, signOut } = useAuth();
+  const { notice } = useNotice();
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -203,10 +209,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className="h-8 sm:h-9 shrink-0 gap-1.5 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm max-[380px]:[&_span]:hidden"
           />
           <ThemeToggle />
+
+          {/* Notice bell — pulses amber when there is an active notice */}
+          {notice && (
+            <button
+              type="button"
+              id="header-notice-bell"
+              aria-label="View active notice"
+              onClick={() => setShowNoticeDialog(true)}
+              className="relative flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-900/30"
+            >
+              <Bell className="h-4 w-4" />
+              {/* Pulsing glow ring */}
+              <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+              </span>
+            </button>
+          )}
+
           <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
           {userAvatar}
         </div>
       </header>
+
+      {/* Notice banner — just below sticky header */}
+      <NoticeBanner />
 
       <div className="flex">
         {/* Desktop Sidebar */}
@@ -268,6 +296,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </nav>
+
+      {/* Notice reader dialog triggered from the header bell */}
+      {showNoticeDialog && (
+        <NoticeDialog
+          mode="read"
+          open={showNoticeDialog}
+          onOpenChange={setShowNoticeDialog}
+        />
+      )}
     </div>
   );
 }

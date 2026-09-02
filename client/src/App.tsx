@@ -11,6 +11,7 @@ import { useAuth, AuthProvider } from "@/lib/auth-context";
 import { Toaster as SonnerToaster } from "sonner";
 import { toast } from "@/hooks/use-toast";
 import { MealProvider, useMeal } from "@/lib/meal-context";
+import { NoticeProvider } from "@/lib/notice-context";
 import { useNetworkStatus } from "@/lib/pwa";
 import { OfflineToastManager } from "@/components/offline-toast";
 import { supabase } from "@/lib/supabase";
@@ -314,8 +315,10 @@ function AppShell() {
 
   return (
     <MealProvider>
-      <OfflineToastManager />
-      <Router />
+      <NoticeProvider>
+        <OfflineToastManager />
+        <Router />
+      </NoticeProvider>
     </MealProvider>
   );
 }

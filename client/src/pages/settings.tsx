@@ -37,6 +37,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/lib/auth-context';
 import { useMeal } from '@/lib/meal-context';
 import { usePushNotifications } from '@/lib/push-notifications';
+import { useNotice } from '@/lib/notice-context';
+import { NoticeDialog } from '@/components/notice-dialog';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
@@ -541,217 +543,117 @@ function NotificationSettingsCard() {
 // ── Notice Settings Card ──────────────────────────────────────────────────────
 
 function NoticeSettingsCard() {
-  const { user, profile } = useAuth();
-  const [activeNotice, setActiveNotice] = useState<ActiveNotice | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [working, setWorking] = useState(false);
+  const { notice, loading, deleteNotice } = useNotice();
+  const [showPost, setShowPost] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isEditingNotice, setIsEditingNotice] = useState(false);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [expiryMode, setExpiryMode] = useState<'hours' | 'datetime'>('hours');
-  const [durationHours, setDurationHours] = useState('24');
-  const [expiryDatetime, setExpiryDatetime] = useState('');
-  const minDatetime = format(new Date(), "yyyy-MM-dd'T'HH:mm");
-
-  const resetNoticeForm = () => { setTitle(''); setContent(''); setExpiryMode('hours'); setDurationHours('24'); setExpiryDatetime(''); setIsEditingNotice(false); };
-
-  const broadcastNoticeUpdate = async () => {
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token;
-    if (!accessToken) return;
-    try { const response = await fetch('/api/notices/broadcast', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } }); if (!response.ok) console.error('Error broadcasting notice update:', await response.text()); }
-    catch (err) { console.error('Error broadcasting notice update:', err); }
-  };
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let active = true;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const now = new Date().toISOString();
-        let cleanupQuery = supabase.from('notices').delete().lte('expires_at', now);
-        if (profile?.mess_id) cleanupQuery = cleanupQuery.eq('mess_id', profile.mess_id);
-        else cleanupQuery = cleanupQuery.eq('user_id', user.id);
-        const { error: cleanupError } = await cleanupQuery;
-        if (cleanupError) throw cleanupError;
-        let fetchQuery = supabase.from('notices').select('id, title, content, expires_at').gt('expires_at', now).order('created_at', { ascending: false }).limit(1);
-        if (profile?.mess_id) fetchQuery = fetchQuery.eq('mess_id', profile.mess_id);
-        else fetchQuery = fetchQuery.eq('user_id', user.id);
-        const { data, error: fetchError } = await fetchQuery.maybeSingle();
-        if (fetchError) throw fetchError;
-        if (active) setActiveNotice(data as ActiveNotice | null);
-      } catch (err) {
-        console.error('Error loading notice:', err);
-        if (active) setError('Could not load notices. Make sure the notices table exists in Supabase.');
-      } finally { if (active) setLoading(false); }
-    };
-    void load();
-    return () => { active = false; };
-  }, [user?.id, profile?.mess_id]);
-
-  useEffect(() => {
-    if (!activeNotice || !user?.id) return;
-    const delay = parseISO(activeNotice.expires_at).getTime() - Date.now();
-    if (delay <= 0) { setActiveNotice(null); resetNoticeForm(); return; }
-    const timeoutId = window.setTimeout(() => {
-      void supabase.from('notices').delete().eq('id', activeNotice.id).then(({ error: deleteError }) => {
-        if (deleteError) { console.error('Error deleting expired notice:', deleteError); return; }
-        setActiveNotice((currentNotice) => currentNotice?.id === activeNotice.id ? null : currentNotice);
-        resetNoticeForm(); void broadcastNoticeUpdate();
-      });
-    }, delay);
-    return () => window.clearTimeout(timeoutId);
-  }, [activeNotice, user?.id]);
-
-  const handleSubmitNotice = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!user?.id || working) return;
-    const trimTitle = title.trim(); const trimContent = content.trim();
-    if (!trimTitle) { setError('Title is required.'); return; }
-    if (!trimContent) { setError('Content is required.'); return; }
-    let expiresAt: Date;
-    if (expiryMode === 'hours') {
-      const hours = parseFloat(durationHours);
-      if (isNaN(hours) || hours <= 0) { setError('Enter a valid duration in hours.'); return; }
-      expiresAt = addHours(new Date(), hours);
-    } else {
-      if (!expiryDatetime) { setError('Select an expiry date and time.'); return; }
-      expiresAt = parseISO(expiryDatetime);
-      if (isPast(expiresAt)) { setError('Expiry must be in the future.'); return; }
-    }
-    setWorking(true); setError(null); setMessage(null);
-    try {
-      if (isEditingNotice && activeNotice) {
-        const { data, error: updateError } = await supabase.from('notices').update({ title: trimTitle, content: trimContent, expires_at: expiresAt.toISOString() }).eq('id', activeNotice.id).select('id, title, content, expires_at').single();
-        if (updateError) throw updateError;
-        setActiveNotice(data as ActiveNotice); resetNoticeForm(); void broadcastNoticeUpdate();
-        setMessage('Notice updated. The shared view will show the new text immediately.'); return;
-      }
-      const now = new Date().toISOString();
-      let expireOldQuery = supabase.from('notices').update({ expires_at: now });
-      if (profile?.mess_id) expireOldQuery = expireOldQuery.eq('mess_id', profile.mess_id);
-      else expireOldQuery = expireOldQuery.eq('user_id', user.id);
-      await expireOldQuery.gt('expires_at', now);
-      const insertPayload: Record<string, any> = { user_id: user.id, profile_id: user.id, title: trimTitle, content: trimContent, expires_at: expiresAt.toISOString() };
-      if (profile?.mess_id) insertPayload.mess_id = profile.mess_id;
-      const { data, error: insertError } = await supabase.from('notices').insert([insertPayload]).select('id, title, content, expires_at').single();
-      if (insertError) throw insertError;
-      setActiveNotice(data as ActiveNotice); resetNoticeForm(); void broadcastNoticeUpdate();
-      setMessage('Notice posted! It will appear in the shared view immediately.');
-    } catch (err: any) {
-      console.error('Error posting notice:', err);
-      setError(err?.message || (isEditingNotice ? 'Unable to update the notice right now.' : 'Unable to post the notice right now.'));
-    } finally { setWorking(false); }
-  };
-
-  const handleStartEdit = () => {
-    if (!activeNotice) return;
-    setTitle(activeNotice.title); setContent(activeNotice.content);
-    setExpiryMode('datetime'); setExpiryDatetime(format(parseISO(activeNotice.expires_at), "yyyy-MM-dd'T'HH:mm")); setDurationHours('24'); setIsEditingNotice(true); setMessage(null); setError(null);
-  };
 
   const handleDelete = async () => {
-    if (!activeNotice || !user?.id || working) return;
-    setWorking(true); setError(null); setMessage(null);
-    try {
-      const { error: deleteError } = await supabase.from('notices').delete().eq('id', activeNotice.id);
-      if (deleteError) throw deleteError;
-      setActiveNotice(null); resetNoticeForm(); void broadcastNoticeUpdate();
-      setMessage('Notice removed from the shared view.');
-    } catch (err: any) {
-      console.error('Error deleting notice:', err);
-      setError(err?.message || 'Unable to delete the notice right now.');
-    } finally { setWorking(false); }
+    if (!notice || deleting) return;
+    setDeleting(true);
+    const ok = await deleteNotice(notice.id);
+    setDeleting(false);
+    if (ok) setMessage('Notice removed successfully.');
   };
 
   return (
-    <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
-      <CardHeader className="border-b bg-gradient-to-r from-amber-500/[0.07] to-transparent p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">Communication</p>
-            <CardTitle className="mt-0.5 text-lg font-bold font-heading">Notice Board</CardTitle>
-            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Publish a time-limited update in the shared view header.</p>
-          </div>
-          <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20">
-            <Megaphone className="h-4.5 w-4.5 text-amber-600 dark:text-amber-400" />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-5 sm:p-6 space-y-5">
-
-        {!loading && activeNotice && !isEditingNotice && (
-          <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Active Notice</p>
-              <div className="flex shrink-0 gap-2">
-                <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:text-emerald-400" onClick={handleStartEdit} disabled={working}><Pencil className="h-3 w-3" />Edit</Button>
-                <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400" onClick={handleDelete} disabled={working}><Trash2 className="h-3 w-3" />Remove</Button>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <p className="font-semibold text-sm">{activeNotice.title}</p>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{activeNotice.content}</p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                Expires {formatDistanceToNow(parseISO(activeNotice.expires_at), { addSuffix: true })}
-                {' '}({format(parseISO(activeNotice.expires_at), 'dd MMM yyyy, hh:mm a')})
+    <>
+      <Card className="overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+        <CardHeader className="border-b bg-gradient-to-r from-amber-500/[0.07] to-transparent p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">Communication</p>
+              <CardTitle className="mt-0.5 text-lg font-bold font-heading">Notice Board</CardTitle>
+              <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                Publish a time-limited announcement for all mess members, coordinators and managers.
               </p>
             </div>
-          </div>
-        )}
-
-        {loading && (
-          <div className="space-y-2 rounded-xl border bg-secondary/20 p-4">
-            <Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" />
-          </div>
-        )}
-
-        <form onSubmit={handleSubmitNotice} className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isEditingNotice ? 'Edit active notice' : activeNotice ? 'Post new notice (replaces active one)' : 'Post a notice'}
-          </p>
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="notice-title">Title</label>
-            <Input id="notice-title" placeholder="e.g. Important update for all members" value={title} onChange={(e) => { setTitle(e.target.value); setError(null); }} disabled={working} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="notice-content">Content</label>
-            <Textarea id="notice-content" placeholder="Write your notice message here..." rows={3} value={content} onChange={(e) => { setContent(e.target.value); setError(null); }} disabled={working} className="resize-none" />
-          </div>
-          <div className="space-y-3">
-            <p className="text-sm font-medium">Expiry</p>
-            <div className="flex gap-2">
-              {(['hours', 'datetime'] as const).map((mode) => (
-                <button key={mode} type="button" onClick={() => setExpiryMode(mode)} className={cn('flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors', expiryMode === mode ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground hover:bg-muted')}>
-                  {mode === 'hours' ? 'Duration (hours)' : 'Specific date & time'}
-                </button>
-              ))}
+            <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20">
+              <Megaphone className="h-4.5 w-4.5 text-amber-600 dark:text-amber-400" />
             </div>
-            {expiryMode === 'hours' ? (
-              <div className="flex items-center gap-2">
-                <Input id="notice-duration" type="number" min="0.5" step="0.5" placeholder="24" value={durationHours} onChange={(e) => { setDurationHours(e.target.value); setError(null); }} disabled={working} className="w-32" />
-                <span className="text-sm text-muted-foreground">hours from now</span>
-              </div>
-            ) : (
-              <Input id="notice-expiry" type="datetime-local" min={minDatetime} value={expiryDatetime} onChange={(e) => { setExpiryDatetime(e.target.value); setError(null); }} disabled={working} />
-            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" className="gap-2" disabled={working}>
-              <Megaphone className="h-4 w-4" />
-              {working ? (isEditingNotice ? 'Saving...' : 'Posting...') : isEditingNotice ? 'Save Notice' : 'Post Notice'}
-            </Button>
-            {isEditingNotice && <Button type="button" variant="outline" onClick={() => { resetNoticeForm(); setError(null); setMessage(null); }} disabled={working}>Cancel Edit</Button>}
-          </div>
-        </form>
+        </CardHeader>
 
-        {message && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">{message}</p>}
-        {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">{error}</p>}
-      </CardContent>
-    </Card>
+        <CardContent className="p-5 sm:p-6 space-y-5">
+          {/* Loading */}
+          {loading && (
+            <div className="space-y-2 rounded-xl border bg-secondary/20 p-4">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          )}
+
+          {/* Active notice preview */}
+          {!loading && notice && (
+            <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  </span>
+                  <p className="text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Active Notice</p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:text-emerald-400"
+                    onClick={() => setShowEdit(true)}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                    Remove
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-sm">{notice.title}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-3">{notice.content}</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  Expires {formatDistanceToNow(parseISO(notice.expiresAt), { addSuffix: true })}
+                  {' '}({format(parseISO(notice.expiresAt), 'dd MMM yyyy, hh:mm a')})
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Post new notice CTA */}
+          {!loading && (
+            <Button
+              type="button"
+              className="gap-2 w-full sm:w-auto"
+              onClick={() => setShowPost(true)}
+            >
+              <Megaphone className="h-4 w-4" />
+              {notice ? 'Post New Notice (replaces active)' : 'Post a Notice'}
+            </Button>
+          )}
+
+          {message && (
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
+              {message}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {showPost && <NoticeDialog mode="post" open={showPost} onOpenChange={setShowPost} />}
+      {showEdit && <NoticeDialog mode="edit" open={showEdit} onOpenChange={setShowEdit} />}
+    </>
   );
 }
 
