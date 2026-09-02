@@ -15,7 +15,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useNotice } from '@/lib/notice-context';
 import { useAuth } from '@/lib/auth-context';
-import { NoticeDialog } from './notice-dialog';
+import { NoticeDialog } from '@/components/notice-dialog';
 
 // ── Mini marquee for mobile ───────────────────────────────────────────────────
 

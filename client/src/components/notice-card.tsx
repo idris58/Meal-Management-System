@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useNotice } from '@/lib/notice-context';
 import { useAuth } from '@/lib/auth-context';
-import { NoticeDialog } from './notice-dialog';
+import { NoticeDialog } from '@/components/notice-dialog';
 
 // ── Countdown badge ───────────────────────────────────────────────────────────
 
