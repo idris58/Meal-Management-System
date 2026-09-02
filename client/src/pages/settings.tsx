@@ -621,8 +621,7 @@ function NoticeSettingsCard() {
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="font-semibold text-sm">{notice.title}</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-3">{notice.content}</p>
+                <p className="text-sm font-medium text-foreground whitespace-pre-wrap break-words line-clamp-3">{notice.content}</p>
                 <p className="text-xs text-emerald-600 dark:text-emerald-400">
                   Expires {formatDistanceToNow(parseISO(notice.expiresAt), { addSuffix: true })}
                   {' '}({format(parseISO(notice.expiresAt), 'dd MMM yyyy, hh:mm a')})

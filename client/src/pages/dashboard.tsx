@@ -34,7 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { OnboardingTour } from '@/components/onboarding-tour';
-import { NoticeCard } from '@/components/notice-card';
+import { DashboardFab } from '@/components/dashboard-fab';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/lib/auth-context';
 import { Link } from 'wouter';
@@ -671,9 +671,6 @@ export default function Dashboard() {
     <div className="space-y-6 pb-20">
       <OnboardingTour />
 
-      {/* Active notice widget */}
-      <NoticeCard />
-
       {/* Main stats cards */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="glass-card border-none bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white shadow-lg lg:col-span-2">
@@ -729,69 +726,33 @@ export default function Dashboard() {
         </Card>
       </section>
 
-      {/* Quick action tiles */}
-      {(canManageExpenses || canOperateMeals) ? (
-        !activeCycle ? (
-          /* No active cycle — show a CTA to go to Settings */
-          <section>
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed bg-card px-6 py-8 text-center shadow-sm">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Play className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">No Active Cycle</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Start a cycle in Settings to begin logging meals and expenses.
-                </p>
-              </div>
-              <Button asChild size="sm" className="gap-2">
-                <a href="/app/settings">
-                  <Play className="h-4 w-4" />
-                  Go to Settings
-                </a>
-              </Button>
-            </div>
-          </section>
-        ) : (
-          <section className={cn("grid gap-4", canManageExpenses && canOperateMeals ? "grid-cols-2" : "grid-cols-1")}>
-            {canManageExpenses ? (
-              <Dialog open={openExpense} onOpenChange={setOpenExpense}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-md dark:border-emerald-900 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/40">
-                    <ShoppingBag className="h-7 w-7" />
-                    <span className="font-semibold tracking-wide">Add Expense</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md w-[95%]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Expense</DialogTitle>
-                    <DialogDescription>Enter the details of the new expense below.</DialogDescription>
-                  </DialogHeader>
-                  <QuickAddExpense onClose={() => setOpenExpense(false)} />
-                </DialogContent>
-              </Dialog>
-            ) : null}
+      {/* Floating Action Button for Quick Actions */}
+      <DashboardFab
+        onOpenExpense={() => setOpenExpense(true)}
+        onOpenMeal={() => setOpenMeal(true)}
+      />
 
-            {canOperateMeals ? (
-              <Dialog open={openMeal} onOpenChange={setOpenMeal}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 text-blue-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:shadow-md dark:border-blue-900 dark:bg-blue-950/30 dark:hover:bg-blue-900/40">
-                    <Utensils className="h-7 w-7" />
-                    <span className="font-semibold tracking-wide">Log Meals</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md w-[95%]">
-                  <DialogHeader>
-                    <DialogTitle>Log Meals by Date</DialogTitle>
-                    <DialogDescription>Update meal counts for each member for the selected date.</DialogDescription>
-                  </DialogHeader>
-                  <QuickLogMeal onClose={() => setOpenMeal(false)} />
-                </DialogContent>
-              </Dialog>
-            ) : null}
-          </section>
-        )
-      ) : null}
+      {/* Add Expense Dialog */}
+      <Dialog open={openExpense} onOpenChange={setOpenExpense}>
+        <DialogContent className="max-w-md w-[95%]">
+          <DialogHeader>
+            <DialogTitle>Add New Expense</DialogTitle>
+            <DialogDescription>Enter the details of the new expense below.</DialogDescription>
+          </DialogHeader>
+          <QuickAddExpense onClose={() => setOpenExpense(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Log Meals Dialog */}
+      <Dialog open={openMeal} onOpenChange={setOpenMeal}>
+        <DialogContent className="max-w-md w-[95%]">
+          <DialogHeader>
+            <DialogTitle>Log Meals by Date</DialogTitle>
+            <DialogDescription>Update meal counts for each member for the selected date.</DialogDescription>
+          </DialogHeader>
+          <QuickLogMeal onClose={() => setOpenMeal(false)} />
+        </DialogContent>
+      </Dialog>
 
       {/* Member summary table */}
       <section>

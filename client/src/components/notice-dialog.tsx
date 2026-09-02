@@ -101,7 +101,7 @@ function ReadPanel({ onEdit, onClose }: { onEdit: () => void; onClose: () => voi
           </div>
           <div className="min-w-0">
             <h3 className="font-heading text-base font-bold text-amber-950 dark:text-amber-100 leading-tight">
-              {notice.title}
+              Notice
             </h3>
             {notice.createdAt && (
               <p className="mt-0.5 text-[11px] text-amber-600 dark:text-amber-400">
@@ -165,7 +165,6 @@ function PostEditPanel({
   const { notice, postNotice, updateNotice } = useNotice();
   const isEdit = mode === 'edit';
 
-  const [title, setTitle] = useState(isEdit && notice ? notice.title : '');
   const [content, setContent] = useState(isEdit && notice ? notice.content : '');
   const [expiryMode, setExpiryMode] = useState<'hours' | 'datetime'>('hours');
   const [selectedPreset, setSelectedPreset] = useState<number>(24);
@@ -190,10 +189,8 @@ function PostEditPanel({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const trimTitle = title.trim();
     const trimContent = content.trim();
-    if (!trimTitle) { setError('Title is required.'); return; }
-    if (!trimContent) { setError('Content is required.'); return; }
+    if (!trimContent) { setError('Message is required.'); return; }
     const expiresAt = computeExpiresAt();
     if (!expiresAt) { setError('Please select a valid expiry time.'); return; }
 
@@ -202,9 +199,9 @@ function PostEditPanel({
     try {
       let result;
       if (isEdit && notice) {
-        result = await updateNotice(notice.id, trimTitle, trimContent, expiresAt);
+        result = await updateNotice(notice.id, trimContent, expiresAt);
       } else {
-        result = await postNotice(trimTitle, trimContent, expiresAt);
+        result = await postNotice(trimContent, expiresAt);
       }
       if (result) {
         onClose();
@@ -218,29 +215,14 @@ function PostEditPanel({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Title */}
-      <div className="space-y-1.5">
-        <label htmlFor="nd-title" className="text-sm font-semibold">
-          Notice Title
-        </label>
-        <Input
-          id="nd-title"
-          placeholder="e.g. Important update for all members"
-          value={title}
-          onChange={(e) => { setTitle(e.target.value); setError(null); }}
-          disabled={working}
-          maxLength={120}
-        />
-      </div>
-
       {/* Content */}
       <div className="space-y-1.5">
         <label htmlFor="nd-content" className="text-sm font-semibold">
-          Message
+          Notice Message
         </label>
         <Textarea
           id="nd-content"
-          placeholder="Write the full notice here…"
+          placeholder="Write your notice message here for all mess members…"
           rows={4}
           value={content}
           onChange={(e) => { setContent(e.target.value); setError(null); }}

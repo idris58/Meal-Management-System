@@ -43,16 +43,16 @@ interface NoticeContextValue {
   dismissed: boolean;
   /** Post or replace a notice. Returns the new notice or null on error. */
   postNotice: (
-    title: string,
     content: string,
     expiresAt: Date,
+    title?: string,
   ) => Promise<Notice | null>;
   /** Update the active notice in-place. Returns updated notice or null. */
   updateNotice: (
     id: string,
-    title: string,
     content: string,
     expiresAt: Date,
+    title?: string,
   ) => Promise<Notice | null>;
   /** Delete the active notice. */
   deleteNotice: (id: string) => Promise<boolean>;
@@ -223,12 +223,13 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
   // ── CRUD actions ──────────────────────────────────────────────────────────────
 
   const postNotice = useCallback(async (
-    title: string,
     content: string,
     expiresAt: Date,
+    title?: string,
   ): Promise<Notice | null> => {
     if (!user?.id) return null;
     const now = new Date().toISOString();
+    const effectiveTitle = (title && title.trim()) || 'Notice';
 
     // Expire any current active notice first
     let expireQ = supabase.from('notices').update({ expires_at: now });
@@ -239,7 +240,7 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
     const payload: Record<string, any> = {
       user_id: user.id,
       profile_id: user.id,
-      title,
+      title: effectiveTitle,
       content,
       expires_at: expiresAt.toISOString(),
     };
@@ -262,13 +263,14 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
 
   const updateNotice = useCallback(async (
     id: string,
-    title: string,
     content: string,
     expiresAt: Date,
+    title?: string,
   ): Promise<Notice | null> => {
+    const effectiveTitle = (title && title.trim()) || 'Notice';
     const { data, error } = await supabase
       .from('notices')
-      .update({ title, content, expires_at: expiresAt.toISOString() })
+      .update({ title: effectiveTitle, content, expires_at: expiresAt.toISOString() })
       .eq('id', id)
       .select('id, title, content, expires_at, created_at')
       .single();

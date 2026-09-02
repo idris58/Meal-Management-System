@@ -65,7 +65,7 @@ export function NoticeBanner() {
         >
           <Bell className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
           <span className="text-xs font-medium text-amber-700 dark:text-amber-300 truncate max-w-[240px] sm:max-w-none">
-            Notice: <strong>{notice.title}</strong>
+            {notice.content}
           </span>
           <button
             type="button"
@@ -116,7 +116,7 @@ export function NoticeBanner() {
           'dark:border-amber-800/60 dark:from-amber-950/60 dark:via-amber-900/40 dark:to-amber-950/30',
         )}
         role="status"
-        aria-label={`Notice: ${notice.title}`}
+        aria-label={`Notice: ${notice.content.slice(0, 50)}`}
       >
         {/* Left badge */}
         <div className="flex shrink-0 items-center gap-2 border-r border-amber-200 bg-gradient-to-b from-amber-400 to-amber-500 px-3 py-2.5 shadow-[1px_0_6px_rgba(217,119,6,0.2)] dark:border-amber-800/60 dark:from-amber-700 dark:to-amber-800 sm:px-4">
@@ -135,7 +135,7 @@ export function NoticeBanner() {
               onClick={() => setShowReadDialog(true)}
               className="min-w-0 flex-1 text-left"
             >
-              <InlineTicker text={`${notice.title}: ${notice.content}`} />
+              <InlineTicker text={notice.content} />
             </button>
           </div>
 
@@ -145,10 +145,7 @@ export function NoticeBanner() {
             onClick={() => setShowReadDialog(true)}
             className="hidden min-w-0 flex-1 text-left sm:block"
           >
-            <span className="line-clamp-1 text-sm font-semibold text-amber-900 dark:text-amber-100">
-              {notice.title}
-            </span>
-            <span className="line-clamp-1 text-xs text-amber-700 dark:text-amber-300">
+            <span className="line-clamp-1 text-sm font-medium text-amber-950 dark:text-amber-100">
               {notice.content}
             </span>
           </button>
