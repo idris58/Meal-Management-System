@@ -32,7 +32,6 @@ type ReminderProfileRow = {
   id: string;
   mess_id: string | null;
   reminder_time: string | null;
-  reminder_timezone: string | null;
 };
 
 const DEFAULT_TIMEZONE = "Asia/Dhaka";
@@ -443,7 +442,7 @@ export async function sendMealLogReminders() {
   for (const cycle of (activeCycles || []) as ActiveCycleRow[]) {
     let profilesQuery = supabase
       .from("profiles")
-      .select("id, mess_id, reminder_time, reminder_timezone");
+      .select("id, mess_id, reminder_time");
     profilesQuery = cycle.mess_id
       ? profilesQuery.eq("mess_id", cycle.mess_id)
       : profilesQuery.eq("id", cycle.user_id);
@@ -451,7 +450,7 @@ export async function sendMealLogReminders() {
     if (profilesError) { console.error("Error loading reminder profiles:", profilesError); continue; }
 
     for (const profile of (profiles || []) as ReminderProfileRow[]) {
-      const local = safeLocalDateTime(profile.reminder_timezone, now);
+      const local = safeLocalDateTime(DEFAULT_TIMEZONE, now);
       const configuredTime = (profile.reminder_time || "22:00").slice(0, 5);
       if (local.time !== configuredTime) continue;
 

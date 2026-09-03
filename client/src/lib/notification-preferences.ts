@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-export type NotificationPreferences = { reminderTime: string; reminderTimezone: string };
+export type NotificationPreferences = { reminderTime: string };
 
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
