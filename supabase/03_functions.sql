@@ -162,6 +162,27 @@ begin
 end;
 $$;
 
+create or replace function public.get_notification_preferences()
+returns table (reminder_time time)
+language sql stable security definer set search_path = public
+as $$
+  select p.reminder_time from public.profiles p where p.id = auth.uid();
+$$;
+
+create or replace function public.update_notification_preferences(reminder_time_input time)
+returns table (reminder_time time)
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then raise exception 'Authentication is required'; end if;
+  update public.profiles
+    set reminder_time = coalesce(reminder_time_input, '22:00'::time), updated_at = now()
+    where id = auth.uid();
+  if not found then raise exception 'Profile was not found'; end if;
+  return query select p.reminder_time from public.profiles p where p.id = auth.uid();
+end;
+$$;
+
 create or replace function public.member_invite_status(invite public.member_invites)
 returns text language sql stable
 as $$ select case when invite.revoked_at is not null then 'revoked' when invite.claimed_at is not null then 'used' when invite.expires_at <= now() then 'expired' else 'active' end $$;
@@ -236,3 +257,5 @@ revoke all on function public.migrate_legacy_data(text), public.link_member_prof
 grant execute on function public.migrate_legacy_data(text), public.link_member_profile(uuid, uuid), public.create_member_invite(uuid), public.list_member_invites(), public.revoke_member_invite(uuid), public.accept_member_invite(uuid) to authenticated;
 revoke all on function public.get_member_invite_preview(uuid) from public;
 grant execute on function public.get_member_invite_preview(uuid) to anon, authenticated;
+grant execute on function public.get_notification_preferences() to authenticated;
+grant execute on function public.update_notification_preferences(time) to authenticated;
