@@ -551,7 +551,7 @@ export async function registerRoutes(
     const userId = await getAuthenticatedUserId(req.get("authorization"));
     if (!userId) return res.status(401).json({ message: "Invalid authorization token." });
     const reminderTime = typeof req.body?.reminderTime === "string" ? req.body.reminderTime : "";
-    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(reminderTime)) return res.status(400).json({ message: "Choose a valid reminder time." });
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) return res.status(400).json({ message: "Choose a valid reminder time." });
     const supabaseAdmin = assertSupabaseAdmin();
     const { data, error } = await supabaseAdmin.from("profiles").update({ reminder_time: `${reminderTime}:00`, updated_at: new Date().toISOString() }).eq("id", userId).select("reminder_time").single();
     if (error) throw error;
