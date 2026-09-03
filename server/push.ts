@@ -28,6 +28,13 @@ type ActiveCycleRow = {
   mess_id: string | null;
 };
 
+type ReminderProfileRow = {
+  id: string;
+  mess_id: string | null;
+  reminder_time: string | null;
+  reminder_timezone: string | null;
+};
+
 const DEFAULT_TIMEZONE = "Asia/Dhaka";
 const NOTIFICATION_DELIVERY_RETENTION_MS = 24 * 60 * 60 * 1000;
 let vapidConfigured = false;
@@ -391,16 +398,29 @@ export async function sendNoticePushToMessMembers(
   });
 }
 
-function getDateInTimeZone(timeZone: string) {
+function getLocalDateTime(timeZone: string, now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date());
-
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
   const values = new Map(parts.map((part) => [part.type, part.value]));
-  return `${values.get("year")}-${values.get("month")}-${values.get("day")}`;
+  return {
+    date: `${values.get("year")}-${values.get("month")}-${values.get("day")}`,
+    time: `${values.get("hour")}:${values.get("minute")}`,
+  };
+}
+
+function safeLocalDateTime(timeZone: string | null | undefined, now = new Date()) {
+  try {
+    return getLocalDateTime(timeZone || DEFAULT_TIMEZONE, now);
+  } catch {
+    return getLocalDateTime(DEFAULT_TIMEZONE, now);
+  }
 }
 
 export async function sendMealLogReminders() {
@@ -409,9 +429,6 @@ export async function sendMealLogReminders() {
   }
 
   const supabase = assertSupabaseAdmin();
-  const timeZone = process.env.NOTIFICATION_TIMEZONE || DEFAULT_TIMEZONE;
-  const today = getDateInTimeZone(timeZone);
-
   const { data: activeCycles, error: cyclesError } = await supabase
     .from("cycles")
     .select("id, user_id, mess_id")
@@ -422,51 +439,58 @@ export async function sendMealLogReminders() {
     return;
   }
 
+  const now = new Date();
   for (const cycle of (activeCycles || []) as ActiveCycleRow[]) {
-    const { data: subscriptions, error: subscriptionError } = await supabase
-      .from("push_subscriptions")
-      .select("id, user_id, endpoint, p256dh, auth")
-      .eq("user_id", cycle.user_id)
-      .eq("audience", "main");
+    let profilesQuery = supabase
+      .from("profiles")
+      .select("id, mess_id, reminder_time, reminder_timezone");
+    profilesQuery = cycle.mess_id
+      ? profilesQuery.eq("mess_id", cycle.mess_id)
+      : profilesQuery.eq("id", cycle.user_id);
+    const { data: profiles, error: profilesError } = await profilesQuery;
+    if (profilesError) { console.error("Error loading reminder profiles:", profilesError); continue; }
 
-    if (subscriptionError) {
-      console.error("Error loading main push subscriptions:", subscriptionError);
-      continue;
-    }
+    for (const profile of (profiles || []) as ReminderProfileRow[]) {
+      const local = safeLocalDateTime(profile.reminder_timezone, now);
+      const configuredTime = (profile.reminder_time || "22:00").slice(0, 5);
+      if (local.time !== configuredTime) continue;
 
-    const rows = (subscriptions || []) as PushSubscriptionRow[];
-    if (rows.length === 0) {
-      continue;
-    }
+      const { data: subscriptions, error: subscriptionError } = await supabase
+        .from("push_subscriptions")
+        .select("id, user_id, endpoint, p256dh, auth")
+        .eq("user_id", profile.id)
+        .eq("audience", "main");
+      if (subscriptionError) { console.error("Error loading main push subscriptions:", subscriptionError); continue; }
+      const rows = (subscriptions || []) as PushSubscriptionRow[];
+      if (rows.length === 0) continue;
+      const today = local.date;
 
     // Scope by mess, not user: a coordinator may have logged today's meals, and
     // those rows carry the coordinator's user_id. Falling back to user_id only
     // covers legacy rows that were never migrated into a mess.
-    let mealLogQuery = supabase
+      let mealLogQuery = supabase
       .from("meal_logs")
       .select("id")
       .eq("cycle_id", cycle.id)
       .eq("date", today);
 
-    mealLogQuery = cycle.mess_id
+      mealLogQuery = cycle.mess_id
       ? mealLogQuery.eq("mess_id", cycle.mess_id)
       : mealLogQuery.eq("user_id", cycle.user_id);
 
-    const { data: mealLog, error: mealLogError } = await mealLogQuery
+      const { data: mealLog, error: mealLogError } = await mealLogQuery
       .limit(1)
       .maybeSingle();
 
-    if (mealLogError) {
+      if (mealLogError) {
       console.error("Error checking today's meal logs:", mealLogError);
-      continue;
-    }
+        continue;
+      }
 
-    if (mealLog) {
-      continue;
-    }
+      if (mealLog) continue;
 
-    const deliveryRecorded = await recordDelivery(
-      cycle.user_id,
+      const deliveryRecorded = await recordDelivery(
+      profile.id,
       "meal_log_reminder",
       `${today}:${cycle.id}`,
     ).catch((error) => {
@@ -474,16 +498,15 @@ export async function sendMealLogReminders() {
       return false;
     });
 
-    if (!deliveryRecorded) {
-      continue;
-    }
+      if (!deliveryRecorded) continue;
 
-    await sendPushToRows(rows, {
+      await sendPushToRows(rows, {
       title: "Meal log reminder",
       body: "Today's meal has not been logged yet.",
       url: "/app/meals",
       tag: `meal-log-reminder-${today}-${cycle.id}`,
-    });
+      });
+    }
   }
 }
 
@@ -507,13 +530,11 @@ export function startMealReminderScheduler() {
     return;
   }
 
-  const timeZone = process.env.NOTIFICATION_TIMEZONE || DEFAULT_TIMEZONE;
   cron.schedule(
-    "0 22 * * *",
+    "* * * * *",
     () => {
       void sendMealLogReminders();
     },
-    { timezone: timeZone },
   );
 }
 

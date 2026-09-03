@@ -37,6 +37,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/lib/auth-context';
 import { useMeal } from '@/lib/meal-context';
 import { usePushNotifications } from '@/lib/push-notifications';
+import { getNotificationPreferences, saveNotificationPreferences } from '@/lib/notification-preferences';
 import { useNotice } from '@/lib/notice-context';
 import { NoticeDialog } from '@/components/notice-dialog';
 import { supabase } from '@/lib/supabase';
@@ -506,6 +507,30 @@ function ShareSettingsCard() {
 
 function NotificationSettingsCard() {
   const { supported, status, hasSubscription, working, error, message, subscribe, unsubscribe } = usePushNotifications({ mode: 'main' });
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Dhaka';
+  const [reminderTime, setReminderTime] = useState('22:00');
+  const [reminderTimezone, setReminderTimezone] = useState(browserTimezone);
+  const [preferencesLoading, setPreferencesLoading] = useState(true);
+  const [preferencesSaving, setPreferencesSaving] = useState(false);
+  const [preferencesMessage, setPreferencesMessage] = useState<string | null>(null);
+  const [preferencesError, setPreferencesError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void getNotificationPreferences().then((preferences) => {
+      if (!active) return;
+      setReminderTime(preferences.reminderTime || '22:00');
+      setReminderTimezone(preferences.reminderTimezone || browserTimezone);
+    }).catch((loadError) => { if (active) setPreferencesError(loadError instanceof Error ? loadError.message : 'Unable to load reminder preferences.'); })
+      .finally(() => { if (active) setPreferencesLoading(false); });
+    return () => { active = false; };
+  }, [browserTimezone]);
+  const savePreferences = async () => {
+    setPreferencesSaving(true); setPreferencesMessage(null); setPreferencesError(null);
+    try { const saved = await saveNotificationPreferences({ reminderTime, reminderTimezone }); setReminderTime(saved.reminderTime); setReminderTimezone(saved.reminderTimezone); setPreferencesMessage('Reminder schedule saved.'); }
+    catch (saveError) { setPreferencesError(saveError instanceof Error ? saveError.message : 'Unable to save reminder preferences.'); }
+    finally { setPreferencesSaving(false); }
+  };
+  const nextRun = (() => { try { const [hour, minute] = reminderTime.split(':').map(Number); const now = new Date(); const candidate = new Date(now); candidate.setHours(hour, minute, 0, 0); if (candidate <= now) candidate.setDate(candidate.getDate() + 1); return new Intl.DateTimeFormat(undefined, { timeZone: reminderTimezone, dateStyle: 'medium', timeStyle: 'short' }).format(candidate); } catch { return 'the next scheduled time'; } })();
   const handleToggle = (checked: boolean) => { if (checked) { void subscribe(); return; } void unsubscribe(); };
 
   return (
@@ -526,12 +551,24 @@ function NotificationSettingsCard() {
         <div className="flex items-start justify-between gap-4 rounded-xl border bg-secondary/30 px-4 py-3">
           <div className="space-y-0.5">
             <p className="text-sm font-medium">Meal log reminders</p>
-            <p className="text-xs text-muted-foreground">Get a browser notification at 10:00 PM if today's active-cycle meal log has not been saved.</p>
+            <p className="text-xs text-muted-foreground">Get a browser notification at {reminderTime} in {reminderTimezone} if today&apos;s active-cycle meal log has not been saved.</p>
             {!supported ? <p className="text-xs text-muted-foreground">This browser does not support Web Push notifications.</p>
               : status === 'denied' ? <p className="text-xs text-red-600 dark:text-red-400">Notifications are blocked. Allow them from your browser settings to enable reminders.</p>
               : null}
           </div>
           <Switch checked={hasSubscription} disabled={!supported || working || status === 'denied'} onCheckedChange={handleToggle} aria-label="Toggle meal log reminder notifications" />
+        </div>
+        <div className="rounded-xl border bg-background/70 p-4 space-y-3">
+          <div><p className="text-sm font-medium">Reminder schedule</p><p className="text-xs text-muted-foreground">Choose when the reminder should arrive in your local time.</p></div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-xs font-medium">Time<input type="time" value={reminderTime} disabled={preferencesLoading || preferencesSaving} onChange={(event) => setReminderTime(event.target.value)} className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" /></label>
+            <label className="space-y-1 text-xs font-medium">Timezone<select value={reminderTimezone} disabled={preferencesLoading || preferencesSaving} onChange={(event) => setReminderTimezone(event.target.value)} className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm"><option value={browserTimezone}>{browserTimezone} (device)</option><option value="Asia/Dhaka">Asia/Dhaka</option><option value="UTC">UTC</option><option value="America/New_York">America/New_York</option><option value="America/Los_Angeles">America/Los_Angeles</option><option value="Europe/London">Europe/London</option><option value="Europe/Paris">Europe/Paris</option><option value="Asia/Kolkata">Asia/Kolkata</option><option value="Asia/Singapore">Asia/Singapore</option><option value="Australia/Sydney">Australia/Sydney</option></select></label>
+          </div>
+          <button type="button" className="text-xs text-primary underline-offset-4 hover:underline" onClick={() => setReminderTimezone(browserTimezone)}>Use my device timezone</button>
+          <p className="text-xs text-muted-foreground">Next reminder: {nextRun}</p>
+          <Button type="button" size="sm" onClick={() => void savePreferences()} disabled={preferencesLoading || preferencesSaving}>{preferencesSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Save schedule</Button>
+          {preferencesMessage && <p className="text-xs text-emerald-600">{preferencesMessage}</p>}
+          {preferencesError && <p className="text-xs text-red-600">{preferencesError}</p>}
         </div>
         {message && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">{message}</p>}
         {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">{error}</p>}

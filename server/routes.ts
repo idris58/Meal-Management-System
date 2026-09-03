@@ -534,6 +534,34 @@ export async function registerRoutes(
     return res.json({ ok: true });
   }));
 
+  app.get("/api/push/preferences", asyncHandler(async (req, res) => {
+    const userId = await getAuthenticatedUserId(req.get("authorization"));
+    if (!userId) return res.status(401).json({ message: "Invalid authorization token." });
+    const supabaseAdmin = assertSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("reminder_time, reminder_timezone")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return res.json({ reminderTime: String(data?.reminder_time || "22:00").slice(0, 5), reminderTimezone: data?.reminder_timezone || "Asia/Dhaka" });
+  }));
+
+  app.put("/api/push/preferences", asyncHandler(async (req, res) => {
+    const userId = await getAuthenticatedUserId(req.get("authorization"));
+    if (!userId) return res.status(401).json({ message: "Invalid authorization token." });
+    const reminderTime = typeof req.body?.reminderTime === "string" ? req.body.reminderTime : "";
+    const reminderTimezone = typeof req.body?.reminderTimezone === "string" ? req.body.reminderTimezone.trim() : "";
+    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(reminderTime)) return res.status(400).json({ message: "Choose a valid reminder time." });
+    if (!reminderTimezone) return res.status(400).json({ message: "Choose a timezone." });
+    try { new Intl.DateTimeFormat("en-US", { timeZone: reminderTimezone }).format(); }
+    catch { return res.status(400).json({ message: "Choose a valid timezone." }); }
+    const supabaseAdmin = assertSupabaseAdmin();
+    const { data, error } = await supabaseAdmin.from("profiles").update({ reminder_time: `${reminderTime}:00`, reminder_timezone: reminderTimezone, updated_at: new Date().toISOString() }).eq("id", userId).select("reminder_time, reminder_timezone").single();
+    if (error) throw error;
+    return res.json({ reminderTime: String(data.reminder_time).slice(0, 5), reminderTimezone: data.reminder_timezone });
+  }));
+
   app.post("/api/push/shared/:token/subscribe", asyncHandler(async (req, res) => {
     const token = String(req.params.token || "").trim();
 

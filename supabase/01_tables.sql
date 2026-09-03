@@ -8,6 +8,8 @@ create table if not exists public.profiles (
   role text not null default 'member' check (role in ('member', 'coordinator', 'manager')),
   mess_id uuid,
   picture_url text,
+  reminder_time time not null default '22:00',
+  reminder_timezone text not null default 'Asia/Dhaka',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
