@@ -4,15 +4,12 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
 
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { ToastAction } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Toaster } from "@/components/ui/toaster";
 import { useAuth, AuthProvider } from "@/lib/auth-context";
-import { Toaster as SonnerToaster } from "sonner";
-import { toast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { MealProvider, useMeal } from "@/lib/meal-context";
 import { NoticeProvider } from "@/lib/notice-context";
-import { useNetworkStatus } from "@/lib/pwa";
 import { OfflineToastManager } from "@/components/offline-toast";
 import { supabase } from "@/lib/supabase";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -360,14 +357,13 @@ function PwaUpdateNotifier() {
 
       waitingRegistrationRef.current = registration;
       hasShownUpdateToast.current = true;
-      toast({
-        title: "New version available",
-        description: "Refresh to load the latest version.",
-        action: (
-          <ToastAction altText="Update app" onClick={activateWaitingServiceWorker}>
-            Update
-          </ToastAction>
-        ),
+      toast.info("New version available", {
+        description: "Refresh to load the latest version of MealTrack.",
+        action: {
+          label: "Update",
+          onClick: activateWaitingServiceWorker,
+        },
+        duration: Infinity,
       });
     };
 
@@ -412,8 +408,6 @@ function App() {
         <PwaUpdateNotifier />
         <AppShell />
         <Toaster />
-        <SonnerToaster position="bottom-right" className="hidden md:block" />
-        <SonnerToaster position="bottom-center" className="md:hidden" style={{ marginBottom: "64px" }} />
       </AuthProvider>
     </ErrorBoundary>
   );

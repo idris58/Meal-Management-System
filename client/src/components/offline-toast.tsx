@@ -49,26 +49,20 @@ export function OfflineToastManager() {
     // On mount, show the offline toast immediately if already offline
     hasMountedRef.current = true;
     if (!isOnline) {
-      toast(
+      toast.warning(
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
-            <WifiOff className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+            <WifiOff className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">You're offline</p>
-            <p className="text-xs text-amber-700 dark:text-amber-300">Changes will sync when back online</p>
+            <p className="text-sm font-semibold text-foreground">You're offline</p>
+            <p className="text-xs text-muted-foreground">Changes will sync when back online</p>
           </div>
         </div>,
         {
           id: OFFLINE_TOAST_ID,
           duration: Infinity,
           dismissible: false,
-          style: {
-            background: 'hsl(48 96% 97%)',
-            border: '1px solid hsl(45 93% 75%)',
-            color: 'hsl(26 83% 14%)',
-          },
-          className: 'dark:!bg-amber-950/90 dark:!border-amber-700/60',
         },
       );
     }
@@ -82,26 +76,20 @@ export function OfflineToastManager() {
 
     if (!isOnline && wasOnline) {
       // Transition: online → offline
-      toast(
+      toast.warning(
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
-            <WifiOff className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+            <WifiOff className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">You're offline</p>
-            <p className="text-xs text-amber-700 dark:text-amber-300">Changes will sync when back online</p>
+            <p className="text-sm font-semibold text-foreground">You're offline</p>
+            <p className="text-xs text-muted-foreground">Changes will sync when back online</p>
           </div>
         </div>,
         {
           id: OFFLINE_TOAST_ID,
           duration: Infinity,
           dismissible: false,
-          style: {
-            background: 'hsl(48 96% 97%)',
-            border: '1px solid hsl(45 93% 75%)',
-            color: 'hsl(26 83% 14%)',
-          },
-          className: 'dark:!bg-amber-950/90 dark:!border-amber-700/60',
         },
       );
     }
@@ -112,22 +100,16 @@ export function OfflineToastManager() {
 
       toast.success(
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50">
-            <CloudUpload className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <CloudUpload className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">Back online!</p>
-            <p className="text-xs text-emerald-700 dark:text-emerald-300">Syncing latest changes…</p>
+            <p className="text-sm font-semibold text-foreground">Back online!</p>
+            <p className="text-xs text-muted-foreground">Syncing latest changes…</p>
           </div>
         </div>,
         {
           duration: 4000,
-          style: {
-            background: 'hsl(138 76% 97%)',
-            border: '1px solid hsl(141 78% 75%)',
-            color: 'hsl(143 64% 14%)',
-          },
-          className: 'dark:!bg-emerald-950/90 dark:!border-emerald-700/60',
         },
       );
 
