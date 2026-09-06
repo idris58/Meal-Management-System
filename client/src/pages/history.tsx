@@ -21,6 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { UndoDeleteGhost } from '@/components/undo-delete-ghost';
+import { MealCountEditor } from '@/components/meal-count-editor';
 
 function formatCurrency(amount: number) {
   return `৳${amount.toFixed(2)}`;
@@ -280,104 +281,6 @@ function PendingExpenseEditor({
           {isSubmitting ? 'Adding...' : 'Add Expense'}
         </Button>
       )}
-    </form>
-  );
-}
-
-function PendingMealEditor({
-  cycleId,
-  details,
-  initialDate,
-  onClose,
-}: {
-  cycleId: string;
-  details: CycleDetails;
-  initialDate?: Date;
-  onClose: () => void;
-}) {
-  const { saveMealLogs } = useMeal();
-  const [date, setDate] = useState<Date>(initialDate ?? new Date());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mealCounts, setMealCounts] = useState<Record<string, string>>(
-    Object.fromEntries(details.members.map((member) => [member.id, '0'])),
-  );
-
-  useEffect(() => {
-    setDate(initialDate ?? new Date());
-  }, [initialDate]);
-
-  useEffect(() => {
-    const shortDate = format(date, 'yyyy-MM-dd');
-    const existingLogs = Object.fromEntries(
-      details.members.map((member) => {
-        const log = details.mealLogs.find((entry) => entry.memberId === member.id && entry.date === shortDate);
-        return [member.id, log ? String(log.count) : '0'];
-      }),
-    );
-    setMealCounts(existingLogs);
-  }, [date, details]);
-
-  const updateCount = (memberId: string, delta: number) => {
-    setMealCounts((prev) => {
-      const nextValue = Math.max(0, parseFloat(prev[memberId] || '0') + delta);
-      return { ...prev, [memberId]: String(nextValue) };
-    });
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-
-    const dateStr = format(date, 'yyyy-MM-dd');
-    try {
-      await saveMealLogs(
-        Object.entries(mealCounts).map(([memberId, count]) => ({
-          memberId,
-          count: parseFloat(count),
-        })),
-        dateStr,
-        cycleId,
-      );
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Select Date</label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full justify-start text-left font-normal">{format(date, 'PPP')}</Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
-            <Calendar mode="single" selected={date} onSelect={(nextDate) => nextDate && setDate(nextDate)} initialFocus />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      <div className="max-h-[45vh] space-y-4 overflow-y-auto pr-2">
-        {details.members.map((member) => (
-          <div key={member.id} className="flex items-center justify-between rounded-lg border bg-secondary/20 p-3">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-              <span className="text-sm font-medium">{member.name}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>-</Button>
-              <Input className="h-8 w-16 px-1 text-center font-bold" value={mealCounts[member.id] ?? '0'} onChange={(event) => setMealCounts((prev) => ({ ...prev, [member.id]: event.target.value }))} />
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>+</Button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? 'Saving...' : 'Save Meal Log'}
-      </Button>
     </form>
   );
 }
@@ -870,10 +773,12 @@ function PendingCycleCard({ details }: { details: CycleDetails }) {
         <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
           <DialogContent>
             <DialogHeader><DialogTitle>{mealDate ? `Edit Meals for ${format(mealDate, 'PPP')}` : 'Add Meal Correction'}</DialogTitle></DialogHeader>
-            <PendingMealEditor
+            <MealCountEditor
               cycleId={details.cycle.id}
-              details={details}
+              members={details.members}
+              mealLogs={details.mealLogs}
               initialDate={mealDate}
+              submitLabel="Save Meal Log"
               onClose={() => {
                 setMealDialogOpen(false);
                 setMealDate(undefined);

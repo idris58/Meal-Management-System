@@ -1,146 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMeal } from '@/lib/meal-context';
 import { useAuth } from '@/lib/auth-context';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Plus, Minus, Utensils, UtensilsCrossed, Calendar as CalendarIcon, Users, Play, Settings2 } from 'lucide-react';
+import { Plus, Utensils, UtensilsCrossed, Calendar as CalendarIcon, Users, Play, Settings2 } from 'lucide-react';
 import { format, eachDayOfInterval, isSameDay, parseISO, min, max, startOfDay } from 'date-fns';
 import { Link } from 'wouter';
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 import { SyncBadge } from '@/components/sync-badge';
+import { MealCountEditor } from '@/components/meal-count-editor';
 
 function formatMealCount(value: number) {
   const rounded = Math.round((value + Number.EPSILON) * 1000) / 1000;
   return rounded.toString();
-}
-
-function QuickLogMeal({
-  onClose,
-  initialDate,
-}: {
-  onClose: () => void;
-  initialDate?: Date;
-}) {
-  const { saveMealLogs, members, mealLogs } = useMeal();
-  const [date, setDate] = useState<Date>(initialDate ?? new Date());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mealCounts, setMealCounts] = useState<Record<string, string>>(
-    Object.fromEntries(members.map(member => [member.id, '0']))
-  );
-
-  useEffect(() => {
-    setDate(initialDate ?? new Date());
-  }, [initialDate]);
-
-  useEffect(() => {
-    const shortDate = format(date, 'yyyy-MM-dd');
-    const existingLogs = Object.fromEntries(
-      members.map(member => {
-        const log = mealLogs.find(entry => entry.memberId === member.id && entry.date === shortDate);
-        return [member.id, log ? log.count.toString() : '0'];
-      })
-    );
-    setMealCounts(existingLogs);
-  }, [date, members, mealLogs]);
-
-  const updateCount = (id: string, delta: number) => {
-    setMealCounts(prev => {
-      const currentVal = parseFloat(prev[id] || '0');
-      const nextVal = Math.max(0, currentVal + delta);
-      return { ...prev, [id]: nextVal.toString() };
-    });
-  };
-
-  const handleInputChange = (id: string, value: string) => {
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setMealCounts(prev => ({ ...prev, [id]: value }));
-    }
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-
-    const dateStr = format(date, 'yyyy-MM-dd');
-
-    try {
-      await saveMealLogs(
-        Object.entries(mealCounts).map(([memberId, countStr]) => ({
-          memberId,
-          count: parseFloat(countStr),
-        })),
-        dateStr,
-      );
-
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Select Date</label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn('w-full justify-start py-2 text-left text-sm font-normal', !date && 'text-muted-foreground')}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, 'PPP') : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(nextDate) => {
-                if (nextDate) {
-                  setDate(nextDate);
-                  const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
-                  document.dispatchEvent(escapeEvent);
-                }
-              }}
-              initialFocus
-              className="p-3"
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      <div className="max-h-[40vh] space-y-4 overflow-y-auto pr-2">
-        {members.map(member => (
-          <div key={member.id} className="flex items-center justify-between rounded-lg border bg-secondary/10 p-2">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-              <span className="max-w-[100px] truncate text-sm font-medium">{member.name}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
-                <Minus className="h-3 w-3" />
-              </Button>
-              <Input
-                className="h-8 w-16 px-1 text-center text-sm font-bold"
-                value={mealCounts[member.id]}
-                onChange={(event) => handleInputChange(member.id, event.target.value)}
-              />
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
-                <Plus className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-      <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
-        {isSubmitting ? 'Saving...' : 'Save Daily Log'}
-      </Button>
-    </form>
-  );
 }
 
 export default function Meals() {
@@ -233,7 +107,9 @@ export default function Meals() {
                     {selectedDate ? `Edit Meals for ${format(selectedDate, 'PPP')}` : 'Log Meals by Date'}
                   </DialogTitle>
                 </DialogHeader>
-                <QuickLogMeal
+                <MealCountEditor
+                  members={members}
+                  mealLogs={mealLogs}
                   initialDate={selectedDate}
                   onClose={() => {
                     setOpenMeal(false);

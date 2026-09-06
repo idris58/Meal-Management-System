@@ -8,9 +8,7 @@ import {
   ChevronRight,
   Clock,
   Loader2,
-  Minus,
   Pencil,
-  Plus,
   RefreshCcw,
   ShoppingBag,
   Sparkles,
@@ -38,6 +36,7 @@ import { DashboardFab } from '@/components/dashboard-fab';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/lib/auth-context';
 import { Link } from 'wouter';
+import { MealCountEditor } from '@/components/meal-count-editor';
 
 const expenseSchema = z.object({
   amount: z.preprocess(
@@ -156,117 +155,6 @@ function QuickAddExpense({ onClose }: { onClose: () => void }) {
         </Button>
       </form>
     </Form>
-  );
-}
-
-function QuickLogMeal({ onClose }: { onClose: () => void }) {
-  const { saveMealLogs, members, mealLogs } = useMeal();
-  const [date, setDate] = useState<Date>(new Date());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mealCounts, setMealCounts] = useState<Record<string, string>>(
-    Object.fromEntries(members.map(m => [m.id, '0']))
-  );
-
-  useEffect(() => {
-    const shortDate = format(date, 'yyyy-MM-dd');
-    const existingLogs = Object.fromEntries(
-      members.map(m => {
-        const log = mealLogs.find(l => l.memberId === m.id && l.date === shortDate);
-        return [m.id, log ? log.count.toString() : '0'];
-      })
-    );
-    setMealCounts(existingLogs);
-  }, [date, members, mealLogs]);
-
-  const updateCount = (id: string, delta: number) => {
-    setMealCounts(prev => {
-      const currentVal = parseFloat(prev[id] || '0');
-      const newVal = Math.max(0, currentVal + delta);
-      return { ...prev, [id]: newVal.toString() };
-    });
-  };
-
-  const handleInputChange = (id: string, value: string) => {
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setMealCounts(prev => ({ ...prev, [id]: value }));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    const dateStr = format(date, 'yyyy-MM-dd');
-    try {
-      await saveMealLogs(
-        Object.entries(mealCounts).map(([memberId, countStr]) => ({
-          memberId,
-          count: parseFloat(countStr),
-        })),
-        dateStr,
-      );
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Select Date</label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn('w-full justify-start py-2 text-left text-sm font-normal', !date && 'text-muted-foreground')}>
-              <CalendarDays className="mr-2 h-4 w-4" />
-              {date ? format(date, 'PPP') : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[18rem] rounded-xl border bg-card p-0 shadow-2xl" align="center">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(d) => {
-                if (d) {
-                  setDate(d);
-                  const event = new KeyboardEvent('keydown', { key: 'Escape' });
-                  document.dispatchEvent(event);
-                }
-              }}
-              initialFocus
-              className="p-3"
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      <div className="max-h-[40vh] space-y-4 overflow-y-auto pr-2">
-        {members.map(member => (
-          <div key={member.id} className="flex items-center justify-between rounded-lg border bg-secondary/10 p-2">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-8 w-8 text-xs"><AvatarFallback>{member.avatar}</AvatarFallback></Avatar>
-              <span className="max-w-[100px] truncate text-sm font-medium">{member.name}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, -0.5)}>
-                <Minus className="h-3 w-3" />
-              </Button>
-              <Input
-                className="h-8 w-16 px-1 text-center text-sm font-bold"
-                value={mealCounts[member.id]}
-                onChange={(e) => handleInputChange(member.id, e.target.value)}
-              />
-              <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCount(member.id, 0.5)}>
-                <Plus className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-      <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
-        {isSubmitting ? 'Saving...' : 'Save Daily Log'}
-      </Button>
-    </form>
   );
 }
 
@@ -650,7 +538,7 @@ function NoActiveCycleCard() {
 // ── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { stats, getMemberStats, members, activeCycle, pendingCycle } = useMeal();
+  const { stats, getMemberStats, members, mealLogs, activeCycle, pendingCycle } = useMeal();
   const [openExpense, setOpenExpense] = useState(false);
   const [openMeal, setOpenMeal] = useState(false);
   const { canManageExpenses, canOperateMeals, canManageCycles } = useAuth();
@@ -750,7 +638,7 @@ export default function Dashboard() {
             <DialogTitle>Log Meals by Date</DialogTitle>
             <DialogDescription>Update meal counts for each member for the selected date.</DialogDescription>
           </DialogHeader>
-          <QuickLogMeal onClose={() => setOpenMeal(false)} />
+          <MealCountEditor members={members} mealLogs={mealLogs} onClose={() => setOpenMeal(false)} />
         </DialogContent>
       </Dialog>
 
