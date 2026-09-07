@@ -358,7 +358,7 @@ function PwaUpdateNotifier() {
       waitingRegistrationRef.current = registration;
       hasShownUpdateToast.current = true;
       toast.info("New version available", {
-        description: "Refresh to load the latest version of MealTrack.",
+        description: "Update to get the latest fixes and features.",
         action: {
           label: "Update",
           onClick: activateWaitingServiceWorker,
