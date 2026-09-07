@@ -3,7 +3,8 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { CalendarIcon, ChefHat, ClipboardCopy, Download, FileImage, FileText, Loader2, Share2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { CalendarIcon, ChefHat, ClipboardCopy, Download, FileImage, FileSpreadsheet, FileText, Loader2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -124,6 +125,63 @@ export default function ReportsPage() {
     autoTable(doc, { startY: 238, head: [['Member', 'Meals', 'Deposit', 'Bill', 'Due', 'Refund']], body: report.rows.map((row) => [row.name, mealCount(row.meals), pdfCurrency(row.deposit), pdfCurrency(row.bill), pdfCurrencyInt(row.balance < 0 ? Math.abs(row.balance) : 0), pdfCurrencyInt(row.balance > 0 ? row.balance : 0)]), theme: 'grid', headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [248, 250, 252] }, styles: { fontSize: 9, cellPadding: 8, textColor: [30, 41, 59] }, columnStyles: { 0: { fontStyle: 'bold' }, 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } }, margin: { left: 40, right: 40 }, didDrawPage: () => { const height = doc.internal.pageSize.getHeight(); doc.setTextColor(100, 116, 139); doc.setFontSize(8); doc.text('Generated via MealTrack', 40, height - 24); } });
     return doc.output('blob');
   };
+  const makeXlsx = () => {
+    const wb = XLSX.utils.book_new();
+    const summaryData: (string | number)[][] = [
+      ['MealTrack - Meal Report'],
+      ['Date Range:', rangeLabel],
+      ['Generated At:', format(generatedAt, 'PPP p')],
+      [],
+      ['Summary Metrics'],
+      ['Total Expenses (Tk)', report.totalExpenses],
+      ['Total Meals', report.totalMeals],
+      ['Meal Rate (Tk)', Number(report.rate.toFixed(4))],
+      [],
+      ['Member Breakdown'],
+      ['Member Name', 'Meals', 'Deposit (Tk)', 'Bill (Tk)', 'Due (Tk)', 'Refund (Tk)', 'Net Balance (Tk)'],
+      ...report.rows.map((row) => [
+        row.name,
+        row.meals,
+        row.deposit,
+        Number(row.bill.toFixed(2)),
+        row.balance < 0 ? Math.round(Math.abs(row.balance)) : 0,
+        row.balance > 0 ? Math.round(row.balance) : 0,
+        Number(row.balance.toFixed(2)),
+      ]),
+    ];
+    const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+    summaryWs['!cols'] = [
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 16 },
+    ];
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+
+    if (details?.expenses?.length) {
+      const expenses = (details.expenses ?? []).filter((item) => isDateInFilterRange(item.date, from, to, fromKey, toKey));
+      const expenseData: (string | number)[][] = [
+        ['Date', 'Title / Description', 'Category', 'Amount (Tk)'],
+        ...expenses.map((exp) => [
+          exp.date,
+          exp.description,
+          exp.type === 'fixed' ? 'Fixed Expense' : 'Meal Expense',
+          exp.amount,
+        ]),
+      ];
+      const expenseWs = XLSX.utils.aoa_to_sheet(expenseData);
+      expenseWs['!cols'] = [{ wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, expenseWs, 'Expenses');
+    }
+
+    const wbOut = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    return new Blob([wbOut], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+  };
   const run = async (task: () => Promise<void>) => { if (isGenerating) return; setIsGenerating(true); try { await task(); } catch (error) { console.error('Report generation failed:', error); toast.error('Could not create report', { description: 'Please try again. If the issue continues, refresh the page.' }); } finally { setIsGenerating(false); } };
   const share = async (blob: Blob, name: string, type: string) => { const file = new File([blob], name, { type }); if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) { try { await navigator.share({ title: 'MealTrack report', files: [file] }); } catch (error) { if ((error as DOMException).name !== 'AbortError') throw error; } return; } download(blob, name); toast.info('Report downloaded', { description: 'Your browser does not support file sharing, so the report was downloaded.' }); };
   return (
@@ -143,7 +201,7 @@ export default function ReportsPage() {
           </div>
         </div>
       </header>
-      <section className="rounded-xl border bg-card p-4 shadow-sm md:p-5"><div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"><div className="grid gap-3 sm:grid-cols-2 xl:w-[500px]"><DatePicker label="From" value={from} onChange={setFrom} disabled={(date) => date > to} /><DatePicker label="To" value={to} onChange={setTo} disabled={(date) => date < from || date > today} /></div><div className="flex flex-wrap gap-2"><DropdownMenu><DropdownMenuTrigger asChild><Button disabled={isGenerating}><Download className="h-4 w-4" /> Export</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Download report</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { download(makePdf(), `${baseName}.pdf`); toast.success('PDF exported', { description: 'Your report download has started.' }); })}><FileText /> PDF</DropdownMenuItem><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); download(blob, `${baseName}.png`); toast.success('PNG exported', { description: 'Your report image download has started.' }); })}><FileImage /> PNG image</DropdownMenuItem></DropdownMenuContent></DropdownMenu><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" disabled={isGenerating}>{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />} Share</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Share report</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { await share(makePdf(), `${baseName}.pdf`, 'application/pdf'); })}><FileText /> Share PDF</DropdownMenuItem><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); await share(blob, `${baseName}.png`, 'image/png'); })}><FileImage /> Share PNG</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw new Error('Clipboard images are not supported.'); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast.success('Image copied', { description: 'The report image is ready to paste.' }); })}><ClipboardCopy /> Copy image</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></div></section>
+      <section className="rounded-xl border bg-card p-4 shadow-sm md:p-5"><div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"><div className="grid gap-3 sm:grid-cols-2 xl:w-[500px]"><DatePicker label="From" value={from} onChange={setFrom} disabled={(date) => date > to} /><DatePicker label="To" value={to} onChange={setTo} disabled={(date) => date < from || date > today} /></div><div className="flex flex-wrap gap-2"><DropdownMenu><DropdownMenuTrigger asChild><Button disabled={isGenerating}><Download className="h-4 w-4" /> Export</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Download report</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { download(makePdf(), `${baseName}.pdf`); toast.success('PDF exported', { description: 'Your report download has started.' }); })}><FileText className="h-4 w-4" /> PDF document</DropdownMenuItem><DropdownMenuItem onSelect={() => void run(async () => { download(makeXlsx(), `${baseName}.xlsx`); toast.success('Excel exported', { description: 'Your spreadsheet download has started.' }); })}><FileSpreadsheet className="h-4 w-4" /> Excel (.xlsx)</DropdownMenuItem><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); download(blob, `${baseName}.png`); toast.success('PNG exported', { description: 'Your report image download has started.' }); })}><FileImage className="h-4 w-4" /> PNG image</DropdownMenuItem></DropdownMenuContent></DropdownMenu><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" disabled={isGenerating}>{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />} Share</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Share report</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { await share(makePdf(), `${baseName}.pdf`, 'application/pdf'); })}><FileText className="h-4 w-4" /> Share PDF</DropdownMenuItem><DropdownMenuItem onSelect={() => void run(async () => { await share(makeXlsx(), `${baseName}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); })}><FileSpreadsheet className="h-4 w-4" /> Share Excel</DropdownMenuItem><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); await share(blob, `${baseName}.png`, 'image/png'); })}><FileImage className="h-4 w-4" /> Share PNG</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => void run(async () => { const { blob } = await makePng(); if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw new Error('Clipboard images are not supported.'); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast.success('Image copied', { description: 'The report image is ready to paste.' }); })}><ClipboardCopy className="h-4 w-4" /> Copy image</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></div></section>
       <div className="mx-auto max-w-4xl overflow-x-auto pb-2"><div ref={previewRef} className="min-w-[820px] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-lg"><div className="flex items-start justify-between bg-slate-950 px-7 py-6 text-white"><div className="flex items-center gap-3"><div className="rounded-xl bg-teal-400 p-2"><ChefHat className="h-6 w-6 text-slate-950" /></div><div><p className="text-xl font-bold">MealTrack</p><p className="text-sm text-slate-300">Meal Report</p></div></div><div className="text-right text-xs text-slate-300"><p className="font-semibold text-white">{rangeLabel}</p><p className="mt-1">Generated {format(generatedAt, 'PPP p')}</p></div></div><div className="p-7"><div className="grid grid-cols-3 gap-4">{[['Total Expenses', currency(report.totalExpenses)], ['Total Meals', mealCount(report.totalMeals)], ['Current Meal Rate', currency(report.rate)]].map(([label, value]) => <div key={label} className="rounded-lg border border-teal-100 bg-teal-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-teal-700">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950">{value}</p></div>)}</div><div className="mt-7 overflow-hidden rounded-lg border border-slate-200"><table className="w-full border-collapse text-sm"><thead className="bg-slate-900 text-left text-white"><tr><th className="p-3">Member</th><th className="p-3 text-right">Meals</th><th className="p-3 text-right">Deposit</th><th className="p-3 text-right">Bill</th><th className="p-3 text-right">Due</th><th className="p-3 text-right">Refund</th></tr></thead><tbody>{report.rows.length ? report.rows.map((row, index) => <tr key={row.id} className={index % 2 ? 'bg-slate-50' : 'bg-white'}><td className="p-3 font-semibold">{row.name}</td><td className="p-3 text-right">{mealCount(row.meals)}</td><td className="p-3 text-right">{currency(row.deposit)}</td><td className="p-3 text-right">{currency(row.bill)}</td><td className="p-3 text-right font-bold text-rose-700">{row.balance < 0 ? currencyInt(Math.abs(row.balance)) : '-'}</td><td className="p-3 text-right font-bold text-emerald-700">{row.balance > 0 ? currencyInt(row.balance) : '-'}</td></tr>) : <tr><td colSpan={6} className="p-10 text-center text-slate-500">No active-cycle members to include in this report.</td></tr>}</tbody></table></div></div><div className="border-t border-slate-200 px-7 py-4 text-center text-xs text-slate-500">Generated via MealTrack</div></div></div>
     </div>
   );
