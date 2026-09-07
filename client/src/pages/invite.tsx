@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 
 type InvitePreview = { mess_name: string; target_member_name: string | null; expires_at: string; status: string };
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function InvitePage({ token }: { token: string }) {
   const [, setLocation] = useLocation();
@@ -21,9 +22,17 @@ export default function InvitePage({ token }: { token: string }) {
 
   useEffect(() => {
     let active = true;
+    setPreview(null);
+    setError(null);
+    setLoading(true);
+    if (!UUID_PATTERN.test(token)) {
+      setError("This invite link was not found.");
+      setLoading(false);
+      return () => { active = false; };
+    }
     void supabase.rpc("get_member_invite_preview", { invite_token: token }).then(({ data, error: previewError }) => {
       if (!active) return;
-      if (previewError || !data?.[0]) setError(previewError?.message ?? "This invite link was not found.");
+      if (previewError || !data?.[0]) setError("This invite link was not found.");
       else setPreview(data[0] as InvitePreview);
       setLoading(false);
     });

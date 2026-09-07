@@ -216,10 +216,28 @@ begin
 end;
 $$;
 
-create or replace function public.get_member_invite_preview(invite_token uuid)
+drop function if exists public.get_member_invite_preview(uuid);
+
+create or replace function public.get_member_invite_preview(invite_token text)
 returns table(mess_name text, target_member_name text, expires_at timestamptz, status text)
-language sql stable security definer set search_path = public
-as $$ select mess.name, member.name, i.expires_at, public.member_invite_status(i) from public.member_invites i join public.messes mess on mess.id = i.mess_id left join public.members member on member.id = i.target_member_id where i.id = invite_token $$;
+language plpgsql stable security definer set search_path = public
+as $$
+declare invite_id uuid;
+begin
+  begin
+    invite_id := invite_token::uuid;
+  exception when invalid_text_representation then
+    return;
+  end;
+
+  return query
+    select mess.name, member.name, i.expires_at, public.member_invite_status(i)
+    from public.member_invites i
+    join public.messes mess on mess.id = i.mess_id
+    left join public.members member on member.id = i.target_member_id
+    where i.id = invite_id;
+end;
+$$;
 
 create or replace function public.accept_member_invite(invite_token uuid)
 returns public.members language plpgsql security definer set search_path = public
@@ -255,7 +273,7 @@ revoke all on function public.create_mess(text), public.set_mess_role(uuid, text
 grant execute on function public.create_mess(text), public.set_mess_role(uuid, text), public.update_mess_settings(text), public.delete_current_mess(), public.update_user_profile(text, text) to authenticated;
 revoke all on function public.migrate_legacy_data(text), public.link_member_profile(uuid, uuid), public.create_member_invite(uuid), public.list_member_invites(), public.revoke_member_invite(uuid), public.accept_member_invite(uuid) from public;
 grant execute on function public.migrate_legacy_data(text), public.link_member_profile(uuid, uuid), public.create_member_invite(uuid), public.list_member_invites(), public.revoke_member_invite(uuid), public.accept_member_invite(uuid) to authenticated;
-revoke all on function public.get_member_invite_preview(uuid) from public;
-grant execute on function public.get_member_invite_preview(uuid) to anon, authenticated;
+revoke all on function public.get_member_invite_preview(text) from public;
+grant execute on function public.get_member_invite_preview(text) to anon, authenticated;
 grant execute on function public.get_notification_preferences() to authenticated;
 grant execute on function public.update_notification_preferences(time) to authenticated;
